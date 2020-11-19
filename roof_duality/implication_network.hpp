@@ -16,6 +16,7 @@
 #
 ================================================================================================
 */
+
 #ifndef IMPLICATION_NETWORK_HPP_INCLUDED
 #define IMPLICATION_NETWORK_HPP_INCLUDED
 

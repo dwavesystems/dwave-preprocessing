@@ -16,6 +16,7 @@
 #
 ================================================================================================
 */
+
 #ifndef HELPER_GRAPH_ALGORITHM_HPP_INCLUDED
 #define HELPER_GRAPH_ALGORITHM_HPP_INCLUDED
 
@@ -92,7 +93,12 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
   }
 
   if (excess[sink] != -excess[source]) {
-    std::cout << "Flow out of source is not equal to flow into sink."
+    std::cout << "Flow out of source : " << -excess[source]
+              << " is not equal to flow into sink : " << excess[sink]
+              << std::endl;
+    std::cout << "Difference is : "
+              << std::llabs(std::llabs(excess[source]) -
+                            std::llabs(excess[sink]))
               << std::endl;
     valid_flow = false;
   }
