@@ -111,6 +111,9 @@ public:
 
   void makeResidualSymmetric();
 
+  std::vector<std::vector<int>> &
+  extractResidualNetwork(bool free_original_adjacency_list = true);
+
   void print();
 
   int getSource() { return _source; }
@@ -118,6 +121,7 @@ public:
   int getSink() { return _sink; }
 
   std::vector<std::vector<ImplicationEdge<capacity_t>>> &getAdjacencyList() {
+    checkAdjacencyListValidity();
     return _adjacency_list;
   }
 
@@ -125,6 +129,19 @@ private:
   inline int complement(int v) {
     return (v <= _num_variables) ? (v + _num_variables + 1)
                                  : (v - _num_variables - 1);
+  }
+
+  // We may free the memory of adjacency list after crucial operations have
+  // completed. Thus public functions may need to check the validity of the
+  // adjacency list before operating.
+  void checkAdjacencyListValidity() {
+    if (!_adjacency_list_valid) {
+      std::cout << std::endl;
+      std::cout << "Function requiring adjacency list of implication network "
+                   "called after releasing its memory."
+                << std::endl;
+      exit(1);
+    }
   }
 
   void fillLastOutEdgeReferences(int from_vertex, int to_vertex);
@@ -135,7 +152,9 @@ private:
   int _num_vertices;
   int _source;
   int _sink;
+  bool _adjacency_list_valid;
   std::vector<std::vector<ImplicationEdge<capacity_t>>> _adjacency_list;
+  std::vector<std::vector<int>> _adjacency_list_residual;
 };
 
 template <class capacity_t>
@@ -204,6 +223,7 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
       }
     }
   }
+  _adjacency_list_valid = true;
 }
 
 // Make the residual network symmetric, by summing the residual capacities and
@@ -211,11 +231,13 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
 // capacities by 2, since the symmetric edges have same capacity.
 template <class capacity_t>
 void ImplicationNetwork<capacity_t>::makeResidualSymmetric() {
-  for (int i = 0, i_end = _adjacency_list.size(); i < i_end; i++) {
-    auto eit = _adjacency_list[i].begin();
-    auto eit_end = _adjacency_list[i].end();
+  checkAdjacencyListValidity();
+#pragma omp parallel for
+  for (int vertex = 0; vertex < _num_vertices; vertex++) {
+    auto eit = _adjacency_list[vertex].begin();
+    auto eit_end = _adjacency_list[vertex].end();
     for (; eit != eit_end; eit++) {
-      int from_vertex = i;
+      int from_vertex = vertex;
       int from_vertex_complement = complement(from_vertex);
       int from_vertex_base = std::min(from_vertex, from_vertex_complement);
       int to_vertex = eit->to_vertex;
@@ -244,7 +266,54 @@ void ImplicationNetwork<capacity_t>::makeResidualSymmetric() {
   }
 }
 
+// We extract the adjacency list that contains only the edges in the
+// implication network with positive residual capacity, we will run later
+// algorithms on the extracted adjacency list. For a single thread this may or
+// may not be slower when compared to working with the original network due to
+// the extra step but if the graph is large and if we take advantage of
+// parallelism we are supposed to get better performance ase there will be less
+// page faults and more vertices/edges will fit into the cache due to smaller
+// memory footprint of the extracted graph and also due to the fact that we can
+// reduce the cost of extraction using multiple threads.
+template <class capacity_t>
+std::vector<std::vector<int>> &
+ImplicationNetwork<capacity_t>::extractResidualNetwork(
+    bool free_original_adjacency_list) {
+  checkAdjacencyListValidity();
+  _adjacency_list_residual.resize(_num_vertices);
+#pragma omp parallel
+  {
+    std::vector<int> temp_buffer(_num_vertices);
+#pragma omp for
+    for (int vertex = 0; vertex < _num_vertices; vertex++) {
+      int num_residual_out_edges = 0;
+      auto eit = _adjacency_list[vertex].begin();
+      auto eit_end = _adjacency_list[vertex].end();
+      for (; eit != eit_end; eit++) {
+        if (eit->residual > 0) {
+          temp_buffer[num_residual_out_edges++] = eit->to_vertex;
+        }
+      }
+      if (free_original_adjacency_list) {
+        std::vector<ImplicationEdge<capacity_t>>().swap(
+            _adjacency_list[vertex]);
+      }
+      _adjacency_list_residual[vertex].assign(
+          temp_buffer.begin(), temp_buffer.begin() + num_residual_out_edges);
+    }
+  }
+
+  if (free_original_adjacency_list) {
+    std::vector<std::vector<ImplicationEdge<capacity_t>>>().swap(
+        _adjacency_list);
+    _adjacency_list_valid = false;
+  }
+
+  return _adjacency_list_residual;
+}
+
 template <class capacity_t> void ImplicationNetwork<capacity_t>::print() {
+  checkAdjacencyListValidity();
   std::cout << std::endl;
   std::cout << "Implication Graph Information : " << std::endl;
   std::cout << "Num Variables : " << _num_variables << std::endl;
