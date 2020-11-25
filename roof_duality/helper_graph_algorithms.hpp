@@ -209,4 +209,95 @@ isMaximumFlow(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
           (validity_result.second && (depth_values[source] == num_vertices))};
 }
 
+// Tarzan's strongly connected component algoirhtm using iterative depth first
+// search. For more detail on the iterative version of the depth first search,
+// look at the comments in the iterative depth first search in the
+// convertPreflowToFlow function in push_relabel.hpp.
+int stronglyConnectedComponents(std::vector<std::vector<int>> &adjacency_list,
+                                std::vector<int> &components) {
+  int num_vertices = adjacency_list.size();
+  using edge_iterator = typename std::vector<int>::iterator;
+  components.resize(num_vertices);
+  vector_based_stack<int> component_stack(num_vertices);
+  std::vector<bool> in_stack(num_vertices, false);
+  int UNVISITED = num_vertices;
+  std::vector<int> low_link_id(num_vertices, UNVISITED);
+  std::vector<int> vertex_visit_id(num_vertices, UNVISITED);
+  std::vector<int> parent(num_vertices);
+  int visit_id = 0;
+  int num_strong_components = 0;
+  std::vector<std::pair<edge_iterator, edge_iterator>> pending_out_edges(
+      num_vertices);
+
+  for (int vertex = 0; vertex < num_vertices; vertex++) {
+    pending_out_edges[vertex] = {adjacency_list[vertex].begin(),
+                                 adjacency_list[vertex].end()};
+  }
+
+  // Iterative DFS.
+  for (int current_vertex = 0; current_vertex < num_vertices;
+       current_vertex++) {
+    if (vertex_visit_id[current_vertex] == UNVISITED) {
+
+      // The root of a DFS tree.
+      int root_vertex = current_vertex;
+      vertex_visit_id[current_vertex] = visit_id;
+      low_link_id[current_vertex] = visit_id;
+      visit_id++;
+      component_stack.push(current_vertex);
+      in_stack[current_vertex] = true;
+      while (true) {
+        for (; pending_out_edges[current_vertex].first !=
+               pending_out_edges[current_vertex].second;
+             pending_out_edges[current_vertex].first++) {
+          int child_vertex = *(pending_out_edges[current_vertex].first);
+          if (vertex_visit_id[child_vertex] == UNVISITED) {
+            vertex_visit_id[child_vertex] = visit_id;
+            low_link_id[child_vertex] = visit_id;
+            visit_id++;
+            component_stack.push(child_vertex);
+            in_stack[child_vertex] = true;
+
+            // Recursive DFS call.
+            parent[child_vertex] = current_vertex;
+            current_vertex = child_vertex;
+            break;
+          } else if (in_stack[child_vertex]) {
+            low_link_id[current_vertex] = std::min(low_link_id[current_vertex],
+                                                   low_link_id[child_vertex]);
+          }
+        }
+
+        // Finished exploring current vertex, edges.
+        if (pending_out_edges[current_vertex].first ==
+            pending_out_edges[current_vertex].second) {
+          if (low_link_id[current_vertex] == vertex_visit_id[current_vertex]) {
+            int popped_vertex = -1;
+            do {
+              popped_vertex = component_stack.pop();
+              in_stack[popped_vertex] = false;
+              components[popped_vertex] = num_strong_components;
+            } while (popped_vertex != current_vertex);
+            num_strong_components++;
+          }
+          if (current_vertex != root_vertex) {
+            int completed_vertex = current_vertex;
+            current_vertex = parent[current_vertex];
+
+            // This is the DFS callback, here the recursive function has
+            // returned and we can perform the comparison with the low link id
+            // of the child node.
+            low_link_id[current_vertex] = std::min(
+                low_link_id[current_vertex], low_link_id[completed_vertex]);
+            pending_out_edges[current_vertex].first++;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+  }
+  return num_strong_components;
+}
+
 #endif // HELPER_GRAPH_ALGORITHM_HPP_INCLUDED
