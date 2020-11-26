@@ -16,6 +16,7 @@
 #
 ================================================================================================
 */
+
 #ifndef POSIFORM_INFORMATION_HPP_INCLUDED
 #define POSIFORM_INFORMATION_HPP_INCLUDED
 
@@ -77,8 +78,8 @@ public:
   }
 
   // For iterating the quadratic biases, we need the
-  // convertToPosiformCoefficient and getMappedVariable functions, since the
-  // iterators belong to the bqm.
+  // convertToPosiformCoefficient and mapVariableQuboToPosiform functions, since
+  // the iterators belong to the bqm.
 
   inline std::pair<quadratic_iterator_type, quadratic_iterator_type>
   getQuadratic(int i) {
@@ -86,8 +87,13 @@ public:
   }
 
   // Convert bqm variable to posiform variable.
-  inline int getMappedVariable(int i) {
+  inline int mapVariableQuboToPosiform(int i) {
     return _bqm_to_posiform_variable_map[i];
+  }
+
+  // Convert posiform variable to bqm variable.
+  inline int mapVariablePosiformToQubo(int i) {
+    return _posiform_to_bqm_variable_map[i];
   }
 
   inline coefficient_type convertToPosiformCoefficient(bias_type bias) {

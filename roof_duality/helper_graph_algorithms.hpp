@@ -21,6 +21,7 @@
 #define HELPER_GRAPH_ALGORITHM_HPP_INCLUDED
 
 #include <algorithm>
+#include <atomic>
 #include <iostream>
 #include <vector>
 
@@ -298,6 +299,119 @@ int stronglyConnectedComponents(std::vector<std::vector<int>> &adjacency_list,
     }
   }
   return num_strong_components;
+}
+
+void getTransposedAdjacencyList(std::vector<std::vector<int>> original,
+                                std::vector<std::vector<int>> &transposed) {
+  int num_vertices = original.size();
+  std::atomic<int> *transposed_sizes =
+      (std::atomic<int> *)malloc(num_vertices * sizeof(std::atomic<int>));
+  for (int i = 0; i < num_vertices; i++) {
+    transposed_sizes[i] = 0;
+  }
+  transposed.resize(num_vertices);
+
+#pragma omp parallel for
+  for (int i = 0; i < num_vertices; i++) {
+    auto eit = original[i].begin();
+    auto eit_end = original[i].end();
+    for (; eit != eit_end; eit++) {
+      transposed_sizes[*eit]++;
+    }
+  }
+
+  for (int i = 0; i < num_vertices; i++) {
+    transposed[i].reserve(transposed_sizes[i]);
+  }
+
+  for (int i = 0; i < num_vertices; i++) {
+    auto eit = original[i].begin();
+    auto eit_end = original[i].end();
+    for (; eit != eit_end; eit++) {
+      transposed[*eit].push_back(i);
+    }
+  }
+
+  free(transposed_sizes);
+}
+
+// Perform breadth first search from a certain vertex, a depth equal to  the
+// number of vertices means that vertex could not be reached from the
+// start_vertex, since the maximum depth can be equal to number of vertices -1.
+void breadthFirstSearchSimple(std::vector<std::vector<int>> &adjacency_list,
+                              int start_vertex, std::vector<int> &depth_values,
+                              bool print_result = false) {
+  int num_vertices = adjacency_list.size();
+  vector_based_queue<int> vertex_queue(num_vertices);
+  depth_values.resize(num_vertices);
+  std::fill(depth_values.begin(), depth_values.end(), num_vertices);
+
+  depth_values[start_vertex] = 0;
+  vertex_queue.push(start_vertex);
+
+  while (!vertex_queue.empty()) {
+    int v_parent = vertex_queue.pop();
+    int current_depth = depth_values[v_parent] + 1;
+    auto eit = adjacency_list[v_parent].begin();
+    auto eit_end = adjacency_list[v_parent].end();
+    for (; eit != eit_end; eit++) {
+      int to_vertex = *eit;
+      if (depth_values[to_vertex] == num_vertices) {
+        depth_values[to_vertex] = current_depth;
+        vertex_queue.push(to_vertex);
+      }
+    }
+  }
+}
+
+// We create the graph of strongly connected graphs, while processing each
+// strongly connected component in parallel. Given the sizes of different
+// components may vary widely, parallelism applied in this fashion is not the
+// most efficient but if we try to parallelize over all the vertices of the
+// residual graph where all threads would write into the adjacency matrix of
+// strongly connected components whether the edges of a vertex contribute an
+// entry to that matrix or not, it would require us to allocate that adjacency
+// matrix which may be very large if the number of strongly connected components
+// is nearly equal to the number of vertices and we would risk memory allocation
+// failure.
+void createGraphOfStronglyConnectedComponents(
+    std::vector<int> &vertex_to_component_map,
+    std::vector<std::vector<int>> &components,
+    std::vector<std::vector<int>> &adjacency_list_residual,
+    std::vector<std::vector<int>> &adjacency_list_components) {
+#pragma omp parallel
+  {
+    int num_components = components.size();
+    std::vector<int> temp_buffer(num_components);
+    std::vector<bool> has_edge_to_component(num_components, false);
+#pragma omp for
+    for (int component = 0; component < num_components; component++) {
+      int num_out_edges = 0;
+      auto vit = components[component].begin();
+      auto vit_end = components[component].end();
+      for (; vit != vit_end; vit++) {
+        int vertex = *vit;
+        auto eit = adjacency_list_residual[vertex].begin();
+        auto eit_end = adjacency_list_residual[vertex].end();
+        for (; eit != eit_end; eit++) {
+          int to_component = vertex_to_component_map[*eit];
+          if (!has_edge_to_component[to_component]) {
+            has_edge_to_component[to_component] = true;
+            temp_buffer[num_out_edges++] = to_component;
+          }
+        }
+      }
+
+      adjacency_list_components[component].assign(
+          temp_buffer.begin(), temp_buffer.begin() + num_out_edges);
+
+      // We have to reinitialize the hash table, instead of using std::clear
+      // this is faster as we clear only the set elements.
+      for (int i = 0; i < num_out_edges; i++) {
+        has_edge_to_component[temp_buffer[i]] = false;
+      }
+    }
+  }
 }
 
 #endif // HELPER_GRAPH_ALGORITHM_HPP_INCLUDED
