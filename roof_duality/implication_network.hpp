@@ -170,7 +170,7 @@ private:
                                      capacity_t capacity);
 
   void postProcessStronglyConnectedComponents(
-      stronglyConnectedComponentsInfo &component_info);
+      stronglyConnectedComponentsInfo &scc_info);
 
   void fixTriviallyStrongVariables(
       std::vector<std::pair<int, int>> &fixed_variables);
@@ -404,7 +404,7 @@ void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
       _adjacency_list, _source, _sink);
   push_relabel_solver.computeMaximumFlow(false);
 
-  vector<int> bfs_depth_values;
+  std::vector<int> bfs_depth_values;
   breadthFirstSearch(_adjacency_list, _source, bfs_depth_values, false, true);
 
   fixed_variables.reserve(_num_variables);
@@ -423,20 +423,20 @@ void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
 
 template <class capacity_t>
 void ImplicationNetwork<capacity_t>::postProcessStronglyConnectedComponents(
-    stronglyConnectedComponentsInfo &component_info) {
-  int num_components = component_info.num_components;
-  component_info.components.resize(num_components);
+    stronglyConnectedComponentsInfo &scc_info) {
+  int num_components = scc_info.num_components;
+  scc_info.components.resize(num_components);
   std::vector<int> component_sizes(num_components, 0);
 
-  auto &vertex_to_component_map = component_info.vertex_to_component_map;
-  component_info.source_component = vertex_to_component_map[_source];
-  component_info.sink_component = vertex_to_component_map[_sink];
+  auto &vertex_to_component_map = scc_info.vertex_to_component_map;
+  scc_info.source_component = vertex_to_component_map[_source];
+  scc_info.sink_component = vertex_to_component_map[_sink];
 
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
     component_sizes[vertex_to_component_map[vertex]]++;
   }
 
-  auto &components = component_info.components;
+  auto &components = scc_info.components;
   for (int component = 0; component < num_components; component++) {
     components.reserve(component_sizes[component]);
   }
@@ -445,7 +445,7 @@ void ImplicationNetwork<capacity_t>::postProcessStronglyConnectedComponents(
     components[vertex_to_component_map[vertex]].push_back(vertex);
   }
 
-  auto &complement_map = component_info.complement_map;
+  auto &complement_map = scc_info.complement_map;
   complement_map.resize(num_components);
 
   for (int component = 0; component < num_components; component++) {
@@ -484,8 +484,8 @@ void ImplicationNetwork<capacity_t>::postProcessStronglyConnectedComponents(
     std::cout << i << "  " << vertex_to_component_map[i] << std::endl;
   }
   std::cout << std::endl;
-  std::cout << "Source component " << component_info.source_component
-            << " Sink component " << component_info.sink_component << std::endl;
+  std::cout << "Source component " << scc_info.source_component
+            << " Sink component " << scc_info.sink_component << std::endl;
   for (int i = 0; i < num_components; i++) {
     std::cout << "component " << i << " complement " << complement_map[i]
               << std::endl;
@@ -509,19 +509,125 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
   std::vector<std::vector<int>> adjacency_list_residual;
   extractResidualNetworkWithoutSourceInSinkOut(adjacency_list_residual, true);
 
-  stronglyConnectedComponentsInfo component_info;
-  component_info.num_components = stronglyConnectedComponents(
-      adjacency_list_residual, component_info.vertex_to_component_map);
-  postProcessStronglyConnectedComponents(component_info);
+  stronglyConnectedComponentsInfo scc_info;
+  scc_info.num_components = stronglyConnectedComponents(
+      adjacency_list_residual, scc_info.vertex_to_component_map);
+  postProcessStronglyConnectedComponents(scc_info);
 
   std::vector<std::vector<int>> adjacency_list_components;
   createGraphOfStronglyConnectedComponents(
-      component_info.vertex_to_component_map, component_info.components,
+      scc_info.vertex_to_component_map, scc_info.components,
       adjacency_list_residual, adjacency_list_components);
 
   std::vector<std::vector<int>> adjacency_list_components_transposed;
   getTransposedAdjacencyList(adjacency_list_components,
                              adjacency_list_components_transposed);
+
+  std::vector<int> bfs_depth_values;
+  int unvisited = adjacency_list_components.size();
+  breadthFirstSearchSimple(adjacency_list_components, scc_info.source_component,
+                           bfs_depth_values);
+
+  auto &num_components = scc_info.num_components;
+  auto &components = scc_info.components;
+  auto &complement_map = scc_info.complement_map;
+
+  fixed_variables.reserve(_num_variables);
+  vector_based_queue<int> component_queue(num_components);
+  std::vector<int> out_degrees(num_components, -1);
+
+  for (int component = 0; component < num_components; component++) {
+    if (complement_map[component] != component) {
+      out_degrees[component] = adjacency_list_components[component].size();
+    }
+  }
+
+  out_degrees[scc_info.source_component] = -1;
+  out_degrees[scc_info.sink_component] = -1;
+
+  for (int component = 0; component < num_components; component++) {
+    if ((bfs_depth_values[component] != 0) &&
+        (bfs_depth_values[component] != unvisited)) {
+      int complement_component = complement_map[component];
+      out_degrees[component] = -1;
+      out_degrees[complement_component] = -1;
+
+      auto vit = components[component].begin();
+      auto vit_end = components[component].end();
+      for (; vit != vit_end; vit++) {
+        int vertex = *vit;
+        int base_vertex = base(vertex);
+        fixed_variables.push_back(
+            {base_vertex, (vertex == base_vertex) ? 1 : 0});
+      }
+
+      auto eit = adjacency_list_components_transposed[component].begin();
+      auto eit_end = adjacency_list_components_transposed[component].end();
+      for (; eit != eit_end; eit++) {
+        // This is the transpose of the adjacency matrix of components, so edges
+        // are coming from the other components.
+        int from_component = *eit;
+        if (out_degrees[from_component] > 0) {
+          out_degrees[from_component]--;
+        }
+      }
+
+      eit = adjacency_list_components_transposed[complement_component].begin();
+      eit_end =
+          adjacency_list_components_transposed[complement_component].end();
+      for (; eit != eit_end; eit++) {
+        int from_component = *eit;
+        if (out_degrees[from_component] > 0) {
+          out_degrees[from_component]--;
+        }
+      }
+    }
+  }
+
+  for (int component = 0; component < num_components; component++) {
+    if (out_degrees[component] == 0) {
+      component_queue.push(component);
+    }
+  }
+
+  while (!component_queue.empty()) {
+    int component = component_queue.pop();
+    int complement_component = complement_map[component];
+    out_degrees[component] = -1;
+    out_degrees[complement_component] = -1;
+
+    auto vit = components[component].begin();
+    auto vit_end = components[component].end();
+    for (; vit != vit_end; vit++) {
+      int vertex = *vit;
+      int base_vertex = base(vertex);
+      fixed_variables.push_back({base_vertex, (vertex == base_vertex) ? 1 : 0});
+    }
+
+    auto eit = adjacency_list_components_transposed[component].begin();
+    auto eit_end = adjacency_list_components_transposed[component].end();
+    for (; eit != eit_end; eit++) {
+      // This is the transpose of the adjacency matrix of components, so edges
+      // are coming from the other components.
+      int from_component = *eit;
+      if (out_degrees[from_component] > 0) {
+        out_degrees[from_component]--;
+        component_queue.push(from_component);
+      }
+    }
+
+    eit = adjacency_list_components_transposed[complement_component].begin();
+    eit_end = adjacency_list_components_transposed[complement_component].end();
+    for (; eit != eit_end; eit++) {
+      // This is the transpose of the adjacency matrix of components, so edges
+      // are coming from the other components.
+      int from_component = *eit;
+      if (out_degrees[from_component] > 0) {
+        out_degrees[from_component]--;
+        component_queue.push(from_component);
+      }
+    }
+  }
 }
 
 template <class capacity_t>

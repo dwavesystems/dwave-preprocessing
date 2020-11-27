@@ -395,7 +395,8 @@ void createGraphOfStronglyConnectedComponents(
         auto eit_end = adjacency_list_residual[vertex].end();
         for (; eit != eit_end; eit++) {
           int to_component = vertex_to_component_map[*eit];
-          if (!has_edge_to_component[to_component]) {
+          if ((to_component != component) &&
+              (!has_edge_to_component[to_component])) {
             has_edge_to_component[to_component] = true;
             temp_buffer[num_out_edges++] = to_component;
           }
