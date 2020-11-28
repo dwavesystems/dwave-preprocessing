@@ -53,7 +53,7 @@
 // https://doi.org/10.1007/PL00009180.
 template <class EdgeType> class PushRelabelSolver {
 public:
-  using edge_iterator = typename vector<EdgeType>::iterator;
+  using edge_iterator = typename std::vector<EdgeType>::iterator;
   using capacity_t = typename EdgeType::capacity_type;
 
   // We use preallocated vertex nodes for maintaining the linked list since we

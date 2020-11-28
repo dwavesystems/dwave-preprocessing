@@ -23,9 +23,7 @@
 #include "implication_network.hpp"
 #include "posiform_info.hpp"
 
-typedef capacity_type long long int;
-
-namespace {
+namespace fix_variables_ {
 
 class compClass {
 public:
@@ -37,6 +35,8 @@ public:
   }
 };
 
+typedef long long int capacity_type;
+
 template <class PosiformInfo>
 void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
                       bool sample,
@@ -47,15 +47,16 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
   implication_network.fixVariables(fixed_variables_posiform, sample);
 
   for (int i = 0; i < fixed_variables_posiform.size(); i++) {
-    int bqm_variable =
-        pi.mapVariablePosiformToQubo(fixed_variables_posiform[i].first);
+    int bqm_variable = posiform_info.mapVariablePosiformToQubo(
+        fixed_variables_posiform[i].first);
     fixed_variables.push_back(
         {bqm_variable, fixed_variables_posiform[i].second});
   }
 
   if (!sample) {
-    for (int bqm_variable = 0; bqm_variable < numVars; bqm_variable++) {
-      if (pi.mapVariableQuboToPosiform(bqm_variable) < 0) {
+    for (int bqm_variable = 0; bqm_variable < num_bqm_variables;
+         bqm_variable++) {
+      if (posiform_info.mapVariableQuboToPosiform(bqm_variable) < 0) {
         fixed_variables.push_back({bqm_variable, 1});
       }
     }
@@ -69,6 +70,7 @@ std::vector<std::pair<int, int>>
 fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool sample) {
   int num_bqm_variables = bqm.num_variables();
   PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
+  std::vector<std::pair<int, int>> fixed_variables;
   fixQuboVariables(posiform_info, num_bqm_variables, sample, fixed_variables);
   return fixed_variables;
 }
@@ -77,7 +79,8 @@ template <class V, class B>
 std::vector<std::pair<int, int>> fixQuboVariables(dimod::AdjArrayBQM<V, B> &bqm,
                                                   bool sample) {
   int num_bqm_variables = bqm.num_variables();
-  PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
+  PosiformInfo<dimod::AdjArrayBQM<V, B>, capacity_type> posiform_info(bqm);
+  std::vector<std::pair<int, int>> fixed_variables;
   fixQuboVariables(posiform_info, num_bqm_variables, sample, fixed_variables);
   return fixed_variables;
 }
@@ -86,9 +89,10 @@ template <class V, class B>
 std::vector<std::pair<int, int>> fixQuboVariables(dimod::AdjMapBQM<V, B> &bqm,
                                                   bool sample) {
   int num_bqm_variables = bqm.num_variables();
-  PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
+  PosiformInfo<dimod::AdjMapBQM<V, B>, capacity_type> posiform_info(bqm);
+  std::vector<std::pair<int, int>> fixed_variables;
   fixQuboVariables(posiform_info, num_bqm_variables, sample, fixed_variables);
   return fixed_variables;
 }
 
-} // namespace
+} // namespace fix_variables_

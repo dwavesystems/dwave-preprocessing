@@ -50,9 +50,6 @@ def fix_variables_wrapper(bqm, method):
     if method < 1 or method > 2:
         raise ValueError("method should 1 or 2")
 
-    t0 = time.perf_counter()
     cdef cyAdjVectorBQM cvbqm = bqm
-    fixed_2 = fixQuboVariables[VarIndex, Bias](cvbqm.bqm_, int(method));
-    t1 = time.perf_counter()
-    print("Time taken by new  method ", t1 -t0 )
+    fixed = fixQuboVariables[VarIndex, Bias](cvbqm.bqm_, int(method));
     return {int(v): int(val) for v, val in fixed}

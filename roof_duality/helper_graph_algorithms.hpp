@@ -29,15 +29,18 @@
 
 // Check if the flow value in a given graph represented as an adjacency list is
 // valid or not.
+// @param adjacency_list the adjacency list of the flow network to test for.
+// @source the source considered for calcualting flow.
+// @sink the sink considered for calculating flow.
+// @return std::pair<the value of flow, if flow is valid or not>
 template <class EdgeType>
 std::pair<typename EdgeType::capacity_type, bool>
 isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
             int sink) {
-
   using capacity_t = typename EdgeType::capacity_type;
-
   bool valid_flow = true;
-  std::vector<capacity_t> excess(adjacency_list.size(), 0);
+  int num_vertices = adjacency_list.size();
+  std::vector<capacity_t> excess(num_vertices, 0);
 
   std::cout << "Validating flow of flow network ..." << std::endl;
 
@@ -45,9 +48,9 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
   // value of residual/capacity of a reverse edge from its counterpart
   // which we generally do for performance reasons. Here we will actually
   // access the data and verify if the flow constraints hold or not.
-  for (int i = 0; i < adjacency_list.size(); i++) {
-    auto eit = adjacency_list[i].begin();
-    auto eit_end = adjacency_list[i].end();
+  for (int from_vertex = 0; from_vertex < num_vertices; from_vertex++) {
+    auto eit = adjacency_list[from_vertex].begin();
+    auto eit_end = adjacency_list[from_vertex].end();
     for (; eit != eit_end; eit++) {
       int to_vertex = eit->to_vertex;
       auto reverse_eit =
@@ -70,7 +73,7 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
                      ((edge_residual + reverse_edge_residual) == edge_capacity);
 
         capacity_t flow = (edge_capacity - edge_residual);
-        excess[i] -= flow;
+        excess[from_vertex] -= flow;
         excess[to_vertex] += flow;
       }
       if (!valid_edge) {
@@ -82,13 +85,13 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
     }
   }
 
-  for (int i = 0; i < excess.size(); i++) {
-    if ((i == source) || (i == sink)) {
+  for (int vertex = 0; vertex < num_vertices; vertex++) {
+    if ((vertex == source) || (vertex == sink)) {
       continue;
     }
-    if (excess[i]) {
-      std::cout << "Excess flow of " << excess[i] << " in vertex : " << i
-                << std::endl;
+    if (excess[vertex]) {
+      std::cout << "Excess flow of " << excess[vertex]
+                << " in vertex : " << vertex << std::endl;
       valid_flow = false;
     }
   }
@@ -107,18 +110,21 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
   return {excess[sink], valid_flow};
 }
 
-// Perform breadth first search from a certain vertex, a depth equal to  the
-// number of vertices means that vertex could not be reached from the
-// start_vertex, since the maximum depth can be equal to number of vertices -1.
+// Perform breadth first search on a residual graph from a certain vertex, a
+// depth equal to  the number of vertices means that vertex could not be reached
+// from the start_vertex, since the maximum depth can be equal to number of
+// vertices -1.
 template <class EdgeType>
-void breadthFirstSearch(std::vector<std::vector<EdgeType>> &adjacency_list,
-                        int start_vertex, std::vector<int> &depth_values,
-                        bool reverse = false, bool print_result = false) {
+int breadthFirstSearchResidual(
+    std::vector<std::vector<EdgeType>> &adjacency_list, int start_vertex,
+    std::vector<int> &depth_values, bool reverse = false,
+    bool print_result = false) {
   using capacity_t = typename EdgeType::capacity_type;
   int num_vertices = adjacency_list.size();
+  int UNVISITED = num_vertices;
   vector_based_queue<int> vertex_queue(num_vertices);
   depth_values.resize(num_vertices);
-  std::fill(depth_values.begin(), depth_values.end(), num_vertices);
+  std::fill(depth_values.begin(), depth_values.end(), UNVISITED);
 
   depth_values[start_vertex] = 0;
   vertex_queue.push(start_vertex);
@@ -134,7 +140,7 @@ void breadthFirstSearch(std::vector<std::vector<EdgeType>> &adjacency_list,
       for (; eit != eit_end; eit++) {
         int to_vertex = eit->to_vertex;
         if (eit->getReverseEdgeResidual() &&
-            depth_values[to_vertex] == num_vertices) {
+            depth_values[to_vertex] == UNVISITED) {
           depth_values[to_vertex] = current_depth;
           vertex_queue.push(to_vertex);
         }
@@ -148,7 +154,7 @@ void breadthFirstSearch(std::vector<std::vector<EdgeType>> &adjacency_list,
       auto eit_end = adjacency_list[v_parent].end();
       for (; eit != eit_end; eit++) {
         int to_vertex = eit->to_vertex;
-        if (eit->residual && depth_values[to_vertex] == num_vertices) {
+        if (eit->residual && depth_values[to_vertex] == UNVISITED) {
           depth_values[to_vertex] = current_depth;
           vertex_queue.push(to_vertex);
         }
@@ -170,11 +176,11 @@ void breadthFirstSearch(std::vector<std::vector<EdgeType>> &adjacency_list,
     for (int i = 0; i < depth_values.size(); i++) {
       levels[depth_values[i]].push_back(i);
     }
-    std::cout << endl;
+    std::cout << std::endl;
     std::cout << "Printing " << (reverse ? "reverse " : "")
               << "breadth first search result starting from vertex : "
               << start_vertex << std::endl;
-    std::cout << endl;
+    std::cout << std::endl;
     for (int i = 0; i < levels.size(); i++) {
       if (!levels[i].size()) {
         continue;
@@ -184,10 +190,12 @@ void breadthFirstSearch(std::vector<std::vector<EdgeType>> &adjacency_list,
       for (int j = 0; j < levels[i].size(); j++) {
         std::cout << levels[i][j] << " ";
       }
-      std::cout << endl;
+      std::cout << std::endl;
     }
-    std::cout << endl;
+    std::cout << std::endl;
   }
+
+  return UNVISITED;
 }
 
 // Check if the flow value in a given graph represented as an adjacency list is
@@ -205,9 +213,10 @@ isMaximumFlow(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
   // sink through any augmenting path.
   std::vector<int> depth_values;
   int num_vertices = adjacency_list.size();
-  breadthFirstSearch(adjacency_list, sink, depth_values, true, true);
+  int UNVISITED = breadthFirstSearchResidual(adjacency_list, sink, depth_values,
+                                             true, true);
   return {validity_result.first,
-          (validity_result.second && (depth_values[source] == num_vertices))};
+          (validity_result.second && (depth_values[source] == UNVISITED))};
 }
 
 // Tarzan's strongly connected component algoirhtm using iterative depth first
@@ -338,13 +347,14 @@ void getTransposedAdjacencyList(std::vector<std::vector<int>> original,
 // Perform breadth first search from a certain vertex, a depth equal to  the
 // number of vertices means that vertex could not be reached from the
 // start_vertex, since the maximum depth can be equal to number of vertices -1.
-void breadthFirstSearchSimple(std::vector<std::vector<int>> &adjacency_list,
-                              int start_vertex, std::vector<int> &depth_values,
-                              bool print_result = false) {
+int breadthFirstSearch(std::vector<std::vector<int>> &adjacency_list,
+                       int start_vertex, std::vector<int> &depth_values,
+                       bool print_result = false) {
   int num_vertices = adjacency_list.size();
+  int UNVISITED = num_vertices;
   vector_based_queue<int> vertex_queue(num_vertices);
   depth_values.resize(num_vertices);
-  std::fill(depth_values.begin(), depth_values.end(), num_vertices);
+  std::fill(depth_values.begin(), depth_values.end(), UNVISITED);
 
   depth_values[start_vertex] = 0;
   vertex_queue.push(start_vertex);
@@ -356,12 +366,13 @@ void breadthFirstSearchSimple(std::vector<std::vector<int>> &adjacency_list,
     auto eit_end = adjacency_list[v_parent].end();
     for (; eit != eit_end; eit++) {
       int to_vertex = *eit;
-      if (depth_values[to_vertex] == num_vertices) {
+      if (depth_values[to_vertex] == UNVISITED) {
         depth_values[to_vertex] = current_depth;
         vertex_queue.push(to_vertex);
       }
     }
   }
+  return UNVISITED;
 }
 
 // We create the graph of strongly connected graphs, while processing each
@@ -379,9 +390,10 @@ void createGraphOfStronglyConnectedComponents(
     std::vector<std::vector<int>> &components,
     std::vector<std::vector<int>> &adjacency_list_residual,
     std::vector<std::vector<int>> &adjacency_list_components) {
+  int num_components = components.size();
+  adjacency_list_components.resize(num_components);
 #pragma omp parallel
   {
-    int num_components = components.size();
     std::vector<int> temp_buffer(num_components);
     std::vector<bool> has_edge_to_component(num_components, false);
 #pragma omp for

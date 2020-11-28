@@ -361,7 +361,7 @@ template <class capacity_t> void ImplicationNetwork<capacity_t>::print() {
       std::cout << node.reverse_edge_index << " " << node.symmetric_edge_index
                 << " } " << std::endl;
     }
-    std::cout << endl;
+    std::cout << std::endl;
   }
 }
 
