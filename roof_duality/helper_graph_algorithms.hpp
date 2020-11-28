@@ -44,6 +44,21 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
 
   std::cout << "Validating flow of flow network ..." << std::endl;
 
+  double overflow_detector = 0;
+  auto eit = adjacency_list[source].begin();
+  auto eit_end = adjacency_list[source].end();
+  for (; eit != eit_end; eit++) {
+    overflow_detector += eit->getCapacity();
+  }
+
+  if (overflow_detector >
+      static_cast<double>(std::numeric_limits<capacity_t>::max())) {
+    std::cout << "WARNING : Overflow is possible in the flow network. Sum of "
+                 "capacity of out edges from source exceed numeric limit of "
+                 "the type used for capacity."
+              << std::endl;
+  }
+
   // Since we are validating our algorithms, we will not retrieve the
   // value of residual/capacity of a reverse edge from its counterpart
   // which we generally do for performance reasons. Here we will actually
