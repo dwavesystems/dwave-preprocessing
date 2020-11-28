@@ -181,15 +181,26 @@ PushRelabelSolver<EdgeType>::PushRelabelSolver(
 
   GLOBAL_RELABEL_THRESHOLD = (ALPHA * _num_vertices) + (_num_edges / 2);
 
-  // Saturate the edges coming out of the source.`
+  // Saturate the edges coming out of the source.`We assume initially there is
+  // no flow and residual of edges are equal to their capacities.
+  double overflow_detector = 0;
   edge_iterator eit, eit_end;
   for (std::tie(eit, eit_end) = outEdges(_source); eit != eit_end; eit++) {
+    overflow_detector += eit->residual;
     DEBUG_INCREMENT(_num_pushes);
     capacity_t flow = eit->residual;
     eit->residual = 0;
     auto eit_reverse = reverseEdgeIterator(eit);
     eit_reverse->residual += flow;
     _vertices[eit->to_vertex].excess += flow;
+  }
+
+  if (overflow_detector >
+      static_cast<double>(std::numeric_limits<capacity_t>::max())) {
+    std::cout << "WARNING : Overflow is possible in the flow network. Sum of "
+                 "capacity of out edges from source exceed numeric limit of "
+                 "the type used for capacity."
+              << std::endl;
   }
 
   _max_height = 1;
