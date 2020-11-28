@@ -403,15 +403,18 @@ void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
   PushRelabelSolver<ImplicationEdge<capacity_t>> push_relabel_solver(
       _adjacency_list, _source, _sink);
   push_relabel_solver.computeMaximumFlow(false);
+  assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
+         "Maximum flow is not valid.");
 
   std::vector<int> bfs_depth_values;
-  breadthFirstSearch(_adjacency_list, _source, bfs_depth_values, false, true);
+  int UNVISITED = breadthFirstSearchResidual(_adjacency_list, _source,
+                                             bfs_depth_values, false, false);
 
   fixed_variables.reserve(_num_variables);
   std::vector<bool> variable_fixed(_num_variables, false);
 
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
-    if (bfs_depth_values[vertex] != _num_vertices) {
+    if (bfs_depth_values[vertex] != UNVISITED) {
       int base_vertex = base(vertex);
       if (base_vertex == _source) {
         continue;
@@ -475,25 +478,6 @@ void ImplicationNetwork<capacity_t>::postProcessStronglyConnectedComponents(
       exit(1);
     }
   }
-
-  std::cout << "SCC of residual :" << std::endl;
-  std::cout << "Vertices : " << _num_vertices << " Source " << _source
-            << " Sink " << _sink << std::endl;
-  std::cout << "Vertex - Component" << std::endl;
-  for (int i = 0; i < _num_vertices; i++) {
-    std::cout << i << "  " << vertex_to_component_map[i] << std::endl;
-  }
-  std::cout << std::endl;
-  std::cout << "Source component " << scc_info.source_component
-            << " Sink component " << scc_info.sink_component << std::endl;
-  for (int i = 0; i < num_components; i++) {
-    std::cout << "component " << i << " complement " << complement_map[i]
-              << std::endl;
-    for (int c = 0; c < components[i].size(); c++) {
-      std::cout << " " << components[i][c] << " ";
-    }
-    std::cout << std::endl;
-  }
 }
 
 template <class capacity_t>
@@ -503,8 +487,12 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
   PushRelabelSolver<ImplicationEdge<capacity_t>> push_relabel_solver(
       _adjacency_list, _source, _sink);
   push_relabel_solver.computeMaximumFlow(false);
+  assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
+         "Maximum flow is not valid.");
 
   makeResidualSymmetric();
+  assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
+         "Maximum flow is not valid.");
 
   std::vector<std::vector<int>> adjacency_list_residual;
   extractResidualNetworkWithoutSourceInSinkOut(adjacency_list_residual, true);
@@ -524,9 +512,8 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
                              adjacency_list_components_transposed);
 
   std::vector<int> bfs_depth_values;
-  int unvisited = adjacency_list_components.size();
-  breadthFirstSearchSimple(adjacency_list_components, scc_info.source_component,
-                           bfs_depth_values);
+  int UNVISITED = breadthFirstSearch(
+      adjacency_list_components, scc_info.source_component, bfs_depth_values);
 
   auto &num_components = scc_info.num_components;
   auto &components = scc_info.components;
@@ -547,7 +534,7 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
 
   for (int component = 0; component < num_components; component++) {
     if ((bfs_depth_values[component] != 0) &&
-        (bfs_depth_values[component] != unvisited)) {
+        (bfs_depth_values[component] != UNVISITED)) {
       int complement_component = complement_map[component];
       out_degrees[component] = -1;
       out_degrees[complement_component] = -1;

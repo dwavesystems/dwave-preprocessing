@@ -88,7 +88,11 @@ public:
 
   // Convert bqm variable to posiform variable.
   inline int mapVariableQuboToPosiform(int i) {
-    return _bqm_to_posiform_variable_map[i];
+    if (_bqm_to_posiform_variable_map.count(i) == 0) {
+      return -1;
+    } else {
+      return _bqm_to_posiform_variable_map[i];
+    }
   }
 
   // Convert posiform variable to bqm variable.
