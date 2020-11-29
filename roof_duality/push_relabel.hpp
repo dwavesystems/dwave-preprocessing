@@ -259,6 +259,7 @@ template <class EdgeType> void PushRelabelSolver<EdgeType>::globalRelabel() {
           _levels[current_height].inactive_vertices.push_front(
               &_vertices[to_vertex]);
         }
+	_pending_out_edges[to_vertex] = outEdges(to_vertex);
         num_vertices_found++;
         _vertex_queue.push(to_vertex);
       }
