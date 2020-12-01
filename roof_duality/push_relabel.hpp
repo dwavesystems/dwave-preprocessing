@@ -56,6 +56,18 @@ public:
   using edge_iterator = typename std::vector<EdgeType>::iterator;
   using capacity_t = typename EdgeType::capacity_type;
 
+  PushRelabelSolver(std::vector<std::vector<EdgeType>> &adjacency_list,
+                    int source, int sink);
+
+  capacity_t computeMaximumPreflow();
+
+  void convertPreflowToFlow(bool handle_self_loops = false);
+
+  capacity_t computeMaximumFlow(bool handle_self_loops = false);
+
+  void printStatistics();
+
+private:
   // We use preallocated vertex nodes for maintaining the linked list since we
   // know the total number of vertices. Vertex number is redundant but when
   // capacity_t is of a type consuming 8 bytes, structural padding will waste
@@ -75,18 +87,6 @@ public:
     preallocated_linked_list<vertex_node_t> inactive_vertices;
   };
 
-  PushRelabelSolver(std::vector<std::vector<EdgeType>> &adjacency_list,
-                    int source, int sink);
-
-  capacity_t computeMaximumPreflow();
-
-  void convertPreflowToFlow(bool handle_self_loops = false);
-
-  capacity_t computeMaximumFlow(bool handle_self_loops = false);
-
-  void printStatistics();
-
-private:
   // This will always be manually inlined, without relying on the compiler to do
   // so since this function is very small and the algorithm calls this the
   // highest number of times.
@@ -147,6 +147,13 @@ private:
   std::vector<vertex_node_t> _vertices;
   vector_based_queue<int> _vertex_queue;
   std::vector<std::vector<EdgeType>> &_adjacency_list;
+
+  // In different phases of the algorithm, we might know that we do not need to
+  // traverse all the outgoing edges from a vertex, and may need to start from a
+  // certain point. For example when we relabel a vertex, we know the edge from
+  // which we may be able to push flow out of the vertex when we return to the
+  // discharge routine, thus we save the iterator of that edge in this
+  // _pending_out_edges vector.
   std::vector<std::pair<edge_iterator, edge_iterator>> _pending_out_edges;
 };
 
@@ -181,7 +188,7 @@ PushRelabelSolver<EdgeType>::PushRelabelSolver(
 
   GLOBAL_RELABEL_THRESHOLD = (ALPHA * _num_vertices) + (_num_edges / 2);
 
-  // Saturate the edges coming out of the source.`We assume initially there is
+  // Saturate the edges coming out of the source. We assume initially there is
   // no flow and residual of edges are equal to their capacities.
   double overflow_detector = 0;
   edge_iterator eit, eit_end;
@@ -210,8 +217,8 @@ PushRelabelSolver<EdgeType>::PushRelabelSolver(
   globalRelabel();
 }
 
-// Relabel the vertices with the current distance from the sink, found by
-// using reverse breadth first search. Assumes that the unreachable vertices are
+// Relabel the vertices with the current distance from the sink, found by using
+// reverse breadth first search. Assumes that the unreachable vertices are
 // marked as such.
 template <class EdgeType> void PushRelabelSolver<EdgeType>::globalRelabel() {
   DEBUG_INCREMENT(_num_global_relabels);
@@ -244,10 +251,11 @@ template <class EdgeType> void PushRelabelSolver<EdgeType>::globalRelabel() {
   _vertex_queue.push(_sink);
   num_vertices_found++; // We had assumed sink is reachable, so reaching it.
   while (!_vertex_queue.empty()) {
-    int v_parent = _vertex_queue.pop();
-    int current_height = _vertices[v_parent].height + 1;
+    int parent_vertex = _vertex_queue.pop();
+    int current_height = _vertices[parent_vertex].height + 1;
     edge_iterator eit, eit_end;
-    for (std::tie(eit, eit_end) = outEdges(v_parent); eit != eit_end; eit++) {
+    for (std::tie(eit, eit_end) = outEdges(parent_vertex); eit != eit_end;
+         eit++) {
       int to_vertex = eit->to_vertex;
       if (eit->getReverseEdgeResidual() &&
           _vertices[to_vertex].height == _num_vertices) {
@@ -259,7 +267,7 @@ template <class EdgeType> void PushRelabelSolver<EdgeType>::globalRelabel() {
           _levels[current_height].inactive_vertices.push_front(
               &_vertices[to_vertex]);
         }
-	_pending_out_edges[to_vertex] = outEdges(to_vertex);
+        _pending_out_edges[to_vertex] = outEdges(to_vertex);
         num_vertices_found++;
         _vertex_queue.push(to_vertex);
       }
@@ -274,12 +282,15 @@ template <class EdgeType> void PushRelabelSolver<EdgeType>::globalRelabel() {
     }
 
     if (num_vertices_found == num_vertices_to_find) {
-      _vertex_queue.reset();
       break;
     }
   }
 }
 
+// Set the height of the vertex such that it is one more than the minimum height
+// of the vertices to which it has edgese with residual capacity. If there is no
+// such edge then it should be discarded from this phase of the algorithm by
+// setting a height equal to the number of vertices.
 template <class EdgeType>
 void PushRelabelSolver<EdgeType>::relabel(int vertex) {
   DEBUG_INCREMENT(_num_relabels);
@@ -306,6 +317,8 @@ void PushRelabelSolver<EdgeType>::relabel(int vertex) {
   }
 }
 
+// Keep on pushing flow out of a vertex till it has any excess left, if all of
+// its excess is discharged, it becomes inactive.
 template <class EdgeType>
 void PushRelabelSolver<EdgeType>::discharge(int vertex) {
   assert(_vertices[vertex].excess > 0);
@@ -391,9 +404,9 @@ void PushRelabelSolver<EdgeType>::gapRelabel(int empty_level_height) {
     int inactive_level_size = level_it->inactive_vertices.size();
     vertex_node_t *vertex_node_ptr = level_it->inactive_vertices.front();
     for (int i = 0; i < inactive_level_size; i++) {
-      _vertices[vertex_node_ptr->vertex_number].height = _num_vertices;
-      vertex_node_ptr = vertex_node_ptr->next;
       DEBUG_INCREMENT(_num_gap_vertices);
+      vertex_node_ptr->height = _num_vertices;
+      vertex_node_ptr = vertex_node_ptr->next;
     }
     level_it->inactive_vertices.clear();
   }
@@ -403,6 +416,9 @@ void PushRelabelSolver<EdgeType>::gapRelabel(int empty_level_height) {
   assert(_max_active_height >= 0 && _max_active_height < _num_vertices);
 }
 
+// Compute the maximum preflow, that is we compute the value of the max-flow but
+// the flow graph is not valid since there are vertices with excess flow in
+// them.
 template <class EdgeType>
 typename EdgeType::capacity_type
 PushRelabelSolver<EdgeType>::computeMaximumPreflow() {
@@ -427,25 +443,26 @@ PushRelabelSolver<EdgeType>::computeMaximumPreflow() {
 
 // This is the algorithm used in the boost graph library. An iterative depth
 // first search (DFS) is applied to do a topological sort of the vertices with
-// excess flow so that flow can be pushed away from them in order and preflow be
-// converted to flow. Since we want to do the topological sort to have the
-// vertices having excess at the root positions and vertices producing flow to
-// them to be their children, we do the depth first search along reverse edges.
-// A cycle in the directed graph would prevent a proper topological sort thus in
-// the same search if any flow cycle is detected, the cycle is cutoff by
-// reducing the flow by the minimum "magnitude" of flow in the cycle, this
-// causes the edges with flow equal to the minimum flow to get saturated. The
-// depth first search then backs off or in other words, undoes what was done
-// since encountering the vertex from which the saturated edge was incident
-// "from", so that it can go on as before from that point. Note there will be no
-// explicit stack used for this depth first search, but instead the iterators
-// pointing to the edges to be traversed for each vertex will be updated and an
-// array containing parents of vertices will help simulate the stack. When we
-// want to pop the stack we can basically look at the parent of the current
-// vertex being processed and when we want to push a vertex, we can make it a
-// parent for the next vertex and restart the loop with the next vertex as the
-// parent. For solving max-flows on graphs induced from posiforms, we do not
-// need to consider self loops since we do induce terms terms like X_i*X_i'
+// excess flow so that flow can be pushed away from them in order. This way
+// preflow can be converted to flow. Since we want to do the topological sort to
+// have the vertices having excess flow to be at the root/parent positions and
+// vertices producing flow to them to be their children, we do the depth first
+// search along reverse edges of the flow network. A cycle in the directed graph
+// would prevent a proper topological sort thus in the same depth first search
+// if any flow cycle is detected, the cycle is cutoff by reducing the flow by
+// the minimum "magnitude" of flow in the cycle, this causes the edges with flow
+// equal to the minimum flow to get saturated. The depth first search then backs
+// off, or in other words, undoes what was done since encountering the vertex
+// from which the saturated edge was incident from, so that it can go on as
+// before from that point. Note there will be no explicit stack used for this
+// depth first search, but instead the iterators pointing to the edges to be
+// traversed for each vertex will be updated and an array containing parents of
+// vertices will help simulate the stack. When we want to pop the stack we can
+// basically look at the parent of the current vertex being processed and when
+// we want to push a vertex into the stack, we can save it as the parent of the
+// child vertex and restart the loop with the child vertex as the current
+// vertex. For solving max-flows on graphs induced from posiforms, we do not
+// need to consider self loops since we do not have terms like X_i*X_i'
 // which might create a self loop for X_i or X_i'.
 template <class EdgeType>
 void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
@@ -465,12 +482,13 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
     }
   }
 
+  // Vertex at the start of the topological sort.
   int topology_start_vertex = -1;
   bool topology_initialized = false;
-  std::vector<int> parent(_num_vertices);
+  std::vector<int> parent(_num_vertices, -1);
 
   // An entry of -1 for a vertex would mean there is no successor to that vertex
-  // in the topological ordering we create for removing excess flow.
+  // in the topological ordering.
   std::vector<int> topology_next(_num_vertices, -1);
 
   // White - not processed yet.
@@ -480,19 +498,18 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
   std::vector<int> dfs_color(_num_vertices, DFS_COLOR::WHITE);
 
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
-    // TODO : Remove ? We fillup the parents as we go , why initialize here ?
-    parent[vertex] = vertex;
     _pending_out_edges[vertex] = outEdges(vertex);
   }
 
   // Iterative DFS.
-  for (int parent_vertex = 0; parent_vertex < _num_vertices; parent_vertex++) {
-    if ((dfs_color[parent_vertex] == DFS_COLOR::WHITE) &&
-        (_vertices[parent_vertex].excess > 0) && (parent_vertex != _source) &&
-        (parent_vertex != _sink)) {
+  for (int current_vertex = 0; current_vertex < _num_vertices;
+       current_vertex++) {
+    if ((dfs_color[current_vertex] == DFS_COLOR::WHITE) &&
+        (_vertices[current_vertex].excess > 0) && (current_vertex != _source) &&
+        (current_vertex != _sink)) {
 
       // The root of a DFS tree.
-      int root_vertex = parent_vertex;
+      int root_vertex = current_vertex;
       dfs_color[root_vertex] = DFS_COLOR::GREY;
 
       while (true) {
@@ -502,33 +519,33 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
         // stack frame is saved in the stack frame while the function calls
         // itself recursively so when it comes back it finds the counter with
         // the proper value.
-        for (; _pending_out_edges[parent_vertex].first !=
-               _pending_out_edges[parent_vertex].second;
-             _pending_out_edges[parent_vertex].first++) {
+        for (; _pending_out_edges[current_vertex].first !=
+               _pending_out_edges[current_vertex].second;
+             _pending_out_edges[current_vertex].first++) {
 
           // We are traversing reverse edges with capacity 0, i.e the children
           // are sending flow to the parent. So we denote the main iterator by
           // eit_reverse unlike other places in the file.
-          // The edge brings flow to the parent_vertex, we want to topologically
-          // sort such that the root receives flow from the source through its
-          // children, so that we can push them back.
-          auto eit_reverse = _pending_out_edges[parent_vertex].first;
+          // The edge brings flow to the current_vertex, we want to
+          // topologically sort such that the root receives flow from the source
+          // through its children, so that we can push them back.
+          auto eit_reverse = _pending_out_edges[current_vertex].first;
           if ((eit_reverse->getCapacity() == 0) &&
               (eit_reverse->residual > 0)) {
-            int current_vertex = eit_reverse->to_vertex;
-            if (dfs_color[current_vertex] == DFS_COLOR::WHITE) {
-              dfs_color[current_vertex] = DFS_COLOR::GREY;
+            int child_vertex = eit_reverse->to_vertex;
+            if (dfs_color[child_vertex] == DFS_COLOR::WHITE) {
+              dfs_color[child_vertex] = DFS_COLOR::GREY;
 
               // Equivalent to calling DFS, i.e pushing into the stack. The
               // while loop above will start the for loop all over again, but
-              // this time the parent_vertex will be the current_vertex, and we
+              // this time the current_vertex will be the child_vertex, and we
               // will be able to trace back as the parent-child relationship is
               // saved in the parent array. Note breaking the loop does not
               // allow the iterator of edges to be incremented for the parent,
               // just like in a recursive DFS, the for loop does not get
               // incremented till the recursive call to DFS finishes.
-              parent[current_vertex] = parent_vertex;
-              parent_vertex = current_vertex;
+              parent[child_vertex] = current_vertex;
+              current_vertex = child_vertex;
               break;
             }
 
@@ -536,7 +553,7 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
             // back the DFS up to the vertex from which emanates the first edge
             // that will be saturated/flow nullified in order to remove the
             // cycle.
-            else if (dfs_color[current_vertex] == DFS_COLOR::GREY) {
+            else if (dfs_color[child_vertex] == DFS_COLOR::GREY) {
 
               // We chose to enter the condition only for reverse/residual edges
               // and the iterators in _pending_out_edges are not incremented
@@ -545,10 +562,10 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
               // cycle we just discovered. The value of residual in a reverse
               // edge is equal to the flow in the orignal edge/absolute value of
               // flow in the reverse edge. We are currently traversing reverse
-              // edges, so take the minimum of residuals.
+              // edges, so we take the minimum of residuals.
               capacity_t min_flow_magnitude = eit_reverse->residual;
-              int cycle_traversing_vertex = current_vertex;
-              while (cycle_traversing_vertex != parent_vertex) {
+              int cycle_traversing_vertex = child_vertex;
+              while (cycle_traversing_vertex != current_vertex) {
                 min_flow_magnitude =
                     std::min(min_flow_magnitude,
                              _pending_out_edges[cycle_traversing_vertex]
@@ -561,19 +578,19 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
               // Reduce the flow in the edges with minimum flow in the cycle,
               // that is saturate the reverse edge or say zero out the residual.
               // Process the back edge first.
-              eit_reverse = _pending_out_edges[parent_vertex].first;
+              eit_reverse = _pending_out_edges[current_vertex].first;
               eit_reverse->residual -= min_flow_magnitude;
               auto eit = reverseEdgeIterator(eit_reverse);
               eit->residual += min_flow_magnitude;
 
               // Reduce the flow on the other edges of the cycle, but this time
-              // starting from the current_vertex.
+              // starting from the child_vertex.
               // The vertex from which the first saturated vertex emanates is
               // the one we should restart our DFS from.
-              cycle_traversing_vertex = current_vertex;
-              int restart_vertex = parent_vertex;
+              cycle_traversing_vertex = child_vertex;
+              int restart_vertex = current_vertex;
               bool restart_vertex_found = false;
-              while (cycle_traversing_vertex != parent_vertex) {
+              while (cycle_traversing_vertex != current_vertex) {
                 eit_reverse = _pending_out_edges[cycle_traversing_vertex].first;
                 eit_reverse->residual -= min_flow_magnitude;
                 auto eit = reverseEdgeIterator(eit_reverse);
@@ -592,53 +609,54 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
                 cycle_traversing_vertex = eit_reverse->to_vertex;
               }
 
-              if (restart_vertex != parent_vertex) {
-                parent_vertex = restart_vertex;
-                _pending_out_edges[parent_vertex].first++;
+              if (restart_vertex != current_vertex) {
+                current_vertex = restart_vertex;
+                _pending_out_edges[current_vertex].first++;
                 break;
               }
-            } // else if (dfs_color[current_vertex] == DFS_COLOR::GREY)
+            } // else if (dfs_color[child_vertex] == DFS_COLOR::GREY)
           }   // if ((..->getCapacity() == 0) && (..->residual > 0))
-        }     // for (; _pending_out_edges[parent_vertex]...
+        }     // for (; _pending_out_edges[current_vertex]...
 
-        // The parent has finished checking all it out edges, we can put it in
-        // its proper place in the topological order, and then backtrack.
-        if (_pending_out_edges[parent_vertex].first ==
-            _pending_out_edges[parent_vertex].second) {
-          dfs_color[parent_vertex] = DFS_COLOR::BLACK;
-          if (parent_vertex != _source) {
+        // The current vertex has finished checking all ita out edges, we can
+        // put it in its proper place in the topological order, and then
+        // backtrack.
+        if (_pending_out_edges[current_vertex].first ==
+            _pending_out_edges[current_vertex].second) {
+          dfs_color[current_vertex] = DFS_COLOR::BLACK;
+          if (current_vertex != _source) {
             if (!topology_initialized) {
-              topology_start_vertex = parent_vertex;
+              topology_start_vertex = current_vertex;
               topology_initialized = true;
             } else {
-              topology_next[parent_vertex] = topology_start_vertex;
-              topology_start_vertex = parent_vertex;
+              topology_next[current_vertex] = topology_start_vertex;
+              topology_start_vertex = current_vertex;
             }
           }
 
           // If it is a root, then we break the while loop and the for loop
           // above will automatically select the next vertex. It is similar to
-          // the situation that in a DFS a wrapper function calls the first
+          // the situation that in DFS a wrapper function calls the first
           // instance of DFS on different roots, and before the call there is no
-          // stackframe for DFS function. In the case it is not the root we need
+          // stack frame for DFS function. If it is not the root we need
           // to simulate the popping of the stack, this we do by setting the
-          // parent_vertex to be the parent of the parent_vertex, we should also
-          // increment the edge iterator of the parent since in DFS we increment
-          // the iterator when the call to child DFS returns. The for loop will
-          // start again for the parent. Note: the parent_vertex is changing
-          // within the loop so the edge iterator for the original parent_vertex
-          // does not get incremented until and unless edges which cannot be
-          // traversed are encountered.
-          if (parent_vertex != root_vertex) {
-            parent_vertex = parent[parent_vertex];
-            _pending_out_edges[parent_vertex].first++;
+          // current_vertex to be the parent of the child_vertex, we should
+          // also increment the edge iterator of the current vertex since in DFS
+          // we increment the iterator when the call to child DFS returns. The
+          // for loop will start again for the parent. Note: the current_vertex
+          // is changing within the loop so the edge iterator for the original
+          // current_vertex does not get incremented until and unless edges
+          // which cannot be traversed are encountered.
+          if (current_vertex != root_vertex) {
+            current_vertex = parent[current_vertex];
+            _pending_out_edges[current_vertex].first++;
           } else {
             break;
           }
         }
       } // while(true)
-    }   // if(dfs_color[parent_vertex] == DFS_COLOR::WHITE...
-  }     // for(int parent_vertex = 0; ...
+    }   // if(dfs_color[current_vertex] == DFS_COLOR::WHITE...
+  }     // for(int current_vertex = 0; ...
 
   // We push the excess flow back to the source according to the topological
   // order we found by our search above. topology_next[vertex] == -1 means there
@@ -665,6 +683,8 @@ void PushRelabelSolver<EdgeType>::convertPreflowToFlow(bool handle_self_loops) {
   }
 } // end convertPreflowToFlow
 
+// The top level function to compute max-flow and also convert the preflow to
+// flow so that the resulting graph is a valid flow network.
 template <class EdgeType>
 typename EdgeType::capacity_type
 PushRelabelSolver<EdgeType>::computeMaximumFlow(bool handle_self_loops) {
@@ -673,6 +693,9 @@ PushRelabelSolver<EdgeType>::computeMaximumFlow(bool handle_self_loops) {
   return maximum_flow;
 }
 
+// Print the linked lists used to keep track of the active and inactive vertices
+// at different height. The vertices which have height of _num_vertices, or in
+// other words disconnected from the sink are not kept in the linked lists.
 template <class EdgeType> void PushRelabelSolver<EdgeType>::printLevels() {
   std::cout << "Printing Levels. " << _levels.size() << " in total for "
             << _num_vertices << " vertices." << std::endl;
@@ -708,6 +731,7 @@ template <class EdgeType> void PushRelabelSolver<EdgeType>::printLevels() {
   }
 }
 
+// Print the number of basic operations performed in the algorithm.
 template <class EdgeType> void PushRelabelSolver<EdgeType>::printStatistics() {
 #ifdef COLLECT_STATISTICS
   std::cout << std::endl;
