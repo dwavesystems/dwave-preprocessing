@@ -91,6 +91,7 @@ public:
   preallocated_linked_list() {
     _head.next = &_tail;
     _tail.prev = &_head;
+    _size = 0;
   }
 
   node *pop() noexcept {
