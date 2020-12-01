@@ -21,17 +21,8 @@
 #define IMPLICATION_NETWORK_HPP_INCLUDED
 
 #include "helper_graph_algorithms.hpp"
+#include "mapping_policy.hpp"
 #include "push_relabel.hpp"
-
-struct stronglyConnectedComponentsInfo {
-  int num_components;
-  int source_component;
-  int sink_component;
-  // Component to its complement component.
-  std::vector<int> complement_map;
-  std::vector<int> vertex_to_component_map;
-  std::vector<std::vector<int>> components;
-};
 
 // Edge type for implication network. An implication network is formed from a
 // posiform. If there is a term Coeff * X_i * X_j, we will have two edges in the
@@ -111,24 +102,27 @@ public:
   void scaleCapacity(int scale) { _encoded_capacity *= scale; }
 };
 
+// Structure for holding various information regarding strongly connected
+// components of a implication network.
+struct stronglyConnectedComponentsInfo {
+  int num_components;
+  int source_component;
+  int sink_component;
+  // Component to its complement component.
+  std::vector<int> complement_map;
+  std::vector<int> vertex_to_component_map;
+  std::vector<std::vector<int>> components;
+};
+
 // The implication graph used in the paper Boros, Endre & Hammer, Peter &
 // Tavares, Gabriel. (2006). Preprocessing of unconstrained quadratic binary
-// optimization. RUTCOR Research Report. If there are n variables in the Quobo,
-// the posiform will have 2 * ( n + 1 ) variables, each variable with its
-// complement and a root, X_0 and its complement. Here we treat variable 0-n-1
-// as the original n Qubo variables and variable n as X_0. Variable n+1 to 2n+1
-// are their complements, thus variable v has its complement as (v + n + 1).
+// optimization. RUTCOR Research Report. See the class mappingPolicy to
+// understand the mapping between posiform variables and implication network
+// vertices.
 template <class capacity_t> class ImplicationNetwork {
+
 public:
   template <class PosiformInfo> ImplicationNetwork(PosiformInfo &posiform);
-
-  void makeResidualSymmetric();
-
-  void extractResidualNetworkWithoutSourceInSinkOut(
-      std::vector<std::vector<int>> &adjacency_list_residual,
-      bool free_original_adjacency_list = false);
-
-  void print();
 
   int getSource() { return _source; }
 
@@ -142,16 +136,9 @@ public:
   void fixVariables(std::vector<std::pair<int, int>> &fixed_variables,
                     bool only_trivially_strong = false);
 
+  void print();
+
 private:
-  inline int complement(int v) {
-    return (v <= _num_variables) ? (v + _num_variables + 1)
-                                 : (v - _num_variables - 1);
-  }
-
-  inline int base(int v) {
-    return (v <= _num_variables) ? v : (v - _num_variables - 1);
-  }
-
   // We may free the memory of adjacency list after crucial operations have
   // completed. Thus public functions may need to check the validity of the
   // adjacency list before operating.
@@ -165,9 +152,11 @@ private:
     }
   }
 
-  void fillLastOutEdgeReferences(int from_vertex, int to_vertex);
-  void createImplicationNetworkEdges(int from_vertex, int to_vertex,
-                                     capacity_t capacity);
+  void makeResidualSymmetric();
+
+  void extractResidualNetworkWithoutSourceInSinkOut(
+      std::vector<std::vector<int>> &adjacency_list_residual,
+      bool free_original_adjacency_list = false);
 
   void postProcessStronglyConnectedComponents(
       stronglyConnectedComponentsInfo &scc_info);
@@ -178,11 +167,23 @@ private:
   void
   fixStrongAndWeakVariables(std::vector<std::pair<int, int>> &fixed_variables);
 
+  void fillLastOutEdgeReferences(int from_vertex, int to_vertex);
+
+  void createImplicationNetworkEdges(int from_vertex, int to_vertex,
+                                     capacity_t capacity);
+
   int _num_variables;
   int _num_vertices;
   int _source;
   int _sink;
   bool _adjacency_list_valid;
+
+  // DO NOT use a virtual class. This class already adds performance overhead, a
+  // virtual class would further increase it. We add this mapper the mapping
+  // that is easy to debug is not the best for performance considerations and
+  // also it makes the code slightly less prone to errors..
+  // sequentialMapper _mapper;
+  evenOddMapper _mapper;
   std::vector<std::vector<ImplicationEdge<capacity_t>>> _adjacency_list;
 };
 
@@ -197,45 +198,44 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
          "value than the type of coefficients in source posiform.");
   _num_variables = posiform.getNumVariables();
   _num_vertices = 2 * _num_variables + 2;
-  _source = _num_variables;
-  _sink = 2 * _num_variables + 1;
+  // _mapper = sequentialMapper(_num_variables);
+  _mapper = evenOddMapper(_num_variables);
+  _source = _mapper.source();
+  _sink = _mapper.sink();
   _adjacency_list.resize(2 * _num_variables + 2);
 
-  // The complement function should only be used after setting the above
-  // variables.
-  assert(_sink == complement(_source));
-  assert(_source == complement(_sink));
-
+  // For efficiency we preallocate the vectors first.
   int num_linear = posiform.getNumLinear();
   _adjacency_list[_source].reserve(num_linear);
   _adjacency_list[_sink].reserve(num_linear);
 
-  // For efficiency we preallocate the vectors first.
   // There are reverse edges for each edge created in the implication graph.
   // Depending on the sign of the bias, an edge may start from v or v' but
   // reverse edges makes the number of edges coming out of v and v' the same and
   // are equal to 1/0 + number of quadratic biases in which v contributes. The +
   // 1 is due to the linear term when it is present.
-  for (int u = 0; u < _num_variables; u++) {
-    int u_complement = complement(u);
-    int num_out_edges = posiform.getNumQuadratic(u);
-    auto linear = posiform.getLinear(u);
+  for (int variable = 0; variable < _num_variables; variable++) {
+    int from_vertex = _mapper.variable_to_vertex(variable);
+    int from_vertex_complement = _mapper.complement(from_vertex);
+    int num_out_edges = posiform.getNumQuadratic(variable);
+    auto linear = posiform.getLinear(variable);
     if (linear) {
       num_out_edges++;
     }
-    _adjacency_list[u].reserve(num_out_edges);
-    _adjacency_list[u_complement].reserve(num_out_edges);
+    _adjacency_list[from_vertex].reserve(num_out_edges);
+    _adjacency_list[from_vertex_complement].reserve(num_out_edges);
   }
 
-  for (int u = 0; u < _num_variables; u++) {
-    int u_complement = complement(u);
-    auto linear = posiform.getLinear(u);
+  for (int variable = 0; variable < _num_variables; variable++) {
+    int from_vertex = _mapper.variable_to_vertex(variable);
+    int from_vertex_complement = _mapper.complement(from_vertex);
+    auto linear = posiform.getLinear(variable);
     if (linear > 0) {
-      createImplicationNetworkEdges(_source, u_complement, linear);
+      createImplicationNetworkEdges(_source, from_vertex_complement, linear);
     } else if (linear < 0) {
-      createImplicationNetworkEdges(_source, u, -linear);
+      createImplicationNetworkEdges(_source, from_vertex, -linear);
     }
-    auto quadratic_span = posiform.getQuadratic(u);
+    auto quadratic_span = posiform.getQuadratic(variable);
     auto it = quadratic_span.first;
     auto it_end = quadratic_span.second;
     for (; it != it_end; it++) {
@@ -244,11 +244,13 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
       // and the biases should be ideally converted to the same type the
       // posiform represens them in.
       auto coefficient = posiform.convertToPosiformCoefficient(it->second);
-      int v = posiform.mapVariableQuboToPosiform(it->first);
+      int variable_2 = posiform.mapVariableQuboToPosiform(it->first);
+      int to_vertex = _mapper.variable_to_vertex(variable_2);
       if (coefficient > 0) {
-        createImplicationNetworkEdges(u, complement(v), coefficient);
+        createImplicationNetworkEdges(
+            from_vertex, _mapper.complement(to_vertex), coefficient);
       } else if (coefficient < 0) {
-        createImplicationNetworkEdges(u, v, -coefficient);
+        createImplicationNetworkEdges(from_vertex, to_vertex, -coefficient);
       }
     }
   }
@@ -263,15 +265,13 @@ void ImplicationNetwork<capacity_t>::makeResidualSymmetric() {
   checkAdjacencyListValidity();
 #pragma omp parallel for
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
+    int from_vertex_base = _mapper.non_complemented_vertex(vertex);
     auto eit = _adjacency_list[vertex].begin();
     auto eit_end = _adjacency_list[vertex].end();
     for (; eit != eit_end; eit++) {
-      int from_vertex = vertex;
-      int from_vertex_complement = complement(from_vertex);
-      int from_vertex_base = std::min(from_vertex, from_vertex_complement);
       int to_vertex = eit->to_vertex;
-      int to_vertex_complement = complement(to_vertex);
-      int to_vertex_base = std::min(to_vertex, to_vertex_complement);
+      int to_vertex_complement = _mapper.complement(to_vertex);
+      int to_vertex_base = _mapper.non_complemented_vertex(to_vertex);
       // We don not want to process the symmetric edges twice, we pick the one
       // that starts from the smaller vertex number when complementation is not
       // taken into account.
@@ -370,7 +370,7 @@ void ImplicationNetwork<capacity_t>::fillLastOutEdgeReferences(int from_vertex,
                                                                int to_vertex) {
   auto &edge = _adjacency_list[from_vertex].back();
   edge.reverse_edge_index = _adjacency_list[to_vertex].size() - 1;
-  int symmetric_from_vertex = complement(to_vertex);
+  int symmetric_from_vertex = _mapper.complement(to_vertex);
   edge.symmetric_edge_index = _adjacency_list[symmetric_from_vertex].size() - 1;
 }
 
@@ -379,8 +379,8 @@ void ImplicationNetwork<capacity_t>::fillLastOutEdgeReferences(int from_vertex,
 template <class capacity_t>
 void ImplicationNetwork<capacity_t>::createImplicationNetworkEdges(
     int from_vertex, int to_vertex, capacity_t capacity) {
-  int from_vertex_complement = complement(from_vertex);
-  int to_vertex_complement = complement(to_vertex);
+  int from_vertex_complement = _mapper.complement(from_vertex);
+  int to_vertex_complement = _mapper.complement(to_vertex);
   _adjacency_list[from_vertex].emplace_back(
       ImplicationEdge<capacity_t>(from_vertex, to_vertex, capacity, 0));
   _adjacency_list[to_vertex].emplace_back(
@@ -395,33 +395,6 @@ void ImplicationNetwork<capacity_t>::createImplicationNetworkEdges(
   fillLastOutEdgeReferences(to_vertex, from_vertex);
   fillLastOutEdgeReferences(to_vertex_complement, from_vertex_complement);
   fillLastOutEdgeReferences(from_vertex_complement, to_vertex_complement);
-}
-
-template <class capacity_t>
-void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
-    std::vector<std::pair<int, int>> &fixed_variables) {
-  PushRelabelSolver<ImplicationEdge<capacity_t>> push_relabel_solver(
-      _adjacency_list, _source, _sink);
-  push_relabel_solver.computeMaximumFlow(false);
-  assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
-         "Maximum flow is not valid.");
-
-  std::vector<int> bfs_depth_values;
-  int UNVISITED = breadthFirstSearchResidual(_adjacency_list, _source,
-                                             bfs_depth_values, false, false);
-
-  fixed_variables.reserve(_num_variables);
-  std::vector<bool> variable_fixed(_num_variables, false);
-
-  for (int vertex = 0; vertex < _num_vertices; vertex++) {
-    if (bfs_depth_values[vertex] != UNVISITED) {
-      int base_vertex = base(vertex);
-      if (base_vertex == _source) {
-        continue;
-      }
-      fixed_variables.push_back({base_vertex, (vertex == base_vertex) ? 1 : 0});
-    }
-  }
 }
 
 template <class capacity_t>
@@ -460,7 +433,7 @@ void ImplicationNetwork<capacity_t>::postProcessStronglyConnectedComponents(
     // decide the complement of a strongly connected component by using only one
     // vertex.
     complement_map[component] =
-        vertex_to_component_map[complement(components[component][0])];
+        vertex_to_component_map[_mapper.complement(components[component][0])];
   }
 
   // Since the assumption that a strongly connected component should self
@@ -468,7 +441,7 @@ void ImplicationNetwork<capacity_t>::postProcessStronglyConnectedComponents(
   // the component is a very strong one, we keep a check for that.
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
     if (complement_map[vertex_to_component_map[vertex]] !=
-        vertex_to_component_map[complement(vertex)]) {
+        vertex_to_component_map[_mapper.complement(vertex)]) {
       std::cout
           << "The assumption that each strongly connected component in the "
              "residual graph containing edges with positive capacities, must "
@@ -483,7 +456,6 @@ void ImplicationNetwork<capacity_t>::postProcessStronglyConnectedComponents(
 template <class capacity_t>
 void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
     std::vector<std::pair<int, int>> &fixed_variables) {
-
   PushRelabelSolver<ImplicationEdge<capacity_t>> push_relabel_solver(
       _adjacency_list, _source, _sink);
   push_relabel_solver.computeMaximumFlow(false);
@@ -543,9 +515,9 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
       auto vit_end = components[component].end();
       for (; vit != vit_end; vit++) {
         int vertex = *vit;
-        int base_vertex = base(vertex);
-        fixed_variables.push_back(
-            {base_vertex, (vertex == base_vertex) ? 1 : 0});
+        int base_vertex = _mapper.non_complemented_vertex(vertex);
+        int variable = _mapper.vertex_to_variable(base_vertex);
+        fixed_variables.push_back({variable, (vertex == base_vertex) ? 1 : 0});
       }
 
       auto eit = adjacency_list_components_transposed[component].begin();
@@ -587,8 +559,9 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
     auto vit_end = components[component].end();
     for (; vit != vit_end; vit++) {
       int vertex = *vit;
-      int base_vertex = base(vertex);
-      fixed_variables.push_back({base_vertex, (vertex == base_vertex) ? 1 : 0});
+      int base_vertex = _mapper.non_complemented_vertex(vertex);
+      int variable = _mapper.vertex_to_variable(base_vertex);
+      fixed_variables.push_back({variable, (vertex == base_vertex) ? 1 : 0});
     }
 
     auto eit = adjacency_list_components_transposed[component].begin();
@@ -617,11 +590,40 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
   }
 }
 
+// Fix only the strong variables which can be trivially found.
+template <class capacity_t>
+void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
+    std::vector<std::pair<int, int>> &fixed_variables) {
+  PushRelabelSolver<ImplicationEdge<capacity_t>> push_relabel_solver(
+      _adjacency_list, _source, _sink);
+  push_relabel_solver.computeMaximumFlow(false);
+  assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
+         "Maximum flow is not valid.");
+
+  std::vector<int> bfs_depth_values;
+  int UNVISITED = breadthFirstSearchResidual(_adjacency_list, _source,
+                                             bfs_depth_values, false, false);
+
+  fixed_variables.reserve(_num_variables);
+  std::vector<bool> variable_fixed(_num_variables, false);
+
+  for (int vertex = 0; vertex < _num_vertices; vertex++) {
+    if (bfs_depth_values[vertex] != UNVISITED) {
+      int base_vertex = _mapper.non_complemented_vertex(vertex);
+      int variable = _mapper.vertex_to_variable(base_vertex);
+      if (base_vertex == _source) {
+        continue;
+      }
+      fixed_variables.push_back({variable, (vertex == base_vertex) ? 1 : 0});
+    }
+  }
+}
+
+// Parent function for fixing posiform based variables.
 template <class capacity_t>
 void ImplicationNetwork<capacity_t>::fixVariables(
     std::vector<std::pair<int, int>> &fixed_variables,
     bool only_trivially_strong) {
-
   if (only_trivially_strong) {
     fixTriviallyStrongVariables(fixed_variables);
   } else {
