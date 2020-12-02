@@ -295,12 +295,6 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
   for (int variable = 0; variable < _num_variables; variable++) {
     int from_vertex = _mapper.variable_to_vertex(variable);
     int from_vertex_complement = _mapper.complement(from_vertex);
-    auto linear = posiform.getLinear(variable);
-    if (linear > 0) {
-      createImplicationNetworkEdges(_source, from_vertex_complement, linear);
-    } else if (linear < 0) {
-      createImplicationNetworkEdges(_source, from_vertex, -linear);
-    }
     auto quadratic_span = posiform.getQuadratic(variable);
     auto it = quadratic_span.first;
     auto it_end = quadratic_span.second;
@@ -318,6 +312,24 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
       } else if (coefficient < 0) {
         createImplicationNetworkEdges(from_vertex, to_vertex, -coefficient);
       }
+    }
+  }
+
+  // We speraate out the creation of edges with source and sink, as if the
+  // mapping of variables to vertices is ordered such that if variable x <
+  // variable y, then vertices corresponding to x and x' both will be less than
+  // vertices y and y' then we can keep the order of edges sorted by mapping
+  // source and sink to the highest numbered vertices, and creating the
+  // corresponding edges last. This ordering lets us optimize the process of
+  // making the residual network symmetric.
+  for (int variable = 0; variable < _num_variables; variable++) {
+    int from_vertex = _mapper.variable_to_vertex(variable);
+    int from_vertex_complement = _mapper.complement(from_vertex);
+    auto linear = posiform.getLinear(variable);
+    if (linear > 0) {
+      createImplicationNetworkEdges(_source, from_vertex_complement, linear);
+    } else if (linear < 0) {
+      createImplicationNetworkEdges(_source, from_vertex, -linear);
     }
   }
   _adjacency_list_valid = true;
