@@ -26,6 +26,8 @@
 // IS EASIER TO DEBUG WITH SEQUENTIAL MAPPING, BUT IT IS HARD TO SHIFT BETWEEN
 // THEM WITHOUT A DEDICATED CLASS.
 
+#define evenOddMapper mapper_t
+
 // These mapper objects control variable to vertex mapping. Please do not manually map
 // them even though it may seem easy, since we may change the mapping by these
 // functions later. The assertions should be changed if the mapping is
@@ -49,6 +51,8 @@ public:
   inline int source() { return _num_variables; }
 
   inline int sink() { return 2 * _num_variables + 1; }
+
+  inline int num_vertices() { return 2 * (_num_variables + 1); }
 
   inline int complement(int vertex) {
     assert((vertex <= 2 * _num_variables + 1) && (vertex >= 0));
@@ -88,6 +92,8 @@ public:
   inline int source() { return 2 * _num_variables; }
 
   inline int sink() { return 2 * _num_variables + 1; }
+
+  inline int num_vertices() { return 2 * (_num_variables + 1); }
 
   inline int complement(int vertex) {
     assert((vertex <= 2 * _num_variables + 1) && (vertex >= 0));
