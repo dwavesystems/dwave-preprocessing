@@ -234,7 +234,7 @@ template <class EdgeType> void PushRelabelSolver<EdgeType>::globalRelabel() {
   // from the sink as the value of height can be at most one less than the
   // number of vertices.
   int already_unreachable = 0;
-  assert((_vertices[_sink] != _num_vertices) &&
+  assert((_vertices[_sink].height != _num_vertices) &&
          "Sink should have been reachable before globalRelabel");
   for (int i = 0; i < _num_vertices; i++) {
     if (_vertices[i].height == _num_vertices) {

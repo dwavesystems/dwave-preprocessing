@@ -132,8 +132,8 @@ private:
 
 template <class BQM, class coefficient_t>
 PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
-  assert(std::is_integral(coefficient_type) &&
-         std::is_signed(coefficient_type) &&
+  assert(std::is_integral<coefficient_type>::value &&
+         std::is_signed<coefficient_type>::value &&
          "Posiform must have signed, integral type coefficients");
   _constant_posiform = 0;
   _max_absolute_value = 0;
