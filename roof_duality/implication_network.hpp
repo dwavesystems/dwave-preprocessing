@@ -257,12 +257,14 @@ private:
 template <class capacity_t>
 template <class PosiformInfo>
 ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
-  assert(std::is_integral<capacity_t>::value && std::is_signed<capacity_t>::value &&
+  assert(std::is_integral<capacity_t>::value &&
+         std::is_signed<capacity_t>::value &&
          "Implication Network must have signed, integral type coefficients");
-  assert((std::numeric_limits<capacity_t>::max() >=
-          std::numeric_limits<typename PosiformInfo::coefficient_type>::max()) &&
-         "Implication Network must have capacity type with larger maximum "
-         "value than the type of coefficients in source posiform.");
+  assert(
+      (std::numeric_limits<capacity_t>::max() >=
+       std::numeric_limits<typename PosiformInfo::coefficient_type>::max()) &&
+      "Implication Network must have capacity type with larger maximum "
+      "value than the type of coefficients in source posiform.");
   _num_variables = posiform.getNumVariables();
   _mapper = mapper_t(_num_variables);
   _num_vertices = _mapper.num_vertices();
@@ -315,7 +317,7 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
     }
   }
 
-  // We sperate out the creation of edges with source and sink, as if the
+  // We separate out the creation of edges with source and sink, as if the
   // mapping of variables to vertices is ordered such that if variable x <
   // variable y, then vertices corresponding to x and x' both will be less than
   // vertices y and y' then we can keep the order of edges sorted by mapping
@@ -489,7 +491,7 @@ void ImplicationNetwork<capacity_t>::fixStronglyConnectedComponentVariables(
   for (; vit != vit_end; vit++) {
     int vertex = *vit;
     int base_vertex = _mapper.non_complemented_vertex(vertex);
-    int variable = _mapper.vertex_to_variable(base_vertex);
+    int variable = _mapper.non_complemented_vertex_to_variable(base_vertex);
     fixed_variables.push_back({variable, (vertex == base_vertex) ? 1 : 0});
   }
 
@@ -615,7 +617,7 @@ void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
     if (bfs_depth_values[vertex] != UNVISITED) {
       int base_vertex = _mapper.non_complemented_vertex(vertex);
-      int variable = _mapper.vertex_to_variable(base_vertex);
+      int variable = _mapper.non_complemented_vertex_to_variable(base_vertex);
       if (base_vertex == _source) {
         continue;
       }
