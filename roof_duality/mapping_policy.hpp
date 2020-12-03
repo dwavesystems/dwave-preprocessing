@@ -65,6 +65,8 @@ public:
     return (vertex <= _num_variables) ? vertex : (vertex - _num_variables - 1);
   }
 
+  // Should convert only vertices which correspond to non-complemented variables
+  // and should not convert the source vertex.
   inline int non_complemented_vertex_to_variable(int vertex) {
     assert((vertex < _num_variables) && (vertex >= 0));
     return vertex;
@@ -105,8 +107,10 @@ public:
     return (vertex % 2) ? (vertex - 1) : (vertex);
   }
 
+  // Should convert only vertices which correspond to non-complemented variables
+  // and should not convert the source vertex.
   inline int non_complemented_vertex_to_variable(int vertex) {
-    assert((vertex <= 2 * _num_variables + 1) && (vertex >= 0) &&
+    assert((vertex <= 2 * _num_variables - 1) && (vertex >= 0) &&
            !(vertex % 2));
     return vertex / 2;
   }
