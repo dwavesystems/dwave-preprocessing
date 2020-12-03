@@ -536,6 +536,8 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
   assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
          "Maximum flow is not valid.");
 
+  // The removal of certain edges will create a component with the source only
+  // and another component with the sink only.
   std::vector<std::vector<int>> adjacency_list_residual;
   extractResidualNetworkWithoutSourceInSinkOut(adjacency_list_residual, true);
 
@@ -574,6 +576,7 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
   out_degrees[scc_info.sink_component] = -1;
 
   for (int component = 0; component < num_components; component++) {
+    // Skipping the source component and the other unvisited ones.
     if ((bfs_depth_values[component] != 0) &&
         (bfs_depth_values[component] != UNVISITED)) {
       fixStronglyConnectedComponentVariables(
@@ -617,10 +620,10 @@ void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
     if (bfs_depth_values[vertex] != UNVISITED) {
       int base_vertex = _mapper.non_complemented_vertex(vertex);
-      int variable = _mapper.non_complemented_vertex_to_variable(base_vertex);
       if (base_vertex == _source) {
         continue;
       }
+      int variable = _mapper.non_complemented_vertex_to_variable(base_vertex);
       fixed_variables.push_back({variable, (vertex == base_vertex) ? 1 : 0});
     }
   }
