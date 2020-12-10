@@ -48,7 +48,7 @@ def fix_variables_wrapper(bqm, method):
     if not isinstance(method, int):
         raise TypeError("method should be an int")
     if method < 1 or method > 2:
-        raise ValueError("method should 1 or 2")
+        raise ValueError("method should be 1 or 2")
 
     cdef cyAdjVectorBQM cvbqm = bqm
     fixed = fixQuboVariables[VarIndex, Bias](cvbqm.bqm_, int(method));

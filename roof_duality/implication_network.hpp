@@ -54,7 +54,7 @@ public:
     std::cout << from_vertex << " --> " << to_vertex << std::endl;
     std::cout << "Capacity : " << getCapacity() << std::endl;
     std::cout << "Residual : " << residual << std::endl;
-    std::cout << "Reverse Edge Capaciy : " << getReverseEdgeCapacity()
+    std::cout << "Reverse Edge Capacity : " << getReverseEdgeCapacity()
               << std::endl;
     std::cout << "Reverse Edge Residual : " << getReverseEdgeResidual()
               << std::endl;
