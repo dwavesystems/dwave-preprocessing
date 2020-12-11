@@ -244,7 +244,6 @@ private:
   void createImplicationNetworkEdges(int from_vertex, int to_vertex,
                                      capacity_t capacity);
 
-private:
   int _num_variables;
   int _num_vertices;
   int _source;
