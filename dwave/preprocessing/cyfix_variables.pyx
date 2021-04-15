@@ -40,7 +40,6 @@ def fix_variables_wrapper(bqm, method):
     method 2 -> roof-duality only
 
     """
-
     if bqm.vartype is not Vartype.BINARY:
         raise ValueError("bqm must be BINARY")
     if not all(v in bqm.linear for v in range(len(bqm))):
@@ -50,6 +49,7 @@ def fix_variables_wrapper(bqm, method):
     if method < 1 or method > 2:
         raise ValueError("method should be 1 or 2")
 
-    cdef cyAdjVectorBQM cvbqm = bqm
-    fixed = fixQuboVariables[VarIndex, Bias](cvbqm.bqm_, int(method));
+    cdef cyAdjVectorBQM cvbqm = AdjVectorBQM(bqm)
+
+    fixed = fixQuboVariables[VarIndex, Bias](cvbqm.bqm_, int(method))
     return {int(v): int(val) for v, val in fixed}

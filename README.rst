@@ -1,1 +1,1 @@
-# placeholder package for some optimization utilites like roof duality
+# placeholder package for some optimization utilities like roof duality

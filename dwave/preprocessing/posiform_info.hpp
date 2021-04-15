@@ -27,6 +27,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include <iostream>
+using std::cout;
+using std::endl;
 // This class should contain all the information needed to recreate a posiform
 // corresponding to a BQM. The intention is to reduce the memory footprint as
 // much as possible, thus requires some processing before the stored data can
@@ -227,9 +230,15 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
       // linear values for the posiform in double format.
       auto bias_quadratic_integral = convertToPosiformCoefficient(it->second);
       if (bias_quadratic_integral) {
+        cout << "#" << endl;
+        cout << _num_quadratic_integral_biases.size() << endl;
+        cout << it->first << endl;
         _num_quadratic_integral_biases[it->first]++;
+        cout << "##" << endl;
         if (bias_quadratic_integral < 0) {
+          cout << "###" << endl;
           _linear_integral_biases[bqm_variable] += bias_quadratic_integral;
+          cout << "####" << endl;
         }
         num_nonZero_quadratic_biases_in_upper_triangular_row++;
       }
