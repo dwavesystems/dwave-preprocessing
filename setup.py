@@ -48,20 +48,14 @@ class build_ext(_build_ext):
 
         super().build_extensions()
 
-# # Load package info, without importing the package
-# basedir = os.path.dirname(os.path.abspath(__file__))
-# package_info_path = os.path.join(basedir, "dwave", "preprocessing", "package_info.py")
-# package_info = {}
-# with open(package_info_path, encoding='utf-8') as f:
-#     exec(f.read(), package_info)
-
 setup(
     name='dwave-preprocessing',
     cmdclass=dict(build_ext=build_ext),
     ext_modules=cythonize(
         [Extension(
             name='dwave.preprocessing.cyfix_variables',
-            sources=['dwave/preprocessing/cyfix_variables.pyx'])],
+            sources=['dwave/preprocessing/cyfix_variables.pyx']),
+        ],
         annotate=bool(os.getenv('CYTHON_ANNOTATE', False)),
         nthreads=int(os.getenv('CYTHON_NTHREADS', 0)),
         ),

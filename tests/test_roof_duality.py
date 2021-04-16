@@ -22,8 +22,6 @@ from dwave.preprocessing import roof_duality
 
 class TestFixVariables(unittest.TestCase):
     def test_3path(self):
-
         bqm = dimod.BinaryQuadraticModel.from_ising({'a': 10}, {'ab': -1, 'bc': 1})
         fixed = roof_duality.fix_variables(bqm)
         self.assertEqual(fixed, {'a': -1, 'b': -1, 'c': 1})
-

@@ -23,10 +23,6 @@
 #include "implication_network.hpp"
 #include "posiform_info.hpp"
 
-#include <iostream>
-using std::cout;
-using std::endl;
-
 namespace fix_variables_ {
 
 typedef long long int capacity_type;
