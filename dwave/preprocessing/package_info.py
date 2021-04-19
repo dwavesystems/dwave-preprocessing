@@ -1,4 +1,4 @@
-# Copyright 2018 D-Wave Systems Inc.
+# Copyright 2021 D-Wave Systems Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -23,6 +23,3 @@ __version__ = '0.1.0'
 __license__ = 'Apache 2.0'
 __copyright__ = '2021, D-Wave Systems Inc.'
 __url__ = 'https://github.com/dwavesystems/dwave-preprocessing'
-
-
-
