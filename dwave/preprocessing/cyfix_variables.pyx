@@ -19,6 +19,7 @@
 
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
+from libcpp cimport bool as cppbool
 
 import dimod
 from dimod import AdjVectorBQM
@@ -28,29 +29,26 @@ from dimod.vartypes import Vartype
 
 cdef extern from "include/dwave-preprocessing/fix_variables.hpp" namespace "fix_variables_":
     vector[pair[int, int]] fixQuboVariables[V, B](cppAdjVectorBQM[V, B]& refBQM,
-                                            int method) except +
+                                                  cppbool sampling_mode) except +
 
-def fix_variables_wrapper(bqm, method):
+def fix_variables_wrapper(bqm, sampling_mode):
     """Cython wrapper for fix_variables().
 
     Args:
         bqm (:obj:`.BinaryQuadraticModel`):
             Should be binary and linear indexed.
 
-        method (int):
-            1 -> roof-duality & strongly connected components
-            2 -> roof-duality only
-
+        sampling_mode (bool):
+            If True, only roof-duality is used. If False, strongly connected
+            components are also used to fix more variables.
     """
     if bqm.vartype is not Vartype.BINARY:
         raise ValueError("bqm must be BINARY")
     if not all(v in bqm.linear for v in range(len(bqm))):
         raise ValueError("bqm must be integer-labeled")
-    if not isinstance(method, int):
-        raise TypeError("method should be an int")
-    if method < 1 or method > 2:
-        raise ValueError("method should be 1 or 2")
+    if not isinstance(sampling_mode, bool):
+        raise TypeError("method should be a bool")
 
     cdef cyAdjVectorBQM cybqm = dimod.as_bqm(bqm, cls=AdjVectorBQM)
-    fixed = fixQuboVariables(cybqm.bqm_, method)
+    fixed = fixQuboVariables(cybqm.bqm_, sampling_mode)
     return {int(v): int(val) for v, val in fixed}

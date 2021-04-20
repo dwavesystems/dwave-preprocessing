@@ -15,6 +15,7 @@
 # =============================================================================
 
 from dimod.vartypes import Vartype
+from dimod.reference.composites.fixedvariable import FixedVariableComposite
 
 from dwave.preprocessing.cyfix_variables import fix_variables_wrapper
 
@@ -76,23 +77,17 @@ def fix_variables(bqm, sampling_mode=True):
         (2002), pp. 155-225
 
     """
-    if sampling_mode:
-        method = 2  # roof-duality only
-    else:
-        method = 1  # roof-duality and strongly connected components
+    # get copy to convert to binary if needed
+    bqm_copy = bqm.copy()
 
-    # save original vartype to return consistently
-    orig_vartype = bqm.vartype
+    if bqm_copy.vartype is Vartype.SPIN:
+        bqm_copy.change_vartype(Vartype.BINARY, inplace=True)
 
-    # convert to binary
-    if bqm.vartype is Vartype.SPIN:
-        bqm.change_vartype(Vartype.BINARY, inplace=True)
+    linear = bqm_copy.linear
 
-    linear = bqm.linear
-
-    if all(v in linear for v in range(len(bqm))):
+    if all(v in linear for v in range(len(bqm_copy))):
         # we can work with the binary form of the bqm directly
-        fixed = fix_variables_wrapper(bqm, method)
+        fixed = fix_variables_wrapper(bqm_copy, sampling_mode)
     else:
         try:
             inverse_mapping = dict(enumerate(sorted(linear)))
@@ -101,10 +96,57 @@ def fix_variables(bqm, sampling_mode=True):
             inverse_mapping = dict(enumerate(linear))
         mapping = {v: i for i, v in inverse_mapping.items()}
 
-        fixed = fix_variables_wrapper(bqm.relabel_variables(mapping, inplace=False), method)
+        fixed = fix_variables_wrapper(bqm_copy.relabel_variables(mapping, inplace=False), sampling_mode)
         fixed = {inverse_mapping[v]: val for v, val in fixed.items()}
 
-    if orig_vartype is Vartype.SPIN:
+    if bqm.vartype is Vartype.SPIN:
         return {v: 2*val - 1 for v, val in fixed.items()}
     else:
         return fixed
+
+
+class RoofDualityComposite(FixedVariableComposite):
+    """Uses roof duality to assign some variables before invoking child sampler.
+
+    Uses the :func:`~roof_duality.fix_variables` function to determine
+    variable assignments, then fixes them before calling the child sampler.
+    Returned samples include the fixed variables.
+
+    Args:
+       child (:obj:`dimod.Sampler`):
+            A dimod sampler. Used to sample the binary quadratic model after
+            variables have been fixed.
+
+    """
+    @property
+    def parameters(self):
+        params = self.child.parameters.copy()
+        params['sampling_mode'] = []
+        return params
+
+    def sample(self, bqm, sampling_mode=True, **parameters):
+        """Sample from the provided binary quadratic model.
+
+        Uses the :func:`~roof_duality.fix_variables` function to determine
+        which variables to fix.
+
+        Args:
+            bqm (:obj:`dimod.BinaryQuadraticModel`):
+                Binary quadratic model to be sampled from.
+
+            sampling_mode (bool, optional, default=True):
+                In sampling mode, only roof-duality is used. When
+                `sampling_mode` is false, strongly connected components are used
+                to fix more variables, but in some optimal solutions these
+                variables may take different values.
+
+            **parameters:
+                Parameters for the child sampler.
+
+        Returns:
+            :obj:`dimod.SampleSet`
+
+        """
+        # use roof-duality to decide which variables to fix
+        parameters['fixed_variables'] = fix_variables(bqm, sampling_mode=sampling_mode)
+        return super(RoofDualityComposite, self).sample(bqm, **parameters)
