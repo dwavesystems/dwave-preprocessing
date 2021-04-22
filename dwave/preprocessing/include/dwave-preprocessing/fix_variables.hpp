@@ -17,8 +17,6 @@
 ================================================================================================
 */
 
-#include "dimod/adjarraybqm.h"
-#include "dimod/adjmapbqm.h"
 #include "dimod/adjvectorbqm.h"
 #include "implication_network.hpp"
 #include "posiform_info.hpp"
@@ -79,33 +77,11 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
   std::sort(fixed_variables.begin(), fixed_variables.end(), compClass());
 }
 
-// Fix variables for different types of BQMs.
-
 template <class V, class B>
 std::vector<std::pair<int, int>>
 fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool sample) {
   int num_bqm_variables = bqm.num_variables();
   PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
-  std::vector<std::pair<int, int>> fixed_variables;
-  fixQuboVariables(posiform_info, num_bqm_variables, sample, fixed_variables);
-  return fixed_variables;
-}
-
-template <class V, class B>
-std::vector<std::pair<int, int>> fixQuboVariables(dimod::AdjArrayBQM<V, B> &bqm,
-                                                  bool sample) {
-  int num_bqm_variables = bqm.num_variables();
-  PosiformInfo<dimod::AdjArrayBQM<V, B>, capacity_type> posiform_info(bqm);
-  std::vector<std::pair<int, int>> fixed_variables;
-  fixQuboVariables(posiform_info, num_bqm_variables, sample, fixed_variables);
-  return fixed_variables;
-}
-
-template <class V, class B>
-std::vector<std::pair<int, int>> fixQuboVariables(dimod::AdjMapBQM<V, B> &bqm,
-                                                  bool sample) {
-  int num_bqm_variables = bqm.num_variables();
-  PosiformInfo<dimod::AdjMapBQM<V, B>, capacity_type> posiform_info(bqm);
   std::vector<std::pair<int, int>> fixed_variables;
   fixQuboVariables(posiform_info, num_bqm_variables, sample, fixed_variables);
   return fixed_variables;
