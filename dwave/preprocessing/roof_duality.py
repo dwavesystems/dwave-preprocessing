@@ -20,16 +20,14 @@ from dimod.reference.composites.fixedvariable import FixedVariableComposite
 from dwave.preprocessing.cyfix_variables import fix_variables_wrapper
 
 def fix_variables(bqm, sampling_mode=True):
-    """Determine assignments for some variables of a binary quadratic model.
+    """Determine assignments for some variables of a binary quadratic model using
+    roof duality.
 
-    Roof duality finds a lower bound for the minimum of a quadratic polynomial.
-    It can also find minimizing assignments for some of the polynomial's
-    variables; these fixed variables take the same values in all optimal
-    solutions [BHT]_ [BH]_. A quadratic pseudo-Boolean function can be
-    represented as a network to find the lower bound through network-flow
-    computations. `fix_variables` uses maximum flow in the implication network
-    to correctly fix variables. Consequently, you can find an assignment for the
-    remaining variables that attains the optimal value.
+    A quadratic pseudo-Boolean function can be represented as a network to find 
+    the lower bound through network-flow computations. `fix_variables` uses 
+    maximum flow in the implication network to correctly fix variables. 
+    Consequently, you can find an assignment for the remaining variables that 
+    attains the optimal value.
 
     Args:
         bqm (:obj:`.BinaryQuadraticModel`):
@@ -41,7 +39,7 @@ def fix_variables(bqm, sampling_mode=True):
             but in some optimal solutions these variables may take different values.
 
     Returns:
-        dict: Variable assignments for some variables of the specified binary quadratic model.
+        dict: Variable assignments for some variables of ``bqm``.
 
     Examples:
         This example creates a binary quadratic model with a single ground state
@@ -69,12 +67,6 @@ def fix_variables(bqm, sampling_mode=True):
         >>> bqm.add_interaction('a', 'b', -1.0)
         >>> roof_duality.fix_variables(bqm, sampling_mode=False) # doctest: +SKIP
         {'a': 1, 'b': 1}
-
-    .. [BHT] Boros, E., P.L. Hammer, G. Tavares. Preprocessing of Unconstraint Quadratic Binary
-        Optimization. Rutcor Research Report 10-2006, April, 2006.
-
-    .. [BH] Boros, E., P.L. Hammer. Pseudo-Boolean optimization. Discrete Applied Mathematics 123,
-        (2002), pp. 155-225
 
     """
     # get copy to convert to binary if needed
@@ -106,16 +98,28 @@ def fix_variables(bqm, sampling_mode=True):
 
 
 class RoofDualityComposite(FixedVariableComposite):
-    """Uses roof duality to assign some variables before invoking child sampler.
-
-    Uses the :func:`~roof_duality.fix_variables` function to determine
-    variable assignments, then fixes them before calling the child sampler.
+    """A composite that uses the :func:`fix_variables` function to determine 
+    variable assignments, then fixes them before calling its child sampler.
+    
     Returned samples include the fixed variables.
 
     Args:
-       child (:obj:`dimod.Sampler`):
+       child_sampler (:obj:`dimod.Sampler`):
             A dimod sampler. Used to sample the binary quadratic model after
             variables have been fixed.
+
+    Examples:
+        This example uses the RoofDualityComposite to fix the variables of a 
+        small Ising problem before solving with dimod's ExactSolver.
+
+        >>> from dimod import ExactSolver
+        >>> from dwave.preprocessing.roof_duality import RoofDualityComposite
+        >>> sampler = RoofDualityComposite(ExactSolver())
+        >>> sampleset = sampler.sample_ising({'a': 10},  {'ab': -1, 'bc': 1})
+        >>> print(sampleset)
+           a  b  c energy num_oc.
+        0 -1 -1 +1  -12.0       1
+        ['SPIN', 1 rows, 1 samples, 3 variables]
 
     """
     @property
@@ -127,7 +131,7 @@ class RoofDualityComposite(FixedVariableComposite):
     def sample(self, bqm, sampling_mode=True, **parameters):
         """Sample from the provided binary quadratic model.
 
-        Uses the :func:`~roof_duality.fix_variables` function to determine
+        Uses the :func:`roof_duality.fix_variables` function to determine
         which variables to fix.
 
         Args:
@@ -136,7 +140,7 @@ class RoofDualityComposite(FixedVariableComposite):
 
             sampling_mode (bool, optional, default=True):
                 In sampling mode, only roof-duality is used. When
-                `sampling_mode` is false, strongly connected components are used
+                ``sampling_mode`` is false, strongly connected components are used
                 to fix more variables, but in some optimal solutions these
                 variables may take different values.
 

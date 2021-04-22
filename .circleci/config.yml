@@ -52,12 +52,6 @@ jobs:
             . env/bin/activate
             codecov   # calls `coverage xml`, so we must activate venv
 
-      - run: &run-cpp-tests
-          name: Run C++ tests
-          command: |
-            . env/bin/activate
-            make -C tests/ smoke
-
   test-3.8:
     <<: *test-linux-template
     docker:
@@ -131,8 +125,6 @@ jobs:
 
       - run: *run-python-tests
 
-      - run: *run-cpp-tests
-
   test-osx-3.8:
     <<: *test-osx-template
     environment:
@@ -158,16 +150,25 @@ jobs:
   test-linux-cpp11:
     docker:
       # just use a python image, all we really want is debian
-      - image: circleci/python:3.6-jessie
+      - image: circleci/python:3.8-buster
     
     working_directory: ~/repo
 
     steps:
       - checkout
-      - run: *linux-install-boost-template
+
+      - restore_cache: *restore-cache-env
+
+      - run: *create-virtualenv
+
+      - run: *install-requirements
+
+      - save_cache: *save-cache-env
+
       - run:
           name: run cpp tests
           command: |
+            . env/bin/activate
             make -C testscpp/ --always-make
 
   #
