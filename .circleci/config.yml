@@ -152,6 +152,25 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: 10.9
 
   #
+  # cpp tests
+  #
+
+  test-linux-cpp11:
+    docker:
+      # just use a python image, all we really want is debian
+      - image: circleci/python:3.6-jessie
+    
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      - run: *linux-install-boost-template
+      - run:
+          name: run cpp tests
+          command: |
+            make -C testscpp/ --always-make
+
+  #
   # docs
   #
 
@@ -313,6 +332,7 @@ workflows:
       - test-osx-3.8
       - test-osx-3.7
       - test-osx-3.6
+      - test-linux-cpp11
       - test-docs
 
   deploy:
