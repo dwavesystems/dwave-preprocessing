@@ -1,21 +1,18 @@
-/**
-# Copyright 2018 D-Wave Systems Inc.
-#
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-#
-#        http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-#
-#
-================================================================================================
-*/
+// Copyright 2021 D-Wave Systems Inc.
+//
+//    Licensed under the Apache License, Version 2.0 (the "License");
+//    you may not use this file except in compliance with the License.
+//    You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS,
+//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//    See the License for the specific language governing permissions and
+//    limitations under the License.
+//
+// =============================================================================
 
 #ifndef POSIFORM_INFORMATION_HPP_INCLUDED
 #define POSIFORM_INFORMATION_HPP_INCLUDED
@@ -27,55 +24,75 @@
 #include <unordered_map>
 #include <vector>
 
-// This class should contain all the information needed to recreate a posiform
-// corresponding to a BQM. The intention is to reduce the memory footprint as
-// much as possible, thus requires some processing before the stored data can
-// be used.
-//
-// If linear bias for variable X_i is negative with value -L it means in the
-// posiform we have the term  L * X_source * X_i' (X_i' being the complement of
-// X_i). X_source is X_0 in the paper mentioned below. X_0 was a variable added
-// to the posiform at a later step. We do not store X_0 explicitly as that would
-// make the indexing complicated, shifting the index of each posiform variable
-// by 1.
-//
-// If a quadratic bias between X_i, X_j is negative with value -L with i < j it
-// means in the posiform we have the term L*X_i*X_j' (X_i' being the complement
-// of X_i).
-//
-// For each variable X_i the posiform keeps the iterators in the provided bqm
-// for biases starting from X_j, (j>i) to X_n.
-//
-// The linear biases are stored in integral format and can be used directly.
-// But the quadratic biases are not stored, instead the iterators in the bqm are
-// stored, thus the convertTo** function must be applied first on the biases
-// before use.
-//
-// Note the number of variables and biases exposed correspond to the integral
-// version of the bqm matrix and may differ from the numbers corresponding
-// to the floating point based numbers as many biases may be flushed to zeroes.
-//
-// For more details see : Boros, Endre & Hammer, Peter & Tavares, Gabriel.
-// (2006). Preprocessing of unconstrained quadratic binary optimization. RUTCOR
-// Research Report.
+/**
+ * Contains all the information needed to recreate a posiform corresponding to 
+ * a BQM. The intention is to reduce the memory footprint as much as possible, 
+ * thus requiring some processing before the stored data can be used.
+ *
+ * For implementation details, see comments in the source code.
+ *
+ * For details on the algorithm, see : Boros, Endre & Hammer, Peter & Tavares, Gabriel.
+ * (2006). Preprocessing of unconstrained quadratic binary optimization. RUTCOR
+ * Research Report.
+ */
 template <class BQM, class coefficient_t> class PosiformInfo {
+/*
+If linear bias for variable X_i is negative with value -L it means in the
+posiform we have the term  L * X_source * X_i' (X_i' being the complement of
+X_i). X_source is X_0 in the paper mentioned below. X_0 was a variable added
+to the posiform at a later step. We do not store X_0 explicitly as that would
+make the indexing complicated, shifting the index of each posiform variable
+by 1.
+
+If a quadratic bias between X_i, X_j is negative with value -L with i < j it
+means in the posiform we have the term L*X_i*X_j' (X_i' being the complement
+of X_i).
+
+For each variable X_i the posiform keeps the iterators in the provided bqm
+for biases starting from X_j, (j>i) to X_n.
+
+The linear biases are stored in integral format and can be used directly.
+But the quadratic biases are not stored, instead the iterators in the bqm are
+stored, thus the convertTo** function must be applied first on the biases
+before use.
+
+Note the number of variables and biases exposed correspond to the integral
+version of the bqm matrix and may differ from the numbers corresponding
+to the floating point based numbers as many biases may be flushed to zeroes.
+*/
 public:
   using coefficient_type = coefficient_t; // Must be a signed integral type.
   using bias_type = typename BQM::bias_type;
   using quadratic_iterator_type = typename BQM::const_outvars_iterator;
   using variable_type = typename BQM::variable_type;
 
+  /**
+   * Construct a PosiformInfo from a binary quadratic model.
+   */
   PosiformInfo(const BQM &bqm);
 
+  /**
+   * Get number of posiform variables.
+   */
   inline int getNumVariables() { return _num_posiform_variables; }
 
+  /**
+   * Get number of posiform variables with a non-zero linear bias.
+   */
   inline int getNumLinear() { return _num_linear_integral_biases; }
 
+
+  /**
+   * Get the linear bias of a posiform variable.
+   */
   inline coefficient_type getLinear(int posiform_variable) {
     return _linear_integral_biases
         [_posiform_to_bqm_variable_map[posiform_variable]];
   }
 
+  /**
+   * Get number of neighbors of a posiform variable.
+   */
   inline int getNumQuadratic(int posiform_variable) {
     return _num_quadratic_integral_biases
         [_posiform_to_bqm_variable_map[posiform_variable]];
@@ -85,13 +102,20 @@ public:
   // convertToPosiformCoefficient and mapVariableQuboToPosiform functions, since
   // the iterators belong to the bqm.
 
+  /**
+   * Get the neighbors of a posiform variable.
+   */
   inline std::pair<quadratic_iterator_type, quadratic_iterator_type>
   getQuadratic(int posiform_variable) {
     return _quadratic_iterators
         [_posiform_to_bqm_variable_map[posiform_variable]];
   }
 
-  // Convert bqm variable to posiform variable.
+  /**
+   * Convert a QUBO variable to a posiform variable. These may be different values
+   * if some biases have been flushed to zero or were originally zero and did
+   * not have any neighbors.
+   */
   inline int mapVariableQuboToPosiform(int bqm_variable) {
     if (_bqm_to_posiform_variable_map.count(bqm_variable) == 0) {
       return -1;
@@ -100,16 +124,25 @@ public:
     }
   }
 
-  // Convert posiform variable to bqm variable.
+  /**
+   * Convert a posiform variable to a QUBO variable. These may be different values
+   * if some biases have been flushed to zero or were originally zero and did
+   * not have any neighbors.
+   */
   inline int mapVariablePosiformToQubo(int posiform_variable) {
     return _posiform_to_bqm_variable_map[posiform_variable];
   }
 
-  // Convert a bqm bqm to a posiform coefficient.
+  /**
+   * Convert a QUBO coefficient to a posiform coefficient.
+   */
   inline coefficient_type convertToPosiformCoefficient(bias_type bqm_bias) {
     return static_cast<coefficient_type>(bqm_bias * _bias_conversion_ratio);
   }
 
+  /**
+   * Print out posiform details.
+   */
   void print();
 
 private:

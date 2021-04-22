@@ -14,7 +14,11 @@ help:
 
 clean:
 	-rm -rf build/*
+	-rm -rf build-cpp/*
 	-rm -rf reference/generated/*
+
+cpp:
+	doxygen Doxyfile
 
 .PHONY: help Makefile
 

@@ -22,12 +22,12 @@ The roof duality algorithm may be accessed through :func:`fix_variables` or the
 .. autofunction:: fix_variables
 
 Class
-~~~~~
+-----
 
 .. autoclass:: RoofDualityComposite
 
 Properties
-~~~~~~~~~~
+----------
 
 .. autosummary::
    :toctree: generated/
@@ -38,7 +38,7 @@ Properties
    RoofDualityComposite.properties
 
 Methods
-~~~~~~~
+-------
 
 .. autosummary::
    :toctree: generated/

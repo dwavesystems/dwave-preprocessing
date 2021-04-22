@@ -45,7 +45,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
-    'sphinx.ext.ifconfig'
+    'sphinx.ext.ifconfig',
+    'breathe',
 ]
 
 autosummary_generate = True
@@ -80,6 +81,19 @@ modindex_common_prefix = ['preprocessing.']
 doctest_global_setup = """
 import dwave.preprocessing
 """
+
+# -- Breath ---------------------------------------------------------------
+import os
+config_directory = os.path.dirname(os.path.abspath(__file__))
+
+breathe_default_project = "preprocessing"
+breathe_projects = dict(
+  preprocessing=os.path.join(config_directory, 'build-cpp', 'xml'),
+  )
+
+# see https://breathe.readthedocs.io/en/latest/readthedocs.html
+if os.environ.get('READTHEDOCS', False):
+    subprocess.call('make cpp', shell=True, cwd=config_directory)
 
 # -- Options for HTML output -------------------------------------------------
 

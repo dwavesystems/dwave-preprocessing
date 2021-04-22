@@ -36,9 +36,9 @@ for solving binary quadratic models (BQM).
 
     import dwave.preprocessing
 
-Currently, this package contains an implementation of roof duality, an
-algorithm used for finding minimizing assignments of a polynomial's variables. For
-details on implementation and usage, see this package's Reference Documentation.
+Currently, this package contains an implementation of roof duality, an algorithm 
+used for finding minimizing assignments of a polynomial's variables. For details 
+on the algorithm and how to use it, see the package's Reference Documentation.
 
 .. index-end-marker
 

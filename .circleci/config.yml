@@ -186,6 +186,10 @@ jobs:
 
       - run: *create-virtualenv
 
+      - run:
+          name: install doxygen
+          command: sudo apt-get install doxygen
+
       - run: *install-requirements
 
       - save_cache: *save-cache-env
@@ -200,7 +204,7 @@ jobs:
           name: Build docs
           command: |
             . env/bin/activate
-            make -C docs/ html
+            make -C docs/ cpp html
 
       - store_artifacts: &save-docs
           path: ./docs/build/html
@@ -235,7 +239,7 @@ jobs:
       - run:
           name: Bundle shared libraries into wheels
           command: |
-            for whl in ./wheelhouse/dwave*greedy*.whl; do
+            for whl in ./wheelhouse/dwave*preprocessing*.whl; do
               auditwheel repair "$whl" -w ./dist
             done
 
