@@ -1,10 +1,6 @@
 .. image:: https://circleci.com/gh/dwavesystems/dwave-preprocessing.svg?style=svg
     :target: https://circleci.com/gh/dwavesystems/dwave-preprocessing
-    :alt: Linux/Mac build status
-
-.. image:: https://ci.appveyor.com/api/projects/status/hcp8pxgdvbl0qimi/branch/master?svg=true
-    :target: https://ci.appveyor.com/project/dwave-adtt/dwave-preprocessing/branch/master
-    :alt: Windows build status
+    :alt: Linux/Mac/Windows build status
 
 .. image:: https://codecov.io/gh/dwavesystems/dwave-preprocessing/branch/master/graph/badge.svg?token=ZkZo09uAl7
     :target: https://codecov.io/gh/dwavesystems/dwave-preprocessing

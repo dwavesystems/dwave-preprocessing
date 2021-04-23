@@ -112,9 +112,11 @@ public:
   }
 
   /**
-   * Convert a QUBO variable to a posiform variable. These may be different values
-   * if some biases have been flushed to zero or were originally zero and did
-   * not have any neighbors.
+   * Map a QUBO variable to a posiform variable. The number of QUBO variables 
+   * and posiform variables may differ since the coefficient for a QUBO variable 
+   * may turn out to be zero in a posiform. This may occur if the coefficient is 
+   * flushed to zero during the conversion or if the variable did not have non-zero 
+   * linear/quadratic biases in the QUBO.
    */
   inline int mapVariableQuboToPosiform(int bqm_variable) {
     if (_bqm_to_posiform_variable_map.count(bqm_variable) == 0) {
@@ -125,9 +127,11 @@ public:
   }
 
   /**
-   * Convert a posiform variable to a QUBO variable. These may be different values
-   * if some biases have been flushed to zero or were originally zero and did
-   * not have any neighbors.
+   * Map a posiform variable to a QUBO variable. The number of QUBO variables 
+   * and posiform variables may differ since the coefficient for a QUBO variable 
+   * may turn out to be zero in a posiform. This may occur if the coefficient is 
+   * flushed to zero during the conversion or if the variable did not have non-zero 
+   * linear/quadratic biases in the QUBO.
    */
   inline int mapVariablePosiformToQubo(int posiform_variable) {
     return _posiform_to_bqm_variable_map[posiform_variable];

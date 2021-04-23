@@ -14,8 +14,6 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
-# =============================================================================
 
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
@@ -40,15 +38,13 @@ def fix_variables_wrapper(bqm, sampling_mode):
 
         sampling_mode (bool):
             If True, only roof-duality is used. If False, strongly connected
-            components are also used to fix more variables.
+            components are also used to fix more variables if possible.
     """
     if bqm.vartype is not Vartype.BINARY:
         raise ValueError("bqm must be BINARY")
     if not all(v in bqm.linear for v in range(len(bqm))):
         raise ValueError("bqm must be integer-labeled")
-    if not isinstance(sampling_mode, bool):
-        raise TypeError("method should be a bool")
 
     cdef cyAdjVectorBQM cybqm = dimod.as_bqm(bqm, cls=AdjVectorBQM)
-    fixed = fixQuboVariables(cybqm.bqm_, sampling_mode)
+    fixed = fixQuboVariables(cybqm.bqm_, bool(sampling_mode))
     return {int(v): int(val) for v, val in fixed}

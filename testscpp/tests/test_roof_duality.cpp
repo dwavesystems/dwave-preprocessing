@@ -11,8 +11,6 @@
 //    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
-//
-// =============================================================================
 
 #include "../Catch2/single_include/catch2/catch.hpp"
 #include <dimod/adjvectorbqm.h>
@@ -52,7 +50,9 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
     }
 
     SECTION("Test zero bias case") {
-        float Q [9] = {1,0,0,0,0,0,0,0,0};
+        float Q [9] = {1, 0, 0,
+                       0, 0, 0,
+                       0, 0, 0};
 
         int num_vars = 3;
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
@@ -110,13 +110,18 @@ TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
         span = posiform.getQuadratic(2);
         REQUIRE(std::distance(span.first, span.second) == 0);
 
-        REQUIRE(posiform.mapVariableQuboToPosiform(0) == posiform.mapVariablePosiformToQubo(0));
-        REQUIRE(posiform.mapVariableQuboToPosiform(1) == posiform.mapVariablePosiformToQubo(1));
-        REQUIRE(posiform.mapVariableQuboToPosiform(2) == posiform.mapVariablePosiformToQubo(2));
+        for (int var = 0; var < num_vars; var++) {
+            int pos_var = posiform.mapVariableQuboToPosiform(var);
+            if (pos_var > 0) {
+                REQUIRE(posiform.mapVariablePosiformToQubo(pos_var) == var);
+            }
+        }
     }
 
     SECTION("Test zero bias case") {
-        float Q [9] = {1,0,0,0,0,0,0,0,0};
+        float Q [9] = {1, 0, 0,
+                       0, 0, 0,
+                       0, 0, 0};
 
         int num_vars = 3;
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
@@ -129,9 +134,12 @@ TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
         auto span = posiform.getQuadratic(0);
         REQUIRE(std::distance(span.first, span.second) == 0);
 
-        REQUIRE(posiform.mapVariableQuboToPosiform(0) == posiform.mapVariablePosiformToQubo(0));
-        REQUIRE(posiform.mapVariableQuboToPosiform(1) == -1);
-        REQUIRE(posiform.mapVariableQuboToPosiform(2) == -1);
+        for (int var = 0; var < num_vars; var++) {
+            int pos_var = posiform.mapVariableQuboToPosiform(var);
+            if (pos_var > 0) {
+                REQUIRE(posiform.mapVariablePosiformToQubo(pos_var) == var);
+            }
+        }
     }
 }
 

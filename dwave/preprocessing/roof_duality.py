@@ -11,8 +11,6 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
-# =============================================================================
 
 from dimod.vartypes import Vartype
 from dimod.reference.composites.fixedvariable import FixedVariableComposite
@@ -69,17 +67,16 @@ def fix_variables(bqm, sampling_mode=True):
         {'a': 1, 'b': 1}
 
     """
-    # get copy to convert to binary if needed
-    bqm_copy = bqm.copy()
+    bqm_ = bqm
 
-    if bqm_copy.vartype is Vartype.SPIN:
-        bqm_copy.change_vartype(Vartype.BINARY, inplace=True)
+    if bqm_.vartype is Vartype.SPIN:
+        bqm_ = bqm.change_vartype(Vartype.BINARY, inplace=False)
 
-    linear = bqm_copy.linear
+    linear = bqm_.linear
 
-    if all(v in linear for v in range(len(bqm_copy))):
+    if all(v in linear for v in range(len(bqm_))):
         # we can work with the binary form of the bqm directly
-        fixed = fix_variables_wrapper(bqm_copy, sampling_mode)
+        fixed = fix_variables_wrapper(bqm_, sampling_mode)
     else:
         try:
             inverse_mapping = dict(enumerate(sorted(linear)))
@@ -88,7 +85,7 @@ def fix_variables(bqm, sampling_mode=True):
             inverse_mapping = dict(enumerate(linear))
         mapping = {v: i for i, v in inverse_mapping.items()}
 
-        fixed = fix_variables_wrapper(bqm_copy.relabel_variables(mapping, inplace=False), sampling_mode)
+        fixed = fix_variables_wrapper(bqm_.relabel_variables(mapping, inplace=False), sampling_mode)
         fixed = {inverse_mapping[v]: val for v, val in fixed.items()}
 
     if bqm.vartype is Vartype.SPIN:
