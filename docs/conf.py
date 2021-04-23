@@ -12,22 +12,18 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
-# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# instead, make sure the package is installed when building docs
-
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # -- Project information -----------------------------------------------------
 
-from dwave.preprocessing import package_info
-project = package_info.__title__
-copyright = package_info.__copyright__
-author = package_info.__author__
-version = package_info.__version__
-release = package_info.__version__
+import dwave.preprocessing
+project = 'dwave-preprocessing'
+copyright = '2021, D-Wave Systems Inc'
+author = 'D-Wave Systems Inc'
+version = dwave.preprocessing.__version__
+release = dwave.preprocessing.__version__
 
 
 # -- General configuration ---------------------------------------------------

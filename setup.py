@@ -52,18 +52,16 @@ setup(
     name='dwave-preprocessing',
     cmdclass=dict(build_ext=build_ext),
     ext_modules=cythonize(
-        [Extension(
-            name='dwave.preprocessing.cyfix_variables',
-            sources=['dwave/preprocessing/cyfix_variables.pyx']),
-        ],
+        ['dwave/preprocessing/cyfix_variables.pyx'],
         annotate=bool(os.getenv('CYTHON_ANNOTATE', False)),
         nthreads=int(os.getenv('CYTHON_NTHREADS', 0)),
         ),
     include_dirs=[
         numpy.get_include(),
-        dimod.get_include()
+        dimod.get_include(),
         ],
     install_requires=[
         'numpy>=1.17.3,<2.0.0',  # keep synced with circle-ci, pyproject.toml
+        'dimod>=0.9.6,<0.10.0'
         ],
 )

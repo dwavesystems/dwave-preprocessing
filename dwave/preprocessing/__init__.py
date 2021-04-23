@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from dwave.preprocessing import *
+__version__ = '0.1.0'
 
-from dwave.preprocessing.package_info import __version__
-import dwave.preprocessing.package_info
+from dwave.preprocessing import *
