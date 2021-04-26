@@ -78,14 +78,14 @@ def fix_variables(bqm, *, strict=True):
         # we can work with the binary form of the bqm directly
         fixed = fix_variables_wrapper(bqm_, strict)
     else:
-        try:
-            inverse_mapping = dict(enumerate(sorted(linear)))
-        except TypeError:
-            # in python3 unlike types cannot be sorted
-            inverse_mapping = dict(enumerate(linear))
+        inverse_mapping = dict(enumerate(linear))
         mapping = {v: i for i, v in inverse_mapping.items()}
 
-        fixed = fix_variables_wrapper(bqm_.relabel_variables(mapping, inplace=False), strict)
+        # no need to make a copy if we've already done so
+        inplace = bqm.vartype is Vartype.SPIN
+        bqm_ = bqm_.relabel_variables(mapping, inplace=inplace)
+
+        fixed = fix_variables_wrapper(bqm_, strict)
         fixed = {inverse_mapping[v]: val for v, val in fixed.items()}
 
     if bqm.vartype is Vartype.SPIN:
