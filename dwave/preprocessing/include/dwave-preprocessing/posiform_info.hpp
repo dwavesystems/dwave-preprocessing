@@ -234,71 +234,75 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     _max_absolute_value = _posiform_linear_sum_non_integral;
   }
 
-  assert(_max_absolute_value != 0);
-  _bias_conversion_ratio =
+  if (_max_absolute_value != 0) {
+     _bias_conversion_ratio =
       static_cast<double>(std::numeric_limits<coefficient_type>::max()) /
       _max_absolute_value;
 
-  // We should divide the ratio by at least 2 to avoid overflow because we do
-  // not divide by 2 when we make the residual network symmetric. In that step
-  // the total flow is effectively doubled along with capacities. Divinding just
-  // by 2 introduced overflow, thus we divide by a number larger than 2.
-  // TODO : Find the theoretical optimal number for division, for now we divide
-  // by 4 to be safe.
-  _bias_conversion_ratio /= 4;
+    // We should divide the ratio by at least 2 to avoid overflow because we do
+    // not divide by 2 when we make the residual network symmetric. In that step
+    // the total flow is effectively doubled along with capacities. Divinding just
+    // by 2 introduced overflow, thus we divide by a number larger than 2.
+    // TODO : Find the theoretical optimal number for division, for now we divide
+    // by 4 to be safe.
+    _bias_conversion_ratio /= 4;
 
-  for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
-       bqm_variable++) {
-    _linear_integral_biases[bqm_variable] =
-        convertToPosiformCoefficient(bqm.linear(bqm_variable));
-    int num_nonZero_quadratic_biases_in_upper_triangular_row = 0;
-    auto it = _quadratic_iterators[bqm_variable].first;
-    auto it_end = _quadratic_iterators[bqm_variable].second;
-    for (; it != it_end; it++) {
-      // Note the checks for zero below must be done after conversion since some
-      // values may get flushed to zero, we want the linear values and quadratic
-      // values adhere to the same conversion protocal and be consistent.
-      // Otherwise in the implication graph, there may be paths with flow values
-      // of small capacities corresponding to numerical errors, affecting the
-      // final result. For this same reason we do not use the already computed
-      // linear values for the posiform in double format.
-      auto bias_quadratic_integral = convertToPosiformCoefficient(it->second);
-      if (bias_quadratic_integral) {
-        _num_quadratic_integral_biases[it->first]++;
-        if (bias_quadratic_integral < 0) {
-          _linear_integral_biases[bqm_variable] += bias_quadratic_integral;
+    for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
+        bqm_variable++) {
+      _linear_integral_biases[bqm_variable] =
+          convertToPosiformCoefficient(bqm.linear(bqm_variable));
+      int num_nonZero_quadratic_biases_in_upper_triangular_row = 0;
+      auto it = _quadratic_iterators[bqm_variable].first;
+      auto it_end = _quadratic_iterators[bqm_variable].second;
+      for (; it != it_end; it++) {
+        // Note the checks for zero below must be done after conversion since some
+        // values may get flushed to zero, we want the linear values and quadratic
+        // values adhere to the same conversion protocal and be consistent.
+        // Otherwise in the implication graph, there may be paths with flow values
+        // of small capacities corresponding to numerical errors, affecting the
+        // final result. For this same reason we do not use the already computed
+        // linear values for the posiform in double format.
+        auto bias_quadratic_integral = convertToPosiformCoefficient(it->second);
+        if (bias_quadratic_integral) {
+          _num_quadratic_integral_biases[it->first]++;
+          if (bias_quadratic_integral < 0) {
+            _linear_integral_biases[bqm_variable] += bias_quadratic_integral;
+          }
+          num_nonZero_quadratic_biases_in_upper_triangular_row++;
         }
-        num_nonZero_quadratic_biases_in_upper_triangular_row++;
+      }
+      _num_quadratic_integral_biases[bqm_variable] +=
+          num_nonZero_quadratic_biases_in_upper_triangular_row;
+    }
+
+    _posiform_linear_sum_integral = 0; // For debugging purposes.
+    for (int bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
+        bqm_variable++) {
+      if (_linear_integral_biases[bqm_variable]) {
+        _num_linear_integral_biases++;
+        _posiform_linear_sum_integral +=
+            std::llabs(_linear_integral_biases[bqm_variable]);
+      }
+      if (_linear_integral_biases[bqm_variable] < 0) {
+        _constant_posiform += _linear_integral_biases[bqm_variable];
       }
     }
-    _num_quadratic_integral_biases[bqm_variable] +=
-        num_nonZero_quadratic_biases_in_upper_triangular_row;
-  }
 
-  _posiform_linear_sum_integral = 0; // For debugging purposes.
-  for (int bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
-       bqm_variable++) {
-    if (_linear_integral_biases[bqm_variable]) {
-      _num_linear_integral_biases++;
-      _posiform_linear_sum_integral +=
-          std::llabs(_linear_integral_biases[bqm_variable]);
-    }
-    if (_linear_integral_biases[bqm_variable] < 0) {
-      _constant_posiform += _linear_integral_biases[bqm_variable];
+    _posiform_to_bqm_variable_map.reserve(_num_bqm_variables);
+    _num_posiform_variables = 0;
+    for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
+        bqm_variable++) {
+      if (_linear_integral_biases[bqm_variable] ||
+          _num_quadratic_integral_biases[bqm_variable]) {
+        _posiform_to_bqm_variable_map.push_back(bqm_variable);
+        _bqm_to_posiform_variable_map.insert(
+            {bqm_variable, _num_posiform_variables});
+        _num_posiform_variables++;
+      }
     }
   }
-
-  _posiform_to_bqm_variable_map.reserve(_num_bqm_variables);
-  _num_posiform_variables = 0;
-  for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
-       bqm_variable++) {
-    if (_linear_integral_biases[bqm_variable] ||
-        _num_quadratic_integral_biases[bqm_variable]) {
-      _posiform_to_bqm_variable_map.push_back(bqm_variable);
-      _bqm_to_posiform_variable_map.insert(
-          {bqm_variable, _num_posiform_variables});
-      _num_posiform_variables++;
-    }
+  else {
+    _num_posiform_variables = 0;
   }
 }
 

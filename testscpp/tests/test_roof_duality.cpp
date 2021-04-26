@@ -49,6 +49,17 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         }
     }
 
+    SECTION("Test empty case") {
+        float Q [] = {};
+        auto bqm = dimod::AdjVectorBQM<int, float>(Q, 0);
+
+        auto fixed_vars = fixQuboVariables(bqm, true);
+        REQUIRE(fixed_vars.size() == 0);
+
+        fixed_vars = fixQuboVariables(bqm, false);
+        REQUIRE(fixed_vars.size() == 0);
+    }
+
     SECTION("Test zero bias case") {
         float Q [9] = {1, 0, 0,
                        0, 0, 0,
@@ -72,6 +83,45 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
                 // variables that didn't contribute should be set to 1
                 REQUIRE(var.second == 1);
             }
+        }
+    }
+
+    SECTION("Test all zero bias case") {
+        float Q [4] = {0, 0, 
+                       0, 0};
+        
+        int num_vars = 2;
+        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+
+        auto fixed_vars = fixQuboVariables(bqm, true);
+        REQUIRE(fixed_vars.size() == 0);
+
+        fixed_vars = fixQuboVariables(bqm, false);
+        REQUIRE(fixed_vars.size() == num_vars);
+
+        for (auto var : fixed_vars) {
+            REQUIRE(var.second == 1);
+        }
+    }
+
+    SECTION("Test from previously found bug (BugSAPI1311)") {
+        float Q [4] = {2.2, -4.0,
+                         0,  2.0};
+
+        int num_vars = 2;
+        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+
+        for (auto mode : {true, false}) {
+            auto fixed_vars = fixQuboVariables(bqm, mode);
+            REQUIRE(fixed_vars.size() == 2);
+
+            // checking order of variables
+            REQUIRE(fixed_vars[0].first == 0);
+            REQUIRE(fixed_vars[1].first == 1);
+
+            // checking fixed values
+            REQUIRE(fixed_vars[0].second == 0);
+            REQUIRE(fixed_vars[1].second == 0);
         }
     }
 }
