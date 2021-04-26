@@ -230,7 +230,7 @@ jobs:
           name: Build wheels
           command: |
             for PYBIN in /opt/python/*/bin; do
-              "${PYBIN}/python" -c "import sys; sys.exit((3,5)<=sys.version_info<(3,10))" && continue
+              "${PYBIN}/python" -c "import sys; sys.exit((3,6)<=sys.version_info<(3,10))" && continue
               "${PYBIN}/pip" install -r requirements.txt
               "${PYBIN}/pip" wheel . -w ./wheelhouse
               "${PYBIN}/python" setup.py sdist -d ./dist

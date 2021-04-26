@@ -28,7 +28,7 @@ def fix_variables(bqm, sampling_mode=True):
     attains the optimal value.
 
     Args:
-        bqm (:obj:`.BinaryQuadraticModel`):
+        bqm (:class:`.BinaryQuadraticModel`):
             A binary quadratic model.
 
         sampling_mode (bool, optional, default=True):
@@ -101,7 +101,7 @@ class RoofDualityComposite(FixedVariableComposite):
     Returned samples include the fixed variables.
 
     Args:
-       child_sampler (:obj:`dimod.Sampler`):
+       child_sampler (:class:`dimod.Sampler`):
             A dimod sampler. Used to sample the binary quadratic model after
             variables have been fixed.
 
@@ -132,7 +132,7 @@ class RoofDualityComposite(FixedVariableComposite):
         which variables to fix.
 
         Args:
-            bqm (:obj:`dimod.BinaryQuadraticModel`):
+            bqm (:class:`dimod.BinaryQuadraticModel`):
                 Binary quadratic model to be sampled from.
 
             sampling_mode (bool, optional, default=True):
@@ -145,7 +145,7 @@ class RoofDualityComposite(FixedVariableComposite):
                 Parameters for the child sampler.
 
         Returns:
-            :obj:`dimod.SampleSet`
+            :class:`dimod.SampleSet`
 
         """
         # use roof-duality to decide which variables to fix

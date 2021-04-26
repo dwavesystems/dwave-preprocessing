@@ -33,7 +33,7 @@ def fix_variables_wrapper(bqm, sampling_mode):
     """Cython wrapper for fix_variables().
 
     Args:
-        bqm (:obj:`.BinaryQuadraticModel`):
+        bqm (:class:`.BinaryQuadraticModel`):
             Should be binary and linear indexed.
 
         sampling_mode (bool):

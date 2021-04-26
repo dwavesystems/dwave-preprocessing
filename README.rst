@@ -2,7 +2,7 @@
     :target: https://circleci.com/gh/dwavesystems/dwave-preprocessing
     :alt: Linux/Mac/Windows build status
 
-.. image:: https://codecov.io/gh/dwavesystems/dwave-preprocessing/branch/master/graph/badge.svg?token=ZkZo09uAl7
+.. image:: https://codecov.io/gh/dwavesystems/dwave-preprocessing/branch/main/graph/badge.svg
     :target: https://codecov.io/gh/dwavesystems/dwave-preprocessing
     :alt: Code coverage
 
@@ -50,16 +50,6 @@ Install from a package on PyPI:
     pip install dwave-preprocessing
 
 or install from source:
-
-.. code-block:: bash
-
-    USE_CYTHON=1 pip install git+https://github.com/dwavesystems/dwave-preprocessing.git#egg=dwave-preprocessing
-
-Note: ``USE_CYTHON=1`` forces Cythonization and proper build from source. When
-building from *PyPI package* source (which includes Cythonized files), this is
-not necessary.
-
-To build from source:
 
 .. code-block:: bash
 
