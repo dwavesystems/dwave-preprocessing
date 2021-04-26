@@ -38,7 +38,7 @@ public:
  * @param posiform_info Object containing information needed to recreate a
  *      posiform corresponding to QUBO.
  * @param num_bqm_variables Number of variables in the original QUBO.
- * @param sample When true, only the variables corresponding to strong persistencies
+ * @param strict When true, only the variables corresponding to strong persistencies
  *      are fixed. When false, the function tries to fix all the variables
  *      corresponding to strong and weak persistencies. Also when false, variables 
  *      that do not contribute any coefficient to the posiform are set to 1. This
@@ -47,14 +47,14 @@ public:
  */
 template <class PosiformInfo>
 void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
-                      bool sample,
+                      bool strict,
                       std::vector<std::pair<int, int>> &fixed_variables) {
   ImplicationNetwork<capacity_type> implication_network(posiform_info);
   fixed_variables.reserve(num_bqm_variables);
 
   // Fix the variables with respect to the posiform.
   std::vector<std::pair<int, int>> fixed_variables_posiform;
-  implication_network.fixVariables(fixed_variables_posiform, sample);
+  implication_network.fixVariables(fixed_variables_posiform, strict);
 
   // There may not be 1 to 1 mapping from bqm variables to posiform variables,
   // so we convert the posiform variables back to bqm variables.
@@ -65,10 +65,10 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
         {bqm_variable, fixed_variables_posiform[i].second});
   }
 
-  // When we are not sampling we want to set the variables which did not
+  // If not in strict mode, we want to set the variables which did not
   // contribute to the posiform as they had zero bias. They can be set to either
   // 1 or 0. We choose 1.
-  if (!sample) {
+  if (!strict) {
     for (int bqm_variable = 0; bqm_variable < num_bqm_variables;
          bqm_variable++) {
       if (posiform_info.mapVariableQuboToPosiform(bqm_variable) < 0) {
@@ -84,7 +84,7 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
  * Fixes the variables of an AdjVectorBQM.
  *
  * @param bqm AdjVectorBQM to find minimizing variable assignments for
- * @param sample When true, only the variables corresponding to strong persistencies
+ * @param strict When true, only the variables corresponding to strong persistencies
  *      are fixed. When false, the function tries to fix all the variables
  *      corresponding to strong and weak persistencies. Also when false, variables 
  *      that do not contribute any coefficient to the posiform are set to 1. This
@@ -93,11 +93,11 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
  */
 template <class V, class B>
 std::vector<std::pair<int, int>>
-fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool sample) {
+fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
   int num_bqm_variables = bqm.num_variables();
   PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
   std::vector<std::pair<int, int>> fixed_variables;
-  fixQuboVariables(posiform_info, num_bqm_variables, sample, fixed_variables);
+  fixQuboVariables(posiform_info, num_bqm_variables, strict, fixed_variables);
   return fixed_variables;
 }
 

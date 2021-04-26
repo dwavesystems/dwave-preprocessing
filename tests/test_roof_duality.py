@@ -21,20 +21,20 @@ from dwave.preprocessing.roof_duality import fix_variables, RoofDualityComposite
 class TestFixVariables(unittest.TestCase):
     def test_empty(self):
         bqm = dimod.AdjVectorBQM('BINARY')
-        fixed = fix_variables(bqm, True)
+        fixed = fix_variables(bqm, strict=True)
         self.assertEqual(fixed, {})
 
-        fixed = fix_variables(bqm, False)
+        fixed = fix_variables(bqm, strict=False)
         self.assertEqual(fixed, {})
 
     def test_all_zero(self):
         num_vars = 3
 
         bqm = dimod.AdjVectorBQM(num_vars, 'BINARY')
-        fixed = fix_variables(bqm, True)
+        fixed = fix_variables(bqm, strict=True)
         self.assertEqual(fixed, {})
 
-        fixed = fix_variables(bqm, False)
+        fixed = fix_variables(bqm, strict=False)
         self.assertEqual(len(fixed), num_vars)
         for val in fixed.values():
             self.assertEqual(val, 1)
@@ -70,13 +70,13 @@ class TestRoofDualityComposite(unittest.TestCase):
         self.assertEqual(set(sampleset.variables), set('abc'))
         dimod.testing.assert_response_energies(sampleset, bqm)
 
-    def test_triangle_sampling_mode_off(self):
+    def test_triangle_not_strict(self):
         sampler = RoofDualityComposite(dimod.ExactSolver())
 
         bqm = dimod.BinaryQuadraticModel.from_ising({}, {'ab': -1, 'bc': -1, 'ac': -1})
 
-        # two equally good solutions, but with sampling mode off it will pick one
-        sampleset = sampler.sample(bqm, sampling_mode=False)
+        # two equally good solutions, but with strict=False, it will pick one
+        sampleset = sampler.sample(bqm, strict=False)
 
         self.assertEqual(set(sampleset.variables), set('abc'))
         self.assertEqual(len(sampleset), 1)  # all should be fixed
