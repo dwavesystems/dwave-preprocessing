@@ -43,7 +43,7 @@ def fix_variables_wrapper(bqm, sampling_mode):
     if bqm.vartype is not Vartype.BINARY:
         raise ValueError("bqm must be BINARY")
     if not all(v in bqm.linear for v in range(len(bqm))):
-        raise ValueError("bqm must be integer-labeled")
+        raise ValueError("bqm must be linearly indexed")
 
     cdef cyAdjVectorBQM cybqm = dimod.as_bqm(bqm, cls=AdjVectorBQM)
     fixed = fixQuboVariables(cybqm.bqm_, bool(sampling_mode))
