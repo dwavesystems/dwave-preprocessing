@@ -1,18 +1,16 @@
 // Copyright 2021 D-Wave Systems Inc.
 //
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-//        http://www.apache.org/licenses/LICENSE-2.0
+//   http://www.apache.org/licenses/LICENSE-2.0
 //
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// =============================================================================
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef POSIFORM_INFORMATION_HPP_INCLUDED
 #define POSIFORM_INFORMATION_HPP_INCLUDED
@@ -91,7 +89,7 @@ public:
   }
 
   /**
-   * Get number of neighbors of a posiform variable.
+   * Get number of quadratic terms a posiform variable contributes in.
    */
   inline int getNumQuadratic(int posiform_variable) {
     return _num_quadratic_integral_biases
@@ -103,7 +101,7 @@ public:
   // the iterators belong to the bqm.
 
   /**
-   * Get the neighbors of a posiform variable.
+   * Get the neighbors of a posiform variable in the corresponding BQM.
    */
   inline std::pair<quadratic_iterator_type, quadratic_iterator_type>
   getQuadratic(int posiform_variable) {
@@ -302,6 +300,7 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     }
   }
   else {
+    // All biases in bqm are 0, so the resulting posiform won't have any term in it.
     _num_posiform_variables = 0;
   }
 }

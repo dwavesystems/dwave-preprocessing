@@ -25,8 +25,8 @@ dwave-preprocessing
 
 .. index-start-marker
 
-`dwave-preprocessing` is a package of common preprocessing tools that may be used
-for solving binary quadratic models (BQM).
+`dwave-preprocessing` is a package of common preprocessing tools that can aid in 
+solving binary quadratic models (BQM).
 
 .. code-block:: python
 
@@ -34,7 +34,8 @@ for solving binary quadratic models (BQM).
 
 Currently, this package contains an implementation of roof duality, an algorithm 
 used for finding minimizing assignments of a polynomial's variables. For details 
-on the algorithm and how to use it, see the package's Reference Documentation.
+on the algorithm and how to use it, see the package's 
+`Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/index.html>`_.
 
 .. index-end-marker
 

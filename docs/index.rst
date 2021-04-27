@@ -14,8 +14,6 @@ dwave-preprocessing
 Documentation
 -------------
 
-.. only:: html
-
 .. note:: This documentation is for the latest version of
    `dwave-preprocessing <https://github.com/dwavesystems/dwave-preprocessing>`_.
    Documentation for the version currently installed by

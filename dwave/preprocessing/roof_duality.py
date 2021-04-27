@@ -1,16 +1,16 @@
 # Copyright 2021 D-Wave Systems Inc.
 #
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#        http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from dimod.vartypes import Vartype
 from dimod.reference.composites.fixedvariable import FixedVariableComposite
@@ -18,23 +18,18 @@ from dimod.reference.composites.fixedvariable import FixedVariableComposite
 from dwave.preprocessing.cyfix_variables import fix_variables_wrapper
 
 def fix_variables(bqm, *, strict=True):
-    """Determine assignments for some variables of a binary quadratic model using
-    roof duality.
-
-    A quadratic pseudo-Boolean function can be represented as a network to find 
-    the lower bound through network-flow computations. `fix_variables` uses 
-    maximum flow in the implication network to correctly fix variables. 
-    Consequently, you can find an assignment for the remaining variables that 
-    attains the optimal value.
+    """Determine minimizing assignments for some variables of a binary quadratic 
+    model using roof duality.
 
     Args:
         bqm (:class:`.BinaryQuadraticModel`):
             A binary quadratic model.
 
         strict (bool, optional, default=True):
-            If True, only variables corresponding to strong persistencies are 
-            fixed using roof duality. If False, strongly connected components 
-            are also used to fix more variables where possible.
+            If True, only fixes variables for which assignments are true for all 
+            minimizing points (strong persistency). If False, also fixes variables 
+            for which the assignments are true for some but not all minimizing 
+            points (weak persistency).
 
     Returns:
         dict: Variable assignments for some variables of ``bqm``.
@@ -136,9 +131,10 @@ class RoofDualityComposite(FixedVariableComposite):
                 Binary quadratic model to be sampled from.
 
             strict (bool, optional, default=True):
-                If True, only variables corresponding to strong persistencies are 
-                fixed using roof duality. If False, strongly connected components 
-                are also used to fix more variables where possible.
+                If True, only fixes variables for which assignments are true for 
+                all minimizing points (strong persistency). If False, also fixes 
+                variables for which the assignments are true for some but not all 
+                minimizing points (weak persistency).
 
             **parameters:
                 Parameters for the child sampler.

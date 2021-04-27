@@ -3,17 +3,17 @@
 #
 # Copyright 2021 D-Wave Systems Inc.
 #
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#        http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
@@ -34,12 +34,14 @@ def fix_variables_wrapper(bqm, strict):
 
     Args:
         bqm (:class:`.BinaryQuadraticModel`):
-            Should be binary and linear indexed.
+            A binary quadratic model with binary-valued variables, indexed 
+            linearly from zero.
 
         strict (bool):
-            If True, only variables corresponding to strong persistencies are 
-            fixed using roof duality. If False, strongly connected components 
-            are also used to fix more variables where possible.
+            If True, only fixes variables for which assignments are true for all 
+            minimizing points (strong persistency). If False, also fixes variables 
+            for which the assignments are true for some but not all minimizing 
+            points (weak persistency).
     """
     if bqm.vartype is not Vartype.BINARY:
         raise ValueError("bqm must be BINARY")
