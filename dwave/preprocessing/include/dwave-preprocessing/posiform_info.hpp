@@ -1,21 +1,16 @@
-/**
-# Copyright 2018 D-Wave Systems Inc.
-#
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-#
-#        http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-#
-#
-================================================================================================
-*/
+// Copyright 2021 D-Wave Systems Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef POSIFORM_INFORMATION_HPP_INCLUDED
 #define POSIFORM_INFORMATION_HPP_INCLUDED
@@ -27,55 +22,75 @@
 #include <unordered_map>
 #include <vector>
 
-// This class should contain all the information needed to recreate a posiform
-// corresponding to a BQM. The intention is to reduce the memory footprint as
-// much as possible, thus requires some processing before the stored data can
-// be used.
-//
-// If linear bias for variable X_i is negative with value -L it means in the
-// posiform we have the term  L * X_source * X_i' (X_i' being the complement of
-// X_i). X_source is X_0 in the paper mentioned below. X_0 was a variable added
-// to the posiform at a later step. We do not store X_0 explicitly as that would
-// make the indexing complicated, shifting the index of each posiform variable
-// by 1.
-//
-// If a quadratic bias between X_i, X_j is negative with value -L with i < j it
-// means in the posiform we have the term L*X_i*X_j' (X_i' being the complement
-// of X_i).
-//
-// For each variable X_i the posiform keeps the iterators in the provided bqm
-// for biases starting from X_j, (j>i) to X_n.
-//
-// The linear biases are stored in integral format and can be used directly.
-// But the quadratic biases are not stored, instead the iterators in the bqm are
-// stored, thus the convertTo** function must be applied first on the biases
-// before use.
-//
-// Note the number of variables and biases exposed correspond to the integral
-// version of the bqm matrix and may differ from the numbers corresponding
-// to the floating point based numbers as many biases may be flushed to zeroes.
-//
-// For more details see : Boros, Endre & Hammer, Peter & Tavares, Gabriel.
-// (2006). Preprocessing of unconstrained quadratic binary optimization. RUTCOR
-// Research Report.
+/**
+ * Contains all the information needed to recreate a posiform corresponding to 
+ * a BQM. The intention is to reduce the memory footprint as much as possible, 
+ * thus requiring some processing before the stored data can be used.
+ *
+ * For implementation details, see comments in the source code.
+ *
+ * For details on the algorithm, see : Boros, Endre & Hammer, Peter & Tavares, Gabriel.
+ * (2006). Preprocessing of unconstrained quadratic binary optimization. RUTCOR
+ * Research Report.
+ */
 template <class BQM, class coefficient_t> class PosiformInfo {
+/*
+If linear bias for variable X_i is negative with value -L it means in the
+posiform we have the term  L * X_source * X_i' (X_i' being the complement of
+X_i). X_source is X_0 in the paper mentioned below. X_0 was a variable added
+to the posiform at a later step. We do not store X_0 explicitly as that would
+make the indexing complicated, shifting the index of each posiform variable
+by 1.
+
+If a quadratic bias between X_i, X_j is negative with value -L with i < j it
+means in the posiform we have the term L*X_i*X_j' (X_i' being the complement
+of X_i).
+
+For each variable X_i the posiform keeps the iterators in the provided bqm
+for biases starting from X_j, (j>i) to X_n.
+
+The linear biases are stored in integral format and can be used directly.
+But the quadratic biases are not stored, instead the iterators in the bqm are
+stored, thus the convertTo** function must be applied first on the biases
+before use.
+
+Note the number of variables and biases exposed correspond to the integral
+version of the bqm matrix and may differ from the numbers corresponding
+to the floating point based numbers as many biases may be flushed to zeroes.
+*/
 public:
   using coefficient_type = coefficient_t; // Must be a signed integral type.
   using bias_type = typename BQM::bias_type;
   using quadratic_iterator_type = typename BQM::const_outvars_iterator;
   using variable_type = typename BQM::variable_type;
 
+  /**
+   * Construct a PosiformInfo from a binary quadratic model.
+   */
   PosiformInfo(const BQM &bqm);
 
+  /**
+   * Get number of posiform variables.
+   */
   inline int getNumVariables() { return _num_posiform_variables; }
 
+  /**
+   * Get number of posiform variables with a non-zero linear bias.
+   */
   inline int getNumLinear() { return _num_linear_integral_biases; }
 
+
+  /**
+   * Get the linear bias of a posiform variable.
+   */
   inline coefficient_type getLinear(int posiform_variable) {
     return _linear_integral_biases
         [_posiform_to_bqm_variable_map[posiform_variable]];
   }
 
+  /**
+   * Get number of quadratic terms a posiform variable contributes in.
+   */
   inline int getNumQuadratic(int posiform_variable) {
     return _num_quadratic_integral_biases
         [_posiform_to_bqm_variable_map[posiform_variable]];
@@ -85,13 +100,22 @@ public:
   // convertToPosiformCoefficient and mapVariableQuboToPosiform functions, since
   // the iterators belong to the bqm.
 
+  /**
+   * Get the neighbors of a posiform variable in the corresponding BQM.
+   */
   inline std::pair<quadratic_iterator_type, quadratic_iterator_type>
   getQuadratic(int posiform_variable) {
     return _quadratic_iterators
         [_posiform_to_bqm_variable_map[posiform_variable]];
   }
 
-  // Convert bqm variable to posiform variable.
+  /**
+   * Map a QUBO variable to a posiform variable. The number of QUBO variables 
+   * and posiform variables may differ since the coefficient for a QUBO variable 
+   * may turn out to be zero in a posiform. This may occur if the coefficient is 
+   * flushed to zero during the conversion or if the variable did not have non-zero 
+   * linear/quadratic biases in the QUBO.
+   */
   inline int mapVariableQuboToPosiform(int bqm_variable) {
     if (_bqm_to_posiform_variable_map.count(bqm_variable) == 0) {
       return -1;
@@ -100,16 +124,27 @@ public:
     }
   }
 
-  // Convert posiform variable to bqm variable.
+  /**
+   * Map a posiform variable to a QUBO variable. The number of QUBO variables 
+   * and posiform variables may differ since the coefficient for a QUBO variable 
+   * may turn out to be zero in a posiform. This may occur if the coefficient is 
+   * flushed to zero during the conversion or if the variable did not have non-zero 
+   * linear/quadratic biases in the QUBO.
+   */
   inline int mapVariablePosiformToQubo(int posiform_variable) {
     return _posiform_to_bqm_variable_map[posiform_variable];
   }
 
-  // Convert a bqm bqm to a posiform coefficient.
+  /**
+   * Convert a QUBO coefficient to a posiform coefficient.
+   */
   inline coefficient_type convertToPosiformCoefficient(bias_type bqm_bias) {
     return static_cast<coefficient_type>(bqm_bias * _bias_conversion_ratio);
   }
 
+  /**
+   * Print out posiform details.
+   */
   void print();
 
 private:
@@ -197,71 +232,76 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     _max_absolute_value = _posiform_linear_sum_non_integral;
   }
 
-  assert(_max_absolute_value != 0);
-  _bias_conversion_ratio =
+  if (_max_absolute_value != 0) {
+     _bias_conversion_ratio =
       static_cast<double>(std::numeric_limits<coefficient_type>::max()) /
       _max_absolute_value;
 
-  // We should divide the ratio by at least 2 to avoid overflow because we do
-  // not divide by 2 when we make the residual network symmetric. In that step
-  // the total flow is effectively doubled along with capacities. Divinding just
-  // by 2 introduced overflow, thus we divide by a number larger than 2.
-  // TODO : Find the theoretical optimal number for division, for now we divide
-  // by 4 to be safe.
-  _bias_conversion_ratio /= 4;
+    // We should divide the ratio by at least 2 to avoid overflow because we do
+    // not divide by 2 when we make the residual network symmetric. In that step
+    // the total flow is effectively doubled along with capacities. Divinding just
+    // by 2 introduced overflow, thus we divide by a number larger than 2.
+    // TODO : Find the theoretical optimal number for division, for now we divide
+    // by 4 to be safe.
+    _bias_conversion_ratio /= 4;
 
-  for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
-       bqm_variable++) {
-    _linear_integral_biases[bqm_variable] =
-        convertToPosiformCoefficient(bqm.linear(bqm_variable));
-    int num_nonZero_quadratic_biases_in_upper_triangular_row = 0;
-    auto it = _quadratic_iterators[bqm_variable].first;
-    auto it_end = _quadratic_iterators[bqm_variable].second;
-    for (; it != it_end; it++) {
-      // Note the checks for zero below must be done after conversion since some
-      // values may get flushed to zero, we want the linear values and quadratic
-      // values adhere to the same conversion protocal and be consistent.
-      // Otherwise in the implication graph, there may be paths with flow values
-      // of small capacities corresponding to numerical errors, affecting the
-      // final result. For this same reason we do not use the already computed
-      // linear values for the posiform in double format.
-      auto bias_quadratic_integral = convertToPosiformCoefficient(it->second);
-      if (bias_quadratic_integral) {
-        _num_quadratic_integral_biases[it->first]++;
-        if (bias_quadratic_integral < 0) {
-          _linear_integral_biases[bqm_variable] += bias_quadratic_integral;
+    for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
+        bqm_variable++) {
+      _linear_integral_biases[bqm_variable] =
+          convertToPosiformCoefficient(bqm.linear(bqm_variable));
+      int num_nonZero_quadratic_biases_in_upper_triangular_row = 0;
+      auto it = _quadratic_iterators[bqm_variable].first;
+      auto it_end = _quadratic_iterators[bqm_variable].second;
+      for (; it != it_end; it++) {
+        // Note the checks for zero below must be done after conversion since some
+        // values may get flushed to zero, we want the linear values and quadratic
+        // values adhere to the same conversion protocal and be consistent.
+        // Otherwise in the implication graph, there may be paths with flow values
+        // of small capacities corresponding to numerical errors, affecting the
+        // final result. For this same reason we do not use the already computed
+        // linear values for the posiform in double format.
+        auto bias_quadratic_integral = convertToPosiformCoefficient(it->second);
+        if (bias_quadratic_integral) {
+          _num_quadratic_integral_biases[it->first]++;
+          if (bias_quadratic_integral < 0) {
+            _linear_integral_biases[bqm_variable] += bias_quadratic_integral;
+          }
+          num_nonZero_quadratic_biases_in_upper_triangular_row++;
         }
-        num_nonZero_quadratic_biases_in_upper_triangular_row++;
+      }
+      _num_quadratic_integral_biases[bqm_variable] +=
+          num_nonZero_quadratic_biases_in_upper_triangular_row;
+    }
+
+    _posiform_linear_sum_integral = 0; // For debugging purposes.
+    for (int bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
+        bqm_variable++) {
+      if (_linear_integral_biases[bqm_variable]) {
+        _num_linear_integral_biases++;
+        _posiform_linear_sum_integral +=
+            std::llabs(_linear_integral_biases[bqm_variable]);
+      }
+      if (_linear_integral_biases[bqm_variable] < 0) {
+        _constant_posiform += _linear_integral_biases[bqm_variable];
       }
     }
-    _num_quadratic_integral_biases[bqm_variable] +=
-        num_nonZero_quadratic_biases_in_upper_triangular_row;
-  }
 
-  _posiform_linear_sum_integral = 0; // For debugging purposes.
-  for (int bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
-       bqm_variable++) {
-    if (_linear_integral_biases[bqm_variable]) {
-      _num_linear_integral_biases++;
-      _posiform_linear_sum_integral +=
-          std::llabs(_linear_integral_biases[bqm_variable]);
-    }
-    if (_linear_integral_biases[bqm_variable] < 0) {
-      _constant_posiform += _linear_integral_biases[bqm_variable];
+    _posiform_to_bqm_variable_map.reserve(_num_bqm_variables);
+    _num_posiform_variables = 0;
+    for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
+        bqm_variable++) {
+      if (_linear_integral_biases[bqm_variable] ||
+          _num_quadratic_integral_biases[bqm_variable]) {
+        _posiform_to_bqm_variable_map.push_back(bqm_variable);
+        _bqm_to_posiform_variable_map.insert(
+            {bqm_variable, _num_posiform_variables});
+        _num_posiform_variables++;
+      }
     }
   }
-
-  _posiform_to_bqm_variable_map.reserve(_num_bqm_variables);
-  _num_posiform_variables = 0;
-  for (int bqm_variable = 0; bqm_variable < _num_bqm_variables;
-       bqm_variable++) {
-    if (_linear_integral_biases[bqm_variable] ||
-        _num_quadratic_integral_biases[bqm_variable]) {
-      _posiform_to_bqm_variable_map.push_back(bqm_variable);
-      _bqm_to_posiform_variable_map.insert(
-          {bqm_variable, _num_posiform_variables});
-      _num_posiform_variables++;
-    }
+  else {
+    // All biases in bqm are 0, so the resulting posiform won't have any term in it.
+    _num_posiform_variables = 0;
   }
 }
 
