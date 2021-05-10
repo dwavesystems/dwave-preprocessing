@@ -18,7 +18,7 @@ import dimod
 
 from dwave.preprocessing.lower_bounds import roof_duality
 
-class TestFixVariables(unittest.TestCase):
+class TestRoofDuality(unittest.TestCase):
     def test_empty(self):
         bqm = dimod.AdjVectorBQM('BINARY')
         fixed = roof_duality(bqm, strict=True)

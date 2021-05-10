@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-A composite that fixes the variables provided and removes them from the binary
-quadratic model before sending to its child sampler.
-"""
 import numpy as np
 
 from dimod.bqm import as_bqm, AdjVectorBQM, AdjDictBQM
@@ -24,9 +20,6 @@ from dimod.sampleset import SampleSet, append_variables
 
 from dwave.preprocessing.lower_bounds import roof_duality
 
-__all__ = ['FixVariablesComposite']
-
-
 class FixVariablesComposite(ComposedSampler):
     """Composite to fix variables of a problem to provided.
 
@@ -34,7 +27,7 @@ class FixVariablesComposite(ComposedSampler):
     quadratic terms accordingly. Returned samples include the fixed variable
 
     Args:
-        child_sampler (:obj:`dimod.Sampler`):
+        child_sampler (:class:`dimod.Sampler`):
             A dimod sampler
 
         fixed_variables (dict, optional, default=None):
@@ -58,11 +51,11 @@ class FixVariablesComposite(ComposedSampler):
        The composed sampler fixes a variable and modifies linear and quadratic
        biases accordingly.
 
+       >>> from dimod import ExactSolver
        >>> from dwave.preprocessing.composites import FixVariablesComposite
-       >>> import dimod
        >>> h = {1: -1.3, 4: -0.5}
        >>> J = {(1, 4): -0.6}
-       >>> sampler = FixVariablesComposite(dimod.ExactSolver())
+       >>> sampler = FixVariablesComposite(ExactSolver())
        >>> sampleset = sampler.sample_ising(h, J, fixed_variables={1: -1})
 
     """
@@ -92,14 +85,14 @@ class FixVariablesComposite(ComposedSampler):
         """Sample from the provided binary quadratic model.
 
         Args:
-            bqm (:obj:`dimod.BinaryQuadraticModel`):
+            bqm (:class:`dimod.BinaryQuadraticModel`):
                 Binary quadratic model to be sampled from.
 
             **parameters:
                 Parameters for the sampling method, specified by the child sampler.
 
         Returns:
-            :obj:`dimod.SampleSet`
+            :class:`dimod.SampleSet`
 
         """
 

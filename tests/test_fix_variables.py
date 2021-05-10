@@ -16,9 +16,6 @@ import unittest
 
 import dimod.testing as dtest
 from dimod.vartypes import Vartype
-
-import dimod
-
 from dimod import BinaryQuadraticModel
 from dimod import ExactSolver, NullSampler
 from dimod import SampleSet
@@ -99,3 +96,4 @@ class TestFixVariablesComposite(unittest.TestCase):
         self.assertEqual(set(sampleset.variables), set('abc'))
         self.assertEqual(len(sampleset), 1)  # all should be fixed
         dtest.assert_response_energies(sampleset, bqm)
+
