@@ -5,6 +5,7 @@ Reference Documentation
 
 .. toctree::
    :maxdepth: 2
-
-   roof_duality
+   
+   composites
+   lower_bounds
    cpp

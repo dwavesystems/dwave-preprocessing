@@ -20,11 +20,13 @@ from dimod.sampleset import SampleSet, append_variables
 
 from dwave.preprocessing.lower_bounds import roof_duality
 
+__all__ = ['FixVariablesComposite']
+
 class FixVariablesComposite(ComposedSampler):
     """Composite to fix variables of a problem to provided.
 
     Fixes variables of a binary quadratic model (BQM) and modifies linear and
-    quadratic terms accordingly. Returned samples include the fixed variable
+    quadratic terms accordingly. Returned samples include the fixed variable.
 
     Args:
         child_sampler (:class:`dimod.Sampler`):
@@ -46,7 +48,7 @@ class FixVariablesComposite(ComposedSampler):
             persistency).
 
     Examples:
-       This example uses :class:`.FixVariablesComposite` to instantiate a
+       This example uses the :class:`.FixVariablesComposite` to instantiate a
        composed sampler that submits a simple Ising problem to a sampler.
        The composed sampler fixes a variable and modifies linear and quadratic
        biases accordingly.
@@ -55,8 +57,14 @@ class FixVariablesComposite(ComposedSampler):
        >>> from dwave.preprocessing.composites import FixVariablesComposite
        >>> h = {1: -1.3, 4: -0.5}
        >>> J = {(1, 4): -0.6}
-       >>> sampler = FixVariablesComposite(ExactSolver())
-       >>> sampleset = sampler.sample_ising(h, J, fixed_variables={1: -1})
+       >>> sampler = FixVariablesComposite(ExactSolver(), fixed_variables={1: -1})
+       >>> sampleset = sampler.sample_ising(h, J)
+
+       This next example involves the same problem but calculates the ``fixed_variables``
+       using the 'roof_duality' ``algorithm``.
+
+       >>> sampler = FixVariablesComposite(ExactSolver(), algorithm='roof_duality')
+       >>> sampleset = sampler.sample_ising(h, J)
 
     """
 

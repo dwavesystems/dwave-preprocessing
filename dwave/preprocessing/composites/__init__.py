@@ -15,4 +15,5 @@
 from dwave.preprocessing.composites.clip import *
 from dwave.preprocessing.composites.connected_components import *
 from dwave.preprocessing.composites.fix_variables import *
+from dwave.preprocessing.composites.scale import *
 from dwave.preprocessing.composites.spin_reversal_transform import *

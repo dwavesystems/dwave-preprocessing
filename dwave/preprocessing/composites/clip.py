@@ -17,7 +17,6 @@ from dimod.sampleset import SampleSet
 
 __all__ = ['ClipComposite']
 
-
 class ClipComposite(ComposedSampler):
     """Composite to clip variables of a problem.
 
@@ -25,7 +24,7 @@ class ClipComposite(ComposedSampler):
     and quadratic terms accordingly.
 
     Args:
-       sampler (:obj:`dimod.Sampler`):
+       sampler (:class:`dimod.Sampler`):
             A dimod sampler.
 
     Examples:
@@ -60,13 +59,13 @@ class ClipComposite(ComposedSampler):
     def properties(self):
         return {'child_properties': self.child.properties.copy()}
 
-    def sample(self, bqm, lower_bound=None, upper_bound=None, **parameters):
+    def sample(self, bqm, *, lower_bound=None, upper_bound=None, **parameters):
         """Clip and sample from the provided binary quadratic model.
 
         If lower_bound and upper_bound are given variables with value above or below are clipped.
 
         Args:
-            bqm (:obj:`dimod.BinaryQuadraticModel`):
+            bqm (:class:`dimod.BinaryQuadraticModel`):
                 Binary quadratic model to be sampled from.
 
             lower_bound (number):
@@ -79,7 +78,7 @@ class ClipComposite(ComposedSampler):
                 Parameters for the sampling method, specified by the child sampler.
 
         Returns:
-            :obj:`dimod.SampleSet`
+            :class:`dimod.SampleSet`
 
         """
         child = self.child
@@ -90,7 +89,7 @@ class ClipComposite(ComposedSampler):
 
 
 def _clip_bqm(bqm, lower_bound, upper_bound):
-    """Helper function of sample for clipping"""
+    """Helper function for clipping a bqm."""
 
     bqm_copy = bqm.copy()
     if lower_bound is not None:

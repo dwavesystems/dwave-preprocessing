@@ -19,6 +19,8 @@ from dimod.core.sampler import Sampler
 from dimod.sampleset import SampleSet, concatenate
 from dimod.vartypes import Vartype
 
+__all__ = ['SpinReversalTransformComposite']
+
 class SpinReversalTransformComposite(Sampler, Composite):
     """Composite for applying spin reversal transform preprocessing.
 
@@ -62,18 +64,18 @@ class SpinReversalTransformComposite(Sampler, Composite):
 
         self.properties = {'child_properties': child.properties}
 
-    def sample(self, bqm, num_spin_reversal_transforms=2, **kwargs):
+    def sample(self, bqm, *, num_spin_reversal_transforms=2, **kwargs):
         """Sample from the binary quadratic model.
 
         Args:
-            bqm (:obj:`~dimod.BinaryQuadraticModel`):
+            bqm (:class:`~dimod.BinaryQuadraticModel`):
                 Binary quadratic model to be sampled from.
 
             num_spin_reversal_transforms (integer, optional, default=2):
                 Number of spin reversal transform runs.
 
         Returns:
-            :obj:`.SampleSet`
+            :class:`.SampleSet`
 
         Examples:
             This example runs 100 spin reversals applied to one variable of a QUBO problem.
