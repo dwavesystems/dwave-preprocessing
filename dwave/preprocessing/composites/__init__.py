@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dwave.preprocessing.composites.clip import *
 from dwave.preprocessing.composites.connected_components import *
 from dwave.preprocessing.composites.fix_variables import *
 from dwave.preprocessing.composites.spin_reversal_transform import *
