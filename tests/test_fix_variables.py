@@ -30,6 +30,10 @@ class TestFixVariablesComposite(unittest.TestCase):
         sampler = FixVariablesComposite(ExactSolver())
         dtest.assert_sampler_api(sampler)
 
+    def test_invalid_algorithm(self):
+        with self.assertRaises(ValueError):
+            sampler = FixVariablesComposite(ExactSolver(), algorithm="abc")
+
     def test_sample(self):
         bqm = BinaryQuadraticModel({1: -1.3, 4: -0.5},
                                    {(1, 4): -0.6},
@@ -37,8 +41,8 @@ class TestFixVariablesComposite(unittest.TestCase):
                                    vartype=Vartype.SPIN)
 
         fixed_variables = {1: -1}
-        sampler = FixVariablesComposite(ExactSolver(), fixed_variables=fixed_variables)
-        response = sampler.sample(bqm)
+        sampler = FixVariablesComposite(ExactSolver())
+        response = sampler.sample(bqm, fixed_variables=fixed_variables)
 
         self.assertEqual(response.first.sample, {4: -1, 1: -1})
         self.assertAlmostEqual(response.first.energy, 1.2)
@@ -50,8 +54,8 @@ class TestFixVariablesComposite(unittest.TestCase):
                                    vartype=Vartype.SPIN)
 
         fixed_variables = {1: -1, 4: -1}
-        sampler = FixVariablesComposite(ExactSolver(), fixed_variables=fixed_variables)
-        response = sampler.sample(bqm)
+        sampler = FixVariablesComposite(ExactSolver())
+        response = sampler.sample(bqm, fixed_variables=fixed_variables)
         self.assertIsInstance(response, SampleSet)
 
     def test_empty_fix(self):
@@ -87,13 +91,10 @@ class TestFixVariablesComposite(unittest.TestCase):
         bqm = BinaryQuadraticModel.from_ising({}, {'ab': -1, 'bc': -1, 'ac': -1})
 
         # two equally good solutions, but with strict=False, it will pick one
-        sampler = FixVariablesComposite(ExactSolver(), 
-                                        algorithm='roof_duality', 
-                                        strict=False)
+        sampler = FixVariablesComposite(ExactSolver(), algorithm='roof_duality')
 
-        sampleset = sampler.sample(bqm)
+        sampleset = sampler.sample(bqm, strict=False)
 
         self.assertEqual(set(sampleset.variables), set('abc'))
         self.assertEqual(len(sampleset), 1)  # all should be fixed
         dtest.assert_response_energies(sampleset, bqm)
-

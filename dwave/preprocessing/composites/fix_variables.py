@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+import warnings
 
 from dimod.bqm import as_bqm, AdjVectorBQM, AdjDictBQM
 from dimod.core.composite import ComposedSampler
@@ -31,21 +32,18 @@ class FixVariablesComposite(ComposedSampler):
     Args:
         child_sampler (:class:`dimod.Sampler`):
             A dimod sampler
-
-        fixed_variables (dict, optional, default=None):
-            A dictionary of variable assignments.
         
-        algorithm (str, optional, default=None):
-            Determines how ``fixed_variables`` are found. If ``fixed_variables``
-            is not None, ``algorithm`` is ignored. If ``algorithm`` and ``fixed_variables``
-            are both None, sampling will be done without fixing any variables.
+        algorithm (str, optional, default='explicit'):
+            Determines how ``fixed_variables`` are found. 
 
-        strict (bool, optional, default=True):
-            Only used if ``algorithm`` is 'roof_duality'. If True, only fixes 
-            variables for which assignments are true for all minimizing points 
-            (strong persistency). If False, also fixes variables for which the 
-            assignments are true for some but not all minimizing points (weak 
-            persistency).
+            'explicit': ``fixed_variables`` should be passed in a call to 
+            `.sample()`. If not, no fixing occurs and the problem is directly 
+            passed to the child sampler.
+
+            'roof_duality': Roof duality algorithm is used to find ``fixed_variables``. 
+            ``strict`` may be passed in a call to `.sample()` to determine what
+            variables the algorithm will fix. For details, see 
+            :func:`~dwave.preprocessing.lower_bounds.roof_duality`.
 
     Examples:
        This example uses the :class:`.FixVariablesComposite` to instantiate a
@@ -57,23 +55,29 @@ class FixVariablesComposite(ComposedSampler):
        >>> from dwave.preprocessing.composites import FixVariablesComposite
        >>> h = {1: -1.3, 4: -0.5}
        >>> J = {(1, 4): -0.6}
-       >>> sampler = FixVariablesComposite(ExactSolver(), fixed_variables={1: -1})
-       >>> sampleset = sampler.sample_ising(h, J)
+       >>> sampler = FixVariablesComposite(ExactSolver())
+       >>> sampleset = sampler.sample_ising(h, J, fixed_variables={1: -1})
 
-       This next example involves the same problem but calculates the ``fixed_variables``
+       This next example involves the same problem but calculates ``fixed_variables``
        using the 'roof_duality' ``algorithm``.
 
        >>> sampler = FixVariablesComposite(ExactSolver(), algorithm='roof_duality')
-       >>> sampleset = sampler.sample_ising(h, J)
+       >>> sampleset = sampler.sample_ising(h, J, strict=False)
 
     """
 
-    def __init__(self, child_sampler, *, fixed_variables=None, algorithm=None, strict=True):
+    def __init__(self, child_sampler, *, algorithm='explicit'):
         self._children = [child_sampler]
-
-        self.fixed_variables = fixed_variables
         self.algorithm = algorithm
-        self.strict = strict
+
+        self._parameters = self.child.parameters.copy()
+
+        if self.algorithm == 'explicit':
+            self._parameters['fixed_variables'] = []
+        elif self.algorithm == 'roof_duality':
+            self._parameters['strict'] = []
+        else:
+            raise ValueError("Unknown algorithm: {}".format(algorithm))
 
     @property
     def children(self):
@@ -81,9 +85,7 @@ class FixVariablesComposite(ComposedSampler):
 
     @property
     def parameters(self):
-        params = self.child.parameters.copy()
-        params['fixed_variables'] = []
-        return params
+        return self._parameters
 
     @property
     def properties(self):
@@ -96,6 +98,17 @@ class FixVariablesComposite(ComposedSampler):
             bqm (:class:`dimod.BinaryQuadraticModel`):
                 Binary quadratic model to be sampled from.
 
+            fixed_variables (dict, optional, default=None):
+                A dictionary of variable assignments used when ``self.algorithm`` 
+                is 'explicit'.
+
+            strict (bool, optional, default=True):
+                Only used if ``self.algorithm`` is 'roof_duality'. If True, only 
+                fixes variables for which assignments are true for all minimizing 
+                points (strong persistency). If False, also fixes variables for 
+                which the assignments are true for some but not all minimizing 
+                points (weak persistency).
+
             **parameters:
                 Parameters for the sampling method, specified by the child sampler.
 
@@ -104,19 +117,20 @@ class FixVariablesComposite(ComposedSampler):
 
         """
 
-        if not self.fixed_variables and not self.algorithm:  # None is falsey
-            return self.child.sample(bqm, **parameters)
-        elif not self.fixed_variables:
-            if self.algorithm == 'roof_duality':
-                self.fixed_variables = roof_duality(bqm, strict=self.strict)
-            else:
-                raise RuntimeError("Unknown algorithm: {}".format(self.algorithm))
+        if self.algorithm == 'explicit':
+            fixed_variables = parameters.pop('fixed_variables', None)
+            if fixed_variables is None:
+                msg = ("No fixed_variables passed in when algorithm is 'explicit'. "
+                       "Passing problem to child sampler without fixing.")
+                warnings.warn(msg)
+                return self.child.sample(bqm, **parameters)
+        elif self.algorithm == 'roof_duality':
+            fixed_variables = roof_duality(bqm, strict=parameters.pop('strict', True))
 
         # make sure that we're shapeable and that we have a BQM we can mutate
-        bqm_copy = as_bqm(bqm, cls=[AdjVectorBQM, AdjDictBQM],
-                          copy=True)
+        bqm_copy = as_bqm(bqm, cls=[AdjVectorBQM, AdjDictBQM], copy=True)
 
-        bqm_copy.fix_variables(self.fixed_variables)
+        bqm_copy.fix_variables(fixed_variables)
 
         sampleset = self.child.sample(bqm_copy, **parameters)
 
@@ -125,14 +139,14 @@ class FixVariablesComposite(ComposedSampler):
 
             if sampleset.variables:
                 if len(sampleset):
-                    return append_variables(sampleset, self.fixed_variables)
+                    return append_variables(sampleset, fixed_variables)
                 else:
                     return sampleset.from_samples_bqm((np.empty((0, len(bqm))),
                                                        bqm.variables), bqm=bqm)
 
             # there are only fixed variables, make sure that the correct number
             # of samples are returned
-            samples = [self.fixed_variables]*max(len(sampleset), 1)
+            samples = [fixed_variables]*max(len(sampleset), 1)
 
             return sampleset.from_samples_bqm(samples, bqm=bqm)
 

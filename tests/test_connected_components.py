@@ -50,9 +50,8 @@ class TestConnectedComponentsComposite(unittest.TestCase):
                                    vartype=Vartype.SPIN)
 
         fixed_variables = {1: -1, 4: -1}
-        sampler = FixVariablesComposite(ConnectedComponentsComposite(ExactSolver()), 
-                                        fixed_variables=fixed_variables)
-        response = sampler.sample(bqm)
+        sampler = FixVariablesComposite(ConnectedComponentsComposite(ExactSolver()))
+        response = sampler.sample(bqm, fixed_variables=fixed_variables)
         self.assertIsInstance(response, SampleSet)
 
     def test_sample_two_components(self):
