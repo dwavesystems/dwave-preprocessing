@@ -11,9 +11,9 @@ Roof Duality
 ------------
 
 `dwave-preprocessing` contains an implementation of roof duality, an 
-algorithm used for finding a lower bound for the minimum of a quadratic polynomial,
-as well as minimizing assignments for some of the polynomial's variables; these 
-fixed variables take the same values in all, or some, optimal solutions 
+algorithm used for finding a lower bound for the minimum of a quadratic boolean 
+function, as well as minimizing assignments for some of the boolean variables; 
+these fixed variables take the same values in all, or some, optimal solutions 
 [#BHT]_ [#BH]_.
 
 .. [#BHT] Boros, E., P.L. Hammer, G. Tavares. Preprocessing of Unconstraint Quadratic Binary Optimization. Rutcor Research Report 10-2006, April, 2006.
