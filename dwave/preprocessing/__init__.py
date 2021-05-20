@@ -15,3 +15,4 @@
 __version__ = '0.1.0'
 
 from dwave.preprocessing import *
+from dwave.preprocessing.composites import *
