@@ -1,0 +1,3 @@
+include pyproject.toml
+recursive-include dwave/preprocessing/include/dwave-preprocessing *.hpp
+recursive-include dwave/preprocessing *.pyx *.pxd *.pyx.src
