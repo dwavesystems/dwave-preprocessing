@@ -1,0 +1,69 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Sphinx documentation
+docs/build/
+docs/build-cpp/
+docs/reference/generated/
+docs/intro/generated/
+docs/reference/*/generated/
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+venv*/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# cython intermediate files
+dwave/preprocessing/cyfix_variables.cpp
+
+# testing stuff
+testscpp/Catch2
+testscpp/test_main
+testscpp/test_main.o
+testscpp/test_main.out
+testscpp/test_main_parallel
+testscpp/test_main_parallel.o
+testscpp/test_main_parallel.out

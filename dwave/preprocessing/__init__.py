@@ -15,4 +15,7 @@
 __version__ = '0.1.1rc1'
 
 from dwave.preprocessing import *
+import dwave.preprocessing.composites
 from dwave.preprocessing.composites import *
+import dwave.preprocessing.lower_bounds
+from dwave.preprocessing.lower_bounds import *
