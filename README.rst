@@ -34,7 +34,7 @@ solving binary quadratic models (BQM).
 
 Currently, this package contains several preprocessing composites. For details on
 underlying algorithms and usage, see the package's 
-`Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/index.html>`_.
+`Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/>`_.
 
 .. index-end-marker
 
