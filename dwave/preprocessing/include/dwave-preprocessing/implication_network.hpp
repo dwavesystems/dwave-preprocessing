@@ -306,7 +306,6 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
       // See bottom of page 5 after equation 5 of the following paper.
       // Boros, Endre & Hammer, Peter & Tavares, Gabriel. (2006). Preprocessing of
       // unconstrained quadratic binary optimization. RUTCOR Research Report.
-
       auto coefficient = posiform.convertToPosiformCoefficient(it->second);
       int variable_2 = posiform.mapVariableQuboToPosiform(it->first);
       int to_vertex = _mapper.variable_to_vertex(variable_2);
