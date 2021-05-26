@@ -34,7 +34,8 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         fixQuboVariables(posiform, num_vars, true, fixed_vars);
 
         // Checking fixQuboVariables(AdjVectorBQM, ..)
-        auto fixed_vars2 = fixQuboVariables(bqm, true);
+        auto result = fixQuboVariables(bqm, true);
+        auto fixed_vars2 = result.second;
 
         REQUIRE(fixed_vars == fixed_vars2);
         REQUIRE(fixed_vars.size() == num_vars);
@@ -53,10 +54,12 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         float Q [] = {};
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, 0);
 
-        auto fixed_vars = fixQuboVariables(bqm, true);
+        auto result = fixQuboVariables(bqm, true);
+        auto fixed_vars = result.second;
         REQUIRE(fixed_vars.size() == 0);
 
-        fixed_vars = fixQuboVariables(bqm, false);
+        result = fixQuboVariables(bqm, false);
+        fixed_vars = result.second;
         REQUIRE(fixed_vars.size() == 0);
     }
 
@@ -68,12 +71,15 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         int num_vars = 3;
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
 
-        auto fixed_vars = fixQuboVariables(bqm, true);
+        auto result = fixQuboVariables(bqm, true);
+        auto fixed_vars = result.second;
+
         REQUIRE(fixed_vars.size() == 1);
         REQUIRE(fixed_vars[0].first == 0);
         REQUIRE(fixed_vars[0].second == 0);
 
-        fixed_vars = fixQuboVariables(bqm, false);
+        result = fixQuboVariables(bqm, false);
+        fixed_vars = result.second;
         REQUIRE(fixed_vars.size() == 3);
         for (auto var : fixed_vars) {
             if (var.first == 0) {
@@ -93,10 +99,12 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         int num_vars = 2;
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
 
-        auto fixed_vars = fixQuboVariables(bqm, true);
+        auto result = fixQuboVariables(bqm, true);
+        auto fixed_vars = result.second;
         REQUIRE(fixed_vars.size() == 0);
 
-        fixed_vars = fixQuboVariables(bqm, false);
+        result = fixQuboVariables(bqm, false);
+        fixed_vars = result.second;
         REQUIRE(fixed_vars.size() == num_vars);
 
         for (auto var : fixed_vars) {
@@ -112,7 +120,8 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
 
         for (auto mode : {true, false}) {
-            auto fixed_vars = fixQuboVariables(bqm, mode);
+            auto result = fixQuboVariables(bqm, mode);
+            fixed_vars = result.second;
             REQUIRE(fixed_vars.size() == 2);
 
             // checking order of variables
