@@ -102,8 +102,10 @@ fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
   // be equal to the lower bound of the bqm. But while creating the implication
   // network and assigning capacities to its edges we did not divide the
   // corresponding coefficients of the posiform by 2 thus when we convert the
-  // max flow to the minimum value of the posiform we need to divide it by 2 and
-  // hence the multiplication by 0.5 here.
+  // max flow to the minimum value of the posiform we need to divide it by 2.
+  // See bottom of page 5 after equation 5 of the following paper.
+  // Boros, Endre & Hammer, Peter & Tavares, Gabriel. (2006). Preprocessing of
+  // unconstrained quadratic binary optimization. RUTCOR Research Report.
   double lower_bound = ((double)max_flow /(posiform_info.getBiasConversionRatio() * 2));
   return {lower_bound, fixed_variables};
 }
