@@ -121,7 +121,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
 
         for (auto mode : {true, false}) {
             auto result = fixQuboVariables(bqm, mode);
-            fixed_vars = result.second;
+            auto fixed_vars = result.second;
             REQUIRE(fixed_vars.size() == 2);
 
             // checking order of variables
