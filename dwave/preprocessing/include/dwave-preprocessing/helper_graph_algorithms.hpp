@@ -259,7 +259,7 @@ isMaximumFlow(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
   // sink through any augmenting path.
   std::vector<int> depth_values;
   int UNVISITED = breadthFirstSearchResidual(adjacency_list, sink, depth_values,
-                                             true, true);
+                                             true, false);
   return {validity_result.first,
           (validity_result.second && (depth_values[source] == UNVISITED))};
 }
