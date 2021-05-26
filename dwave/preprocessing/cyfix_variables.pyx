@@ -26,7 +26,7 @@ from dimod cimport cyAdjVectorBQM
 from dimod.vartypes import Vartype
 
 cdef extern from "include/dwave-preprocessing/fix_variables.hpp" namespace "fix_variables_":
-    vector[pair[int, int]] fixQuboVariables[V, B](cppAdjVectorBQM[V, B]& refBQM,
+    pair[double, vector[pair[int, int]]] fixQuboVariables[V, B](cppAdjVectorBQM[V, B]& refBQM,
                                                   cppbool strict) except +
 
 def fix_variables_wrapper(bqm, strict):
@@ -49,5 +49,6 @@ def fix_variables_wrapper(bqm, strict):
         raise ValueError("bqm must be linearly indexed")
 
     cdef cyAdjVectorBQM cybqm = dimod.as_bqm(bqm, cls=AdjVectorBQM)
+    # need to recieve the pair and return lower bound and the list.
     fixed = fixQuboVariables(cybqm.bqm_, bool(strict))
     return {int(v): int(val) for v, val in fixed}

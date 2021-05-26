@@ -198,7 +198,7 @@ public:
     return _adjacency_list;
   }
 
-  void fixVariables(std::vector<std::pair<int, int>> &fixed_variables,
+  capacity_t fixVariables(std::vector<std::pair<int, int>> &fixed_variables,
                     bool only_trivially_strong = false);
 
   void print();
@@ -223,7 +223,7 @@ private:
       std::vector<std::vector<int>> &adjacency_list_residual,
       bool free_original_adjacency_list = false);
 
-  void fixTriviallyStrongVariables(
+  capacity_t fixTriviallyStrongVariables(
       std::vector<std::pair<int, int>> &fixed_variables);
 
   void fixStronglyConnectedComponentVariables(
@@ -233,7 +233,7 @@ private:
       std::vector<std::pair<int, int>> &fixed_variables,
       vector_based_queue<int> &component_queue, bool enqueue);
 
-  void
+  capacity_t
   fixStrongAndWeakVariables(std::vector<std::pair<int, int>> &fixed_variables);
 
   void createImplicationNetworkEdges(int from_vertex, int to_vertex,
@@ -535,12 +535,12 @@ void ImplicationNetwork<capacity_t>::fixStronglyConnectedComponentVariables(
 // complements both do not exist in the same component, it becomes a candidate
 // for the fixing process.
 template <class capacity_t>
-void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
+capacity_t ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
     std::vector<std::pair<int, int>> &fixed_variables) {
 
   PushRelabelSolver<ImplicationEdge<capacity_t>> push_relabel_solver(
       _adjacency_list, _source, _sink);
-  push_relabel_solver.computeMaximumFlow(false);
+  capacity_t max_flow = push_relabel_solver.computeMaximumFlow(false);
   assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
          "Maximum flow is not valid.");
 
@@ -609,6 +609,7 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
         component, scc_info, adjacency_list_components_transposed, out_degrees,
         fixed_variables, component_queue, true);
   }
+  return max_flow;
 }
 
 // Fix only the strong variables which can be trivially found. That is fix the
@@ -617,12 +618,12 @@ void ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
 // Boros, Endre & Hammer, Peter & Tavares, Gabriel. (2006). Preprocessing of
 // unconstrained quadratic binary optimization. RUTCOR Research Report.
 template <class capacity_t>
-void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
+capacity_t ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
     std::vector<std::pair<int, int>> &fixed_variables) {
 
   PushRelabelSolver<ImplicationEdge<capacity_t>> push_relabel_solver(
       _adjacency_list, _source, _sink);
-  push_relabel_solver.computeMaximumFlow(false);
+  capacity_t max_flow = push_relabel_solver.computeMaximumFlow(false);
   assert(isMaximumFlow(_adjacency_list, _source, _sink).second &&
          "Maximum flow is not valid.");
 
@@ -643,17 +644,18 @@ void ImplicationNetwork<capacity_t>::fixTriviallyStrongVariables(
       fixed_variables.push_back({variable, (vertex == base_vertex) ? 1 : 0});
     }
   }
+  return max_flow;
 }
 
 // Parent function for fixing posiform based variables.
 template <class capacity_t>
-void ImplicationNetwork<capacity_t>::fixVariables(
+capacity_t ImplicationNetwork<capacity_t>::fixVariables(
     std::vector<std::pair<int, int>> &fixed_variables,
     bool only_trivially_strong) {
   if (only_trivially_strong) {
-    fixTriviallyStrongVariables(fixed_variables);
+    return fixTriviallyStrongVariables(fixed_variables);
   } else {
-    fixStrongAndWeakVariables(fixed_variables);
+    return fixStrongAndWeakVariables(fixed_variables);
   }
 }
 

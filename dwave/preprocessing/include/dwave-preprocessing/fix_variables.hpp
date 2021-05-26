@@ -44,7 +44,7 @@ public:
  *      to zero when converted to the posiform.
  */
 template <class PosiformInfo>
-void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
+capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
                       bool strict,
                       std::vector<std::pair<int, int>> &fixed_variables) {
   ImplicationNetwork<capacity_type> implication_network(posiform_info);
@@ -52,7 +52,7 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
 
   // Fix the variables with respect to the posiform.
   std::vector<std::pair<int, int>> fixed_variables_posiform;
-  implication_network.fixVariables(fixed_variables_posiform, strict);
+  capacity_type max_flow = implication_network.fixVariables(fixed_variables_posiform, strict);
 
   // There may not be 1 to 1 mapping from bqm variables to posiform variables,
   // so we convert the posiform variables back to bqm variables.
@@ -76,6 +76,7 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
   }
 
   std::sort(fixed_variables.begin(), fixed_variables.end(), compClass());
+  return max_flow;
 }
 
 /**
@@ -90,13 +91,21 @@ void fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
  *      to zero when converted to the posiform.
  */
 template <class V, class B>
-std::vector<std::pair<int, int>>
+std::pair<double, std::vector<std::pair<int, int>>>
 fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
   int num_bqm_variables = bqm.num_variables();
   PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
   std::vector<std::pair<int, int>> fixed_variables;
-  fixQuboVariables(posiform_info, num_bqm_variables, strict, fixed_variables);
-  return fixed_variables;
+  capacity_type max_flow = fixQuboVariables(posiform_info, num_bqm_variables, strict, fixed_variables);
+
+  // The max_flow is supposed to be the lower bound of the posiform which should
+  // be equal to the lower bound of the bqm. But while creating the implication
+  // network and assigning capacities to its edges we did not divide the
+  // corresponding coefficients of the posiform by 2 thus when we convert the
+  // max flow to the minimum value of the posiform we need to divide it by 2 and
+  // hence the multiplication by 0.5 here.
+  double lower_bound = ((double)max_flow /(posiform_info.getBiasConversionRatio() * 2));
+  return {lower_bound, fixed_variables};
 }
 
 } // namespace fix_variables_

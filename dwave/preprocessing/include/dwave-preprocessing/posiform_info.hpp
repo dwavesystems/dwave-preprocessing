@@ -143,6 +143,13 @@ public:
   }
 
   /**
+   * Return the value by which bqm biases are multiplied to get posiform coefficients.
+   */
+  inline double getBiasConversionRatio() {
+	return _bias_conversion_ratio;
+  }
+
+  /**
    * Print out posiform details.
    */
   void print();
