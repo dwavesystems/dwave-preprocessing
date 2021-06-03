@@ -106,7 +106,8 @@ fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
   // See bottom of page 5 after equation 5 of the following paper.
   // Boros, Endre & Hammer, Peter & Tavares, Gabriel. (2006). Preprocessing of
   // unconstrained quadratic binary optimization. RUTCOR Research Report.
-  double lower_bound = ((double)max_flow /(posiform_info.getBiasConversionRatio() * 2));
+  double lower_bound = (posiform_info.getConstant() / posiform_info.getBiasConversionRatio())
+                       + ((double)max_flow / (posiform_info.getBiasConversionRatio() * 2));
   return {lower_bound, fixed_variables};
 }
 
