@@ -150,6 +150,13 @@ public:
   }
 
   /**
+   * Return the value of the constant term of the posiform.
+   */
+  inline double getConstant() {
+	return _constant_posiform;
+  }
+
+  /**
    * Print out posiform details.
    */
   void print();
@@ -309,6 +316,10 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
   else {
     // All biases in bqm are 0, so the resulting posiform won't have any term in it.
     _num_posiform_variables = 0;
+    _constant_posiform = 0;
+    _bias_conversion_ratio = 1;
+    _posiform_linear_sum_integral = 0;
+    _num_linear_integral_biases = 0;
   }
 }
 
