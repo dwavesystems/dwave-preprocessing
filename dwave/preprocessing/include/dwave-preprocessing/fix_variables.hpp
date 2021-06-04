@@ -99,7 +99,8 @@ fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
   capacity_type max_flow = fixQuboVariables(posiform_info, num_bqm_variables, strict, fixed_variables);
 
   // The max_flow is supposed to be the lower bound of the posiform which should
-  // be equal to the lower bound of the bqm. But while creating the implication
+  // be equal to the lower bound of the bqm minus the constant term calculated
+  // while creating the posiform. But while creating the implication
   // network and assigning capacities to its edges we did not divide the
   // corresponding coefficients of the posiform by 2 thus when we convert the
   // max flow to the minimum value of the posiform we need to divide it by 2.
