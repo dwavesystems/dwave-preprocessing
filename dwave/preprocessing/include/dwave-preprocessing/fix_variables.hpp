@@ -98,12 +98,12 @@ fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
   std::vector<std::pair<int, int>> fixed_variables;
   capacity_type max_flow = fixQuboVariables(posiform_info, num_bqm_variables, strict, fixed_variables);
 
-  // The max_flow is supposed to be the lower bound of the posiform which should
-  // be equal to the lower bound of the bqm minus the constant term calculated
-  // while creating the posiform. But while creating the implication
-  // network and assigning capacities to its edges we did not divide the
-  // corresponding coefficients of the posiform by 2 thus when we convert the
-  // max flow to the minimum value of the posiform we need to divide it by 2.
+  // The max_flow added with the constant term of the posiform is supposed to
+  // be the lower bound of the posiform which should be equal to the lower
+  // bound of the bqm. But while creating the implication network and assigning
+  // capacities to its edges we did not divide the corresponding coefficients of
+  // the posiform by 2 thus when we convert the max flow to the minimum value of
+  // the posiform we need to divide it by 2.
   // See bottom of page 5 after equation 5 of the following paper.
   // Boros, Endre & Hammer, Peter & Tavares, Gabriel. (2006). Preprocessing of
   // unconstrained quadratic binary optimization. RUTCOR Research Report.
