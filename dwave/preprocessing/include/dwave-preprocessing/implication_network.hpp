@@ -384,7 +384,7 @@ void ImplicationNetwork<capacity_t>::makeResidualSymmetric() {
   // If the edges are sorted even if we create edges to/from vertices
   // corresponding to variables and their complements.
   bool edges_sorted = _mapper.complement_maintains_order();
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
   for (int vertex = 0; vertex < _num_vertices; vertex++) {
     int from_vertex_base = _mapper.non_complemented_vertex(vertex);
     auto eit = edges_sorted ? std::lower_bound(_adjacency_list[vertex].begin(),
