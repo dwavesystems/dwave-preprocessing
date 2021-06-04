@@ -442,7 +442,8 @@ void createGraphOfStronglyConnectedComponents(
 #pragma omp parallel
   {
     std::vector<int> temp_buffer(num_components);
-    std::vector<bool> found_edge_to_component(num_components, false);
+    // Better not use vector of booleans in parallel regions.
+    std::vector<int> found_edge_to_component(num_components, false);
 #pragma omp for
     for (int component = 0; component < num_components; component++) {
       int num_out_edges = 0;
