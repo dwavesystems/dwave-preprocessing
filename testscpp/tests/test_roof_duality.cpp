@@ -60,7 +60,6 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         int num_vars = 3;
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
 
-        // Checking fixQuboVariables(AdjVectorBQM, ..)
         auto result = fixQuboVariables(bqm, true, -2);
         auto lower_bound = result.first;
         REQUIRE(lower_bound == -4);
