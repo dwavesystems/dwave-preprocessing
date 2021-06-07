@@ -27,7 +27,8 @@ from dimod.vartypes import Vartype
 
 cdef extern from "include/dwave-preprocessing/fix_variables.hpp" namespace "fix_variables_":
     pair[double, vector[pair[int, int]]] fixQuboVariables[V, B](cppAdjVectorBQM[V, B]& refBQM,
-                                                  cppbool strict) except +
+                                                                cppbool strict, 
+                                                                double offset) except +
 
 def fix_variables_wrapper(bqm, strict):
     """Cython wrapper for fix_variables().
@@ -49,6 +50,5 @@ def fix_variables_wrapper(bqm, strict):
         raise ValueError("bqm must be linearly indexed")
 
     cdef cyAdjVectorBQM cybqm = dimod.as_bqm(bqm, cls=AdjVectorBQM)
-    lower_bound, fixed = fixQuboVariables(cybqm.bqm_, bool(strict))
+    lower_bound, fixed = fixQuboVariables(cybqm.bqm_, bool(strict), bqm.offset)
     return lower_bound, {int(v): int(val) for v, val in fixed}
-

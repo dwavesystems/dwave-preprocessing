@@ -47,4 +47,4 @@ class TestRoofDuality(unittest.TestCase):
         bqm = dimod.BinaryQuadraticModel.from_ising({'a': 10}, {'ab': -1, 'bc': 1})
         lb, fixed = roof_duality(bqm)
         self.assertEqual(fixed, {'a': -1, 'b': -1, 'c': 1})
-        self.assertEqual(lb, -2.0)
+        self.assertEqual(lb, -12.0)

@@ -89,10 +89,11 @@ capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variable
  *      that do not contribute any coefficient to the posiform are set to 1. This
  *      may happen if their bias in the original QUBO was 0 or if they were flushed
  *      to zero when converted to the posiform.
+ * @param offset The bqm's offset, used to calculate the lower bound. Defaults to 0.
  */
 template <class V, class B>
 std::pair<double, std::vector<std::pair<int, int>>>
-fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
+fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict, double offset=0.0) {
   int num_bqm_variables = bqm.num_variables();
   PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
   std::vector<std::pair<int, int>> fixed_variables;
@@ -108,7 +109,8 @@ fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
   // Boros, Endre & Hammer, Peter & Tavares, Gabriel. (2006). Preprocessing of
   // unconstrained quadratic binary optimization. RUTCOR Research Report.
   double lower_bound = (posiform_info.getConstant() / posiform_info.getBiasConversionRatio())
-                       + ((double)max_flow / (posiform_info.getBiasConversionRatio() * 2));
+                       + ((double)max_flow / (posiform_info.getBiasConversionRatio() * 2))
+                       + offset;
   return {lower_bound, fixed_variables};
 }
 
