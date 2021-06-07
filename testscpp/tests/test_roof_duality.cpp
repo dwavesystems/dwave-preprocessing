@@ -52,6 +52,20 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         }
     }
 
+    SECTION("Test offset") {
+        float Q [9] = {22,-4, 0,
+                        0, 0, 4,
+                        0, 0,-2};
+
+        int num_vars = 3;
+        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+
+        // Checking fixQuboVariables(AdjVectorBQM, ..)
+        auto result = fixQuboVariables(bqm, true, -2);
+        auto lower_bound = result.first;
+        REQUIRE(lower_bound == -4);
+    }
+
     SECTION("Test empty case") {
         float Q [] = {};
         auto bqm = dimod::AdjVectorBQM<int, float>(Q, 0);
