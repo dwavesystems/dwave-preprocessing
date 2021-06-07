@@ -31,7 +31,11 @@ def roof_duality(bqm, *, strict=True):
             points (weak persistency).
 
     Returns:
-        dict: Variable assignments for some variables of ``bqm``.
+        (float, dict) A 2-tuple containing:
+        
+            float: Lower bound for the energy of ``bqm``.
+            
+            dict: Variable assignments for some variables of ``bqm``.
 
     Examples:
         This example creates a binary quadratic model with a single ground state
@@ -70,7 +74,7 @@ def roof_duality(bqm, *, strict=True):
 
     if all(v in linear for v in range(len(bqm_))):
         # we can work with the binary form of the bqm directly
-        fixed = fix_variables_wrapper(bqm_, strict)
+        lower_bound, fixed = fix_variables_wrapper(bqm_, strict)
     else:
         inverse_mapping = dict(enumerate(linear))
         mapping = {v: i for i, v in inverse_mapping.items()}
@@ -79,10 +83,10 @@ def roof_duality(bqm, *, strict=True):
         inplace = bqm.vartype is Vartype.SPIN
         bqm_ = bqm_.relabel_variables(mapping, inplace=inplace)
 
-        fixed = fix_variables_wrapper(bqm_, strict)
+        lower_bound, fixed = fix_variables_wrapper(bqm_, strict)
         fixed = {inverse_mapping[v]: val for v, val in fixed.items()}
 
     if bqm.vartype is Vartype.SPIN:
-        return {v: 2*val - 1 for v, val in fixed.items()}
+        return lower_bound, {v: 2*val - 1 for v, val in fixed.items()}
     else:
-        return fixed
+        return lower_bound, fixed

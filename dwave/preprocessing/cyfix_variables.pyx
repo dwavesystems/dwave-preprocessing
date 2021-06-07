@@ -49,6 +49,6 @@ def fix_variables_wrapper(bqm, strict):
         raise ValueError("bqm must be linearly indexed")
 
     cdef cyAdjVectorBQM cybqm = dimod.as_bqm(bqm, cls=AdjVectorBQM)
-    # need to recieve the pair and return lower bound and the list.
-    fixed = fixQuboVariables(cybqm.bqm_, bool(strict))
-    return {int(v): int(val) for v, val in fixed}
+    lower_bound, fixed = fixQuboVariables(cybqm.bqm_, bool(strict))
+    return lower_bound, {int(v): int(val) for v, val in fixed}
+
