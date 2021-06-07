@@ -17,8 +17,9 @@ from dimod.vartypes import Vartype
 from dwave.preprocessing.cyfix_variables import fix_variables_wrapper
 
 def roof_duality(bqm, *, strict=True):
-    """Determine minimizing assignments for some variables of a binary quadratic 
-    model using the roof duality algorithm.
+    """Determine a lower bound for a binary quadratic model's energy, as well as 
+    minimizing assignments for some of its variables, using the roof duality 
+    algorithm.
 
     Args:
         bqm (:class:`.BinaryQuadraticModel`):
@@ -31,17 +32,22 @@ def roof_duality(bqm, *, strict=True):
             points (weak persistency).
 
     Returns:
-        dict: Variable assignments for some variables of ``bqm``.
+        (float, dict) A 2-tuple containing:
+        
+            float: Lower bound for the energy of ``bqm``.
+            
+            dict: Variable assignments for some variables of ``bqm``.
 
     Examples:
         This example creates a binary quadratic model with a single ground state
-        and fixes the model's single variable to the minimizing assignment.
+        and finds both an energy lower bound and a minimizing assignment to the 
+        model's single variable. 
 
         >>> import dimod
         >>> from dwave.preprocessing.lower_bounds import roof_duality
         >>> bqm = dimod.BinaryQuadraticModel.from_ising({'a': 1.0}, {})
         >>> roof_duality(bqm)
-        {'a': -1}
+        (-1.0, {'a': -1})
 
         This example has two ground states, :math:`a=b=-1` and :math:`a=b=1`, with
         no variable having a single value for all ground states, so neither variable
@@ -50,7 +56,7 @@ def roof_duality(bqm, *, strict=True):
         >>> bqm = dimod.BinaryQuadraticModel.empty(dimod.SPIN)
         >>> bqm.add_interaction('a', 'b', -1.0)
         >>> roof_duality(bqm) # doctest: +SKIP
-        {}
+        (-1.0, {})
 
         This example sets ``strict`` to False, so variables are fixed to an assignment
         that attains the ground state.
@@ -58,7 +64,7 @@ def roof_duality(bqm, *, strict=True):
         >>> bqm = dimod.BinaryQuadraticModel.empty(dimod.SPIN)
         >>> bqm.add_interaction('a', 'b', -1.0)
         >>> roof_duality(bqm, strict=False) # doctest: +SKIP
-        {'a': 1, 'b': 1}
+        (-1.0, {'a': -1, 'b': -1})
 
     """
     bqm_ = bqm
@@ -70,7 +76,7 @@ def roof_duality(bqm, *, strict=True):
 
     if all(v in linear for v in range(len(bqm_))):
         # we can work with the binary form of the bqm directly
-        fixed = fix_variables_wrapper(bqm_, strict)
+        lower_bound, fixed = fix_variables_wrapper(bqm_, strict)
     else:
         inverse_mapping = dict(enumerate(linear))
         mapping = {v: i for i, v in inverse_mapping.items()}
@@ -79,10 +85,10 @@ def roof_duality(bqm, *, strict=True):
         inplace = bqm.vartype is Vartype.SPIN
         bqm_ = bqm_.relabel_variables(mapping, inplace=inplace)
 
-        fixed = fix_variables_wrapper(bqm_, strict)
+        lower_bound, fixed = fix_variables_wrapper(bqm_, strict)
         fixed = {inverse_mapping[v]: val for v, val in fixed.items()}
 
     if bqm.vartype is Vartype.SPIN:
-        return {v: 2*val - 1 for v, val in fixed.items()}
+        return lower_bound, {v: 2*val - 1 for v, val in fixed.items()}
     else:
-        return fixed
+        return lower_bound, fixed

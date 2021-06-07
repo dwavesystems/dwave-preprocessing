@@ -125,7 +125,7 @@ class FixVariablesComposite(ComposedSampler):
                 warnings.warn(msg)
                 return self.child.sample(bqm, **parameters)
         elif self.algorithm == 'roof_duality':
-            fixed_variables = roof_duality(bqm, strict=parameters.pop('strict', True))
+            _, fixed_variables = roof_duality(bqm, strict=parameters.pop('strict', True))
 
         # make sure that we're shapeable and that we have a BQM we can mutate
         bqm_copy = as_bqm(bqm, cls=[AdjVectorBQM, AdjDictBQM], copy=True)

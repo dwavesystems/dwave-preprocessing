@@ -21,25 +21,30 @@ from dwave.preprocessing.lower_bounds import roof_duality
 class TestRoofDuality(unittest.TestCase):
     def test_empty(self):
         bqm = dimod.AdjVectorBQM('BINARY')
-        fixed = roof_duality(bqm, strict=True)
+        lb, fixed = roof_duality(bqm, strict=True)
         self.assertEqual(fixed, {})
+        self.assertEqual(lb, 0.0)
 
-        fixed = roof_duality(bqm, strict=False)
+        lb, fixed = roof_duality(bqm, strict=False)
         self.assertEqual(fixed, {})
+        self.assertEqual(lb, 0.0)
 
     def test_all_zero(self):
         num_vars = 3
 
         bqm = dimod.AdjVectorBQM(num_vars, 'BINARY')
-        fixed = roof_duality(bqm, strict=True)
+        lb, fixed = roof_duality(bqm, strict=True)
         self.assertEqual(fixed, {})
+        self.assertEqual(lb, 0.0)
 
-        fixed = roof_duality(bqm, strict=False)
+        lb, fixed = roof_duality(bqm, strict=False)
         self.assertEqual(len(fixed), num_vars)
         for val in fixed.values():
             self.assertEqual(val, 1)
+        self.assertEqual(lb, 0.0)
 
     def test_3path(self):
         bqm = dimod.BinaryQuadraticModel.from_ising({'a': 10}, {'ab': -1, 'bc': 1})
-        fixed = roof_duality(bqm)
+        lb, fixed = roof_duality(bqm)
         self.assertEqual(fixed, {'a': -1, 'b': -1, 'c': 1})
+        self.assertEqual(lb, -12.0)

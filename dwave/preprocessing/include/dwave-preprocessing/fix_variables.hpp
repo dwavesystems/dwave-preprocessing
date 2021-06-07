@@ -89,26 +89,29 @@ capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variable
  *      that do not contribute any coefficient to the posiform are set to 1. This
  *      may happen if their bias in the original QUBO was 0 or if they were flushed
  *      to zero when converted to the posiform.
+ * @param offset The bqm's offset, used to calculate the lower bound. Defaults to 0.
  */
 template <class V, class B>
 std::pair<double, std::vector<std::pair<int, int>>>
-fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict) {
+fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict, double offset=0.0) {
   int num_bqm_variables = bqm.num_variables();
   PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
   std::vector<std::pair<int, int>> fixed_variables;
   capacity_type max_flow = fixQuboVariables(posiform_info, num_bqm_variables, strict, fixed_variables);
 
-  // The max_flow added with the constant term of the posiform is supposed to
-  // be the lower bound of the posiform which should be equal to the lower
-  // bound of the bqm. But while creating the implication network and assigning
-  // capacities to its edges we did not divide the corresponding coefficients of
-  // the posiform by 2 thus when we convert the max flow to the minimum value of
-  // the posiform we need to divide it by 2.
+  // The max_flow added with the constant term of the posiform should be the lower 
+  // bound of the posiform, which should be equal to the lower bound of the bqm. 
+  // But while creating the implication network and assigning capacities to its 
+  // edges, we did not divide the corresponding coefficients of the posiform by 2,
+  // thus when we convert the max flow to the minimum value of the posiform, we 
+  // need to divide it by 2. The bqm offset also needs to be added since it was 
+  // ignored in the posiform to reduce potential numerical errors.
   // See bottom of page 5 after equation 5 of the following paper.
   // Boros, Endre & Hammer, Peter & Tavares, Gabriel. (2006). Preprocessing of
   // unconstrained quadratic binary optimization. RUTCOR Research Report.
   double lower_bound = (posiform_info.getConstant() / posiform_info.getBiasConversionRatio())
-                       + ((double)max_flow / (posiform_info.getBiasConversionRatio() * 2));
+                       + ((double)max_flow / (posiform_info.getBiasConversionRatio() * 2))
+                       + offset;
   return {lower_bound, fixed_variables};
 }
 
