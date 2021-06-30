@@ -6,10 +6,6 @@
     :target: https://codecov.io/gh/dwavesystems/dwave-preprocessing
     :alt: Code coverage
 
-.. image:: https://readthedocs.com/projects/d-wave-systems-dwave-preprocessing/badge/?version=latest
-    :target: https://docs.ocean.dwavesys.com/projects/preprocessing/en/latest/
-    :alt: Documentation status
-
 .. image:: https://badge.fury.io/py/dwave-preprocessing.svg
     :target: https://badge.fury.io/py/dwave-preprocessing
     :alt: Last version on PyPI
@@ -25,7 +21,7 @@ dwave-preprocessing
 
 .. index-start-marker
 
-`dwave-preprocessing` is a package of common preprocessing tools that can aid in 
+`dwave-preprocessing` is a package of common preprocessing tools that can aid in
 solving binary quadratic models (BQM).
 
 .. code-block:: python
@@ -33,7 +29,7 @@ solving binary quadratic models (BQM).
     import dwave.preprocessing
 
 Currently, this package contains several preprocessing composites. For details on
-underlying algorithms and usage, see the package's 
+underlying algorithms and usage, see the package's
 `Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/>`_.
 
 .. index-end-marker
