@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dimod/adjvectorbqm.h"
+#include "dimod/quadratic_model.h"
 #include "implication_network.hpp"
 #include "posiform_info.hpp"
 
@@ -80,9 +80,9 @@ capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variable
 }
 
 /**
- * Fixes the variables of an AdjVectorBQM.
+ * Fixes the variables of an BinaryQuadraticModel.
  *
- * @param bqm AdjVectorBQM to find minimizing variable assignments for
+ * @param bqm BinaryQuadraticModel to find minimizing variable assignments for
  * @param strict When true, only the variables corresponding to strong persistencies
  *      are fixed. When false, the function tries to fix all the variables
  *      corresponding to strong and weak persistencies. Also when false, variables 
@@ -93,9 +93,9 @@ capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variable
  */
 template <class V, class B>
 std::pair<double, std::vector<std::pair<int, int>>>
-fixQuboVariables(dimod::AdjVectorBQM<V, B> &bqm, bool strict, double offset=0.0) {
+fixQuboVariables(dimod::BinaryQuadraticModel<B, V> &bqm, bool strict, double offset=0.0) {
   int num_bqm_variables = bqm.num_variables();
-  PosiformInfo<dimod::AdjVectorBQM<V, B>, capacity_type> posiform_info(bqm);
+  PosiformInfo<dimod::BinaryQuadraticModel<B, V>, capacity_type> posiform_info(bqm);
   std::vector<std::pair<int, int>> fixed_variables;
   capacity_type max_flow = fixQuboVariables(posiform_info, num_bqm_variables, strict, fixed_variables);
 

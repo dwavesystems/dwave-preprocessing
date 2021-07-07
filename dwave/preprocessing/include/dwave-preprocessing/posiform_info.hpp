@@ -61,8 +61,8 @@ to the floating point based numbers as many biases may be flushed to zeroes.
 public:
   using coefficient_type = coefficient_t; // Must be a signed integral type.
   using bias_type = typename BQM::bias_type;
-  using quadratic_iterator_type = typename BQM::const_outvars_iterator;
-  using variable_type = typename BQM::variable_type;
+  using quadratic_iterator_type = typename BQM::const_neighborhood_iterator;
+  using variable_type = typename BQM::index_type;
 
   /**
    * Construct a PosiformInfo from a binary quadratic model.

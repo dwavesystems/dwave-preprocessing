@@ -1,4 +1,4 @@
-dimod==0.9.15
+dimod==0.10.0.dev7
 Cython==0.29.21
 numpy==1.19.4
 
