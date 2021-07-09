@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "../Catch2/single_include/catch2/catch.hpp"
-#include <dimod/adjvectorbqm.h>
+#include <dimod/quadratic_model.h>
 
 #include "dwave-preprocessing/fix_variables.hpp"
 
@@ -26,14 +26,14 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
                         0, 0,-2};
 
         int num_vars = 3;
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
 
         // Checking fixQuboVariables(PosiformInfo, ..)
-        PosiformInfo<dimod::AdjVectorBQM<int, float>, capacity_type> posiform(bqm);
+        PosiformInfo<dimod::BinaryQuadraticModel<float, int>, capacity_type> posiform(bqm);
         std::vector<std::pair<int, int>> fixed_vars;
         fixQuboVariables(posiform, num_vars, true, fixed_vars);
 
-        // Checking fixQuboVariables(AdjVectorBQM, ..)
+        // Checking fixQuboVariables(BinaryQuadraticModel, ..)
         auto result = fixQuboVariables(bqm, true);
         auto lower_bound = result.first;
         auto fixed_vars2 = result.second;
@@ -58,7 +58,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
                         0, 0,-2};
 
         int num_vars = 3;
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
 
         auto bqm_offset = -5;
         auto result = fixQuboVariables(bqm, true, bqm_offset);
@@ -68,7 +68,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
 
     SECTION("Test empty case") {
         float Q [] = {};
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, 0);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, 0, dimod::Vartype::BINARY);
 
         auto result = fixQuboVariables(bqm, true);
         auto lower_bound = result.first;
@@ -91,7 +91,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
                        0, 0, 0};
 
         int num_vars = 3;
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
 
         auto result = fixQuboVariables(bqm, true);
         auto lower_bound = result.first;
@@ -124,7 +124,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
                        0, 0};
         
         int num_vars = 2;
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
 
         auto result = fixQuboVariables(bqm, true);
         auto lower_bound = result.first;
@@ -150,7 +150,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
                          0,  2.0};
 
         int num_vars = 2;
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
 
         for (auto mode : {true, false}) {
             auto result = fixQuboVariables(bqm, mode);
@@ -178,9 +178,9 @@ TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
                         0, 0,-2};
 
         int num_vars = 3;
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
 
-        PosiformInfo<dimod::AdjVectorBQM<int, float>, capacity_type> posiform(bqm);
+        PosiformInfo<dimod::BinaryQuadraticModel<float, int>, capacity_type> posiform(bqm);
         REQUIRE(posiform.getNumVariables() == num_vars);
         REQUIRE(posiform.getNumLinear() == 2);
 
@@ -219,8 +219,8 @@ TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
                        0, 0, 0};
 
         int num_vars = 3;
-        auto bqm = dimod::AdjVectorBQM<int, float>(Q, num_vars);
-        PosiformInfo<dimod::AdjVectorBQM<int, float>, capacity_type> posiform(bqm);
+        auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
+        PosiformInfo<dimod::BinaryQuadraticModel<float, int>, capacity_type> posiform(bqm);
         
         REQUIRE(posiform.getNumVariables() == 1);
 
