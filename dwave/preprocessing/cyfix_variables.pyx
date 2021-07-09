@@ -17,17 +17,17 @@
 
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
-from libcpp cimport bool as cppbool
 
 import dimod
-from dimod import AdjVectorBQM
-from dimod.bqm.cppbqm cimport AdjVectorBQM as cppAdjVectorBQM
-from dimod cimport cyAdjVectorBQM
-from dimod.vartypes import Vartype
+import numpy as np
+
+from dimod.libcpp cimport cppBinaryQuadraticModel
+from dimod.binary.cybqm cimport cyBQM_float64
+
 
 cdef extern from "include/dwave-preprocessing/fix_variables.hpp" namespace "fix_variables_":
-    pair[double, vector[pair[int, int]]] fixQuboVariables[V, B](cppAdjVectorBQM[V, B]& refBQM,
-                                                                cppbool strict, 
+    pair[double, vector[pair[int, int]]] fixQuboVariables[V, B](cppBinaryQuadraticModel[B, V]& refBQM,
+                                                                bint strict, 
                                                                 double offset) except +
 
 def fix_variables_wrapper(bqm, strict):
@@ -44,11 +44,13 @@ def fix_variables_wrapper(bqm, strict):
             for which the assignments are true for some but not all minimizing 
             points (weak persistency).
     """
-    if bqm.vartype is not Vartype.BINARY:
+    bqm = dimod.as_bqm(bqm, dtype=np.float64)
+
+    if bqm.vartype is not dimod.BINARY:
         raise ValueError("bqm must be BINARY")
     if not all(v in bqm.linear for v in range(len(bqm))):
         raise ValueError("bqm must be linearly indexed")
 
-    cdef cyAdjVectorBQM cybqm = dimod.as_bqm(bqm, cls=AdjVectorBQM)
-    lower_bound, fixed = fixQuboVariables(cybqm.bqm_, bool(strict), bqm.offset)
+    cdef cyBQM_float64 cybqm = bqm.data
+    lower_bound, fixed = fixQuboVariables(cybqm.cppbqm, bool(strict), bqm.offset)
     return lower_bound, {int(v): int(val) for v, val in fixed}

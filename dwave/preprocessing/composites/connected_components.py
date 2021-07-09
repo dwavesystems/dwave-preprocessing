@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dimod.bqm import as_bqm, AdjVectorBQM, AdjDictBQM
 from dimod.core.composite import ComposedSampler
 from dimod.sampleset import SampleSet, append_variables
 from dimod.traversal import connected_components
@@ -86,8 +85,6 @@ class ConnectedComponentsComposite(ComposedSampler):
             :class:`dimod.SampleSet`
 
         """
-        # make sure the BQM is shapeable
-        bqm = as_bqm(bqm, cls=[AdjVectorBQM, AdjDictBQM])
 
         # solve the problem on the child system
         child = self.child

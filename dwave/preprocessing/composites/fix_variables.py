@@ -15,7 +15,7 @@
 import numpy as np
 import warnings
 
-from dimod.bqm import as_bqm, AdjVectorBQM, AdjDictBQM
+from dimod.binary.binary_quadratic_model import as_bqm
 from dimod.core.composite import ComposedSampler
 from dimod.sampleset import SampleSet, append_variables
 
@@ -128,7 +128,7 @@ class FixVariablesComposite(ComposedSampler):
             _, fixed_variables = roof_duality(bqm, strict=parameters.pop('strict', True))
 
         # make sure that we're shapeable and that we have a BQM we can mutate
-        bqm_copy = as_bqm(bqm, cls=[AdjVectorBQM, AdjDictBQM], copy=True)
+        bqm_copy = as_bqm(bqm, copy=True)
 
         bqm_copy.fix_variables(fixed_variables)
 
