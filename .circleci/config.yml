@@ -489,7 +489,7 @@ workflows:
           matrix:
             parameters:
               python-minor: [6, 7, 8, 9]
-              architecture: ["x86_64", "i686"]
+              architecture: ["x86_64"]
       - build-sdist:
           filters:
             tags:
