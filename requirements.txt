@@ -1,7 +1,8 @@
-dimod==0.10.0.dev9
+dimod==0.10.4
 Cython==0.29.21
 numpy==1.19.4
 
 # build
 wheel>=0.30.0
 setuptools>=56.2.0
+
