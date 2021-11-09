@@ -64,19 +64,19 @@ class SpinReversalTransformComposite(Sampler, Composite):
 
         self.properties = {'child_properties': child.properties}
 
-    def sample(self, bqm, *, num_spin_reversal_transforms=2, **kwargs):
+    def sample(self, bqm, *, num_spin_reversal_transforms=1, **kwargs):
         """Sample from the binary quadratic model.
 
         Args:
             bqm (:class:`~dimod.BinaryQuadraticModel`):
                 Binary quadratic model to be sampled from.
 
-            num_spin_reversal_transforms (integer, optional, default=2):
+            num_spin_reversal_transforms (integer, optional, default=1):
                 Number of spin reversal transform runs.
 
         Returns:
             :class:`.SampleSet`
-
+        
         Examples:
             This example runs 100 spin reversals applied to one variable of a QUBO problem.
 
@@ -97,7 +97,7 @@ class SpinReversalTransformComposite(Sampler, Composite):
 
         flipped_bqm = bqm.copy()
         transform = {v: False for v in bqm.variables}
-
+        
         for ii in range(num_spin_reversal_transforms):
             # flip each variable with a 50% chance
             for v in bqm.variables:
@@ -115,6 +115,12 @@ class SpinReversalTransformComposite(Sampler, Composite):
             else:
                 flipped_response.record.sample[:, tf_idxs] = 1 - flipped_response.record.sample[:, tf_idxs]
 
-            responses.append(flipped_response)
+            if num_spin_reversal_transforms == 1:
+                #Case of a single sampleset call, avoid
+                #stripping of info field and other
+                #information. 
+                return(flipped_response)
+            else:
+                responses.append(flipped_response)
 
         return concatenate(responses)
