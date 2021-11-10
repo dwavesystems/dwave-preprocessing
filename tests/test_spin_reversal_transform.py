@@ -14,9 +14,9 @@
 
 import unittest
 
-from dimod import NullSampler, ExactSolver, RandomSampler, SimulatedAnnealingSampler
-
 import dimod.testing as dtest
+
+from dimod import NullSampler, ExactSolver, RandomSampler, SimulatedAnnealingSampler
 
 from dwave.preprocessing.composites import SpinReversalTransformComposite
 
