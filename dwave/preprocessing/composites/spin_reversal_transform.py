@@ -91,6 +91,8 @@ class SpinReversalTransformComposite(Sampler, Composite):
             >>> len(response)
             400
         """
+        if not bqm.num_variables:
+            return self.child.sample(bqm, **kwargs)
 
         # make a main response
         responses = []
