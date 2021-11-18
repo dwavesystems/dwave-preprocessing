@@ -34,6 +34,7 @@ jobs:
             for PYBIN in /opt/python/*/bin; do
               if "${PYBIN}/python" -c "import sys; sys.exit(sys.version_info.major == 3)"; then continue; fi;
               if "${PYBIN}/python" -c "import sys; sys.exit(sys.version_info.minor == << parameters.python-minor >>)"; then continue; fi;
+              "${PYBIN}/pip" install pip --upgrade
               "${PYBIN}/pip" install -r requirements.txt --only-binary=:all:
               "${PYBIN}/pip" wheel . -w ./wheelhouse
             done
@@ -449,7 +450,7 @@ workflows:
           name: build-manylinux1_<< matrix.architecture >>-py3<< matrix.python-minor >>
           matrix:
             parameters:
-              python-minor: [6, 7, 8, 9]
+              python-minor: [6, 7, 8, 9, 10]
               # We could build for 32bit as well, but since we don't have any
               # way to test it and it slows down compilation, we don't for
               # now.
@@ -460,6 +461,7 @@ workflows:
           matrix:
             parameters:
               image:
+                - "3.10"
                 - 3.9-buster
                 - 3.8-buster
                 - 3.7-stretch
@@ -467,11 +469,11 @@ workflows:
       - test-osx:
           matrix:
             parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
+              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0", "3.10.0"]
       - test-win:
           matrix:
             parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
+              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0", "3.10.0"]
               architecture: ["", "x86"]
       - build-sdist
       - test-linux-cpp11
@@ -488,7 +490,7 @@ workflows:
           name: build-manylinux1_<< matrix.architecture >>-py3<< matrix.python-minor >>
           matrix:
             parameters:
-              python-minor: [6, 7, 8, 9]
+              python-minor: [6, 7, 8, 9, 10]
               architecture: ["x86_64"]
       - build-sdist:
           filters:
@@ -513,7 +515,7 @@ workflows:
               ignore: /.*/
           matrix:
             parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
+              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0", "3.10.0"]
       - deploy-win:
           filters:
             tags:
@@ -522,5 +524,5 @@ workflows:
               ignore: /.*/
           matrix:
             parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
+              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0", "3.10.0"]
               architecture: ["", "x86"]
