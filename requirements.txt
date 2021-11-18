@@ -1,6 +1,7 @@
-dimod==0.10.4
+dimod==0.10.8
 Cython==0.29.21
-numpy==1.19.4
+numpy==1.19.5;python_version<"3.10"
+numpy==1.21.4;python_version>="3.10"
 
 # build
 wheel>=0.30.0
