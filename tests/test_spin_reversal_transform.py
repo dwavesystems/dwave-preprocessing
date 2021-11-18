@@ -14,18 +14,14 @@
 
 import unittest
 
+import dimod
 import dimod.testing as dtest
-
 from dimod import NullSampler, ExactSolver, RandomSampler, SimulatedAnnealingSampler
 
 from dwave.preprocessing.composites import SpinReversalTransformComposite
 
 
-
-# Running a set of tests similar to the Greedy tests would make sense:
-# import dimod
-# @dimod.testing.load_sampler_bqm_tests(dimod.SpinReversalTransformComposite(dimod.ExactSolver()))
-
+@dimod.testing.load_sampler_bqm_tests(SpinReversalTransformComposite(ExactSolver()))
 class TestSpinTransformComposite(unittest.TestCase):
     def test_instantiation(self):
         for factory in [ExactSolver, RandomSampler, SimulatedAnnealingSampler,
@@ -80,6 +76,14 @@ class TestSpinTransformComposite(unittest.TestCase):
                 self.assertTrue(sum(sampleset.record.num_occurrences)==
                                 num_reads*num_spin_reversal_transforms)
                 
+    def test_empty(self):
+        # Check that empty BQMs are handled
+        sampler = SpinReversalTransformComposite(ExactSolver())
+        bqm = dimod.BinaryQuadraticModel({}, {}, 0.0, dimod.SPIN)
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=3)
+
+        self.assertEqual(sampleset.record.sample.shape, (0, 0))
+        self.assertIs(sampleset.vartype, bqm.vartype)
 
 # Tests are removed to limit external dependencies
 # from greedy import SteepestDescentSolver
