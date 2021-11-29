@@ -255,22 +255,21 @@ jobs:
     steps:
       - checkout
 
-      - restore_cache: &restore-cache-env
+      - restore_cache:
           key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ checksum "docs/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
 
-      - run: &create-virtualenv
+      - run:
           name: Create virtual environment
           command: |
-            python -m pip install virtualenv
-            python -m virtualenv env
+            python -m venv env
 
-      - run: &install-requirements
+      - run:
           name: Install requirements
           command: |
             . env/bin/activate
             pip install -r requirements.txt -r tests/requirements.txt -r docs/requirements.txt
 
-      - save_cache: &save-cache-env
+      - save_cache:
           key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ checksum "docs/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
           paths:
             - env
