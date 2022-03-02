@@ -210,13 +210,11 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     if (_max_absolute_value < bqm_linear_abs) {
       _max_absolute_value = bqm_linear_abs;
     }
-    auto span = bqm.neighborhood(bqm_variable);
-    auto it = std::lower_bound(span.first, span.second, bqm_variable + 1,
-                               dimod::utils::comp_v<variable_type, bias_type>);
-    _quadratic_iterators[bqm_variable] = {it, span.second};
-    if (it != span.second) {
-      for (auto it_end = span.second; it != it_end; it++) {
-        auto bqm_quadratic = it->second;
+    auto span = bqm.neighborhood(bqm_variable, bqm_variable + 1);
+    _quadratic_iterators[bqm_variable] = span;
+    if (span.first != span.second) {
+      for (auto it_end = span.second; span.first != it_end; span.first++) {
+        auto bqm_quadratic = span.first->second;
         auto bqm_quadratic_abs = std::fabs(bqm_quadratic);
         if (bqm_quadratic < 0) {
           _linear_double_biases[bqm_variable] += bqm_quadratic;
