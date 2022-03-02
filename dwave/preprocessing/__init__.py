@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = '0.3.2'
+__version__ = '0.4.0rc0'
 
 from dwave.preprocessing import *
 import dwave.preprocessing.composites
