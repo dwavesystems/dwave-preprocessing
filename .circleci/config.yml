@@ -25,6 +25,14 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
+      - when:
+          condition:
+            matches:
+              pattern: "^3\\.10.*$"
+              value: << parameters.python-version >>
+          steps:
+            # dimod and NumPy only have manylinux2014 images for Python 3.10 so we follow them
+            - run: echo 'export CIBW_MANYLINUX_X86_64_IMAGE=manylinux2014' >> $BASH_ENV
       - restore_cache: &build-linux-restore-cache
           keys:
             - pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
@@ -404,21 +412,21 @@ workflows:
           matrix:
             parameters:
               # test the lowest and highest of each minor for the dependencies
-              dimod-version: [==0.11.0rc0]  # todo: add ~=0.11.0
-              numpy-version: [==1.19.1, ~=1.20.0, ~=1.21.0, ~=1.22.0]
+              dimod-version: [==0.11.0, ~=0.11.0]
+              numpy-version: [==1.20.0, ~=1.21.0, ~=1.22.0]
               python-version: *python-versions
             exclude:
-              - numpy-version: ==1.19.1  # NumPy 1.19.1 does not support 3.9
-                dimod-version: ==0.11.0rc0
-                python-version: 3.9.4
-              - numpy-version: ==1.19.1  # NumPy 1.19.1 does not support 3.10
-                dimod-version: ==0.11.0rc0
-                python-version: 3.10.0
-              - numpy-version: ~=1.20.0  # NumPy 1.20 does not support 3.10
-                dimod-version: ==0.11.0rc0
+              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
+                dimod-version: ==0.11.0
                 python-version: 3.10.0
               - numpy-version: ~=1.22.0  # NumPy 1.22 does not support 3.7
-                dimod-version: ==0.11.0rc0
+                dimod-version: ==0.11.0
+                python-version: 3.7.9
+              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
+                dimod-version: ~=0.11.0
+                python-version: 3.10.0
+              - numpy-version: ~=1.22.0  # NumPy 1.22 does not support 3.7
+                dimod-version: ~=0.11.0
                 python-version: 3.7.9
       - test-linux-cpp11
       - test-osx:

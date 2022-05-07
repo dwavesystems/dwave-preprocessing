@@ -60,7 +60,7 @@ setup(
         dimod.get_include(),
         ],
     install_requires=[
-        'numpy>=1.19.1,<2.0.0',  # keep synced with circle-ci, pyproject.toml
-        'dimod>=0.11.0rc0,<0.12.0'
+        'numpy>=1.20.0,<2.0.0',  # keep synced with circle-ci, pyproject.toml
+        'dimod>=0.11.0,<0.12.0'
         ],
 )
