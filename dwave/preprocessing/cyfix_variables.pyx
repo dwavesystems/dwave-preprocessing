@@ -15,13 +15,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cython.operator cimport dereference as deref
+
 from libcpp.utility cimport pair
 from libcpp.vector cimport vector
 
 import dimod
 import numpy as np
 
-from dimod.libcpp cimport cppBinaryQuadraticModel
+from dimod.libcpp cimport BinaryQuadraticModel as cppBinaryQuadraticModel
 from dimod.binary.cybqm cimport cyBQM_float64
 
 
@@ -52,5 +54,5 @@ def fix_variables_wrapper(bqm, strict):
         raise ValueError("bqm must be linearly indexed")
 
     cdef cyBQM_float64 cybqm = bqm.data
-    lower_bound, fixed = fixQuboVariables(cybqm.cppbqm, bool(strict), bqm.offset)
+    lower_bound, fixed = fixQuboVariables(deref(cybqm.cppbqm), bool(strict), bqm.offset)
     return lower_bound, {int(v): int(val) for v, val in fixed}
