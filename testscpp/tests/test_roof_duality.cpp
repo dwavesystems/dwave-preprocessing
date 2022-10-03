@@ -194,13 +194,13 @@ TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
 
         auto span = posiform.getQuadratic(0);
         REQUIRE(std::distance(span.first, span.second) == 1);
-        REQUIRE(span.first->first == 1); // neighbor var
-        REQUIRE(span.first->second == -4); // quad bias
+        REQUIRE(span.first->v == 1); // neighbor var
+        REQUIRE(span.first->bias == -4); // quad bias
 
         span = posiform.getQuadratic(1);
         REQUIRE(std::distance(span.first, span.second) == 1);
-        REQUIRE(span.first->first == 2); // neighbor var
-        REQUIRE(span.first->second == 4); // quad bias
+        REQUIRE(span.first->v == 2); // neighbor var
+        REQUIRE(span.first->bias == 4); // quad bias
 
         span = posiform.getQuadratic(2);
         REQUIRE(std::distance(span.first, span.second) == 0);

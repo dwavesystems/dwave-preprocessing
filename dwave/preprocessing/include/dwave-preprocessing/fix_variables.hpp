@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dimod/quadratic_model.h"
+#include "dimod/binary_quadratic_model.h"
 #include "implication_network.hpp"
 #include "posiform_info.hpp"
 

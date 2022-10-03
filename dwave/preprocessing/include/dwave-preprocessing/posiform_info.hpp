@@ -214,7 +214,7 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     _quadratic_iterators[bqm_variable] = span;
     if (span.first != span.second) {
       for (auto it_end = span.second; span.first != it_end; span.first++) {
-        auto bqm_quadratic = span.first->second;
+        auto bqm_quadratic = span.first->bias;
         auto bqm_quadratic_abs = std::fabs(bqm_quadratic);
         if (bqm_quadratic < 0) {
           _linear_double_biases[bqm_variable] += bqm_quadratic;
@@ -272,9 +272,9 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
         // of small capacities corresponding to numerical errors, affecting the
         // final result. For this same reason we do not use the already computed
         // linear values for the posiform in double format.
-        auto bias_quadratic_integral = convertToPosiformCoefficient(it->second);
+        auto bias_quadratic_integral = convertToPosiformCoefficient(it->bias);
         if (bias_quadratic_integral) {
-          _num_quadratic_integral_biases[it->first]++;
+          _num_quadratic_integral_biases[it->v]++;
           if (bias_quadratic_integral < 0) {
             _linear_integral_biases[bqm_variable] += bias_quadratic_integral;
           }
@@ -369,9 +369,9 @@ void PosiformInfo<BQM, coefficient_t>::print() {
     auto it_end = _quadratic_iterators[bqm_variable].second;
     for (; it != it_end; it++) {
       std::cout << _bqm_to_posiform_variable_map[bqm_variable] << " "
-                << _bqm_to_posiform_variable_map[it->first] << ", ";
-      std::cout << bqm_variable << " " << it->first << ",  "
-                << convertToPosiformCoefficient(it->second) << std::endl;
+                << _bqm_to_posiform_variable_map[it->v] << ", ";
+      std::cout << bqm_variable << " " << it->v << ",  "
+                << convertToPosiformCoefficient(it->bias) << std::endl;
     }
   }
   std::cout << std::endl;

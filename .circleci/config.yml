@@ -4,8 +4,6 @@ orbs:
   win: circleci/windows@2.2.0
 
 environment: &global-environment
-  CIBW_BUILD_VERBOSITY: 1
-  CIBW_SKIP: pp* *musllinux*
   PIP_PROGRESS_BAR: 'off'
 
 jobs:
@@ -25,14 +23,6 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - when:
-          condition:
-            matches:
-              pattern: "^3\\.10.*$"
-              value: << parameters.python-version >>
-          steps:
-            # dimod and NumPy only have manylinux2014 images for Python 3.10 so we follow them
-            - run: echo 'export CIBW_MANYLINUX_X86_64_IMAGE=manylinux2014' >> $BASH_ENV
       - restore_cache: &build-linux-restore-cache
           keys:
             - pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
@@ -42,7 +32,7 @@ jobs:
             python3 -m venv env
             . env/bin/activate
             pip install pip --upgrade
-            pip install cibuildwheel==2.2.2
+            pip install cibuildwheel==2.10.0
             cibuildwheel --output-dir dist
       - save_cache: &build-linux-save-cache
           paths:
@@ -129,7 +119,7 @@ jobs:
           name: build wheels
           command: |
             python -m pip install pip --upgrade
-            python -m pip install cibuildwheel==2.2.2
+            python -m pip install cibuildwheel==2.10.0
             python -m cibuildwheel --output-dir dist
       - store_artifacts: *store-artifacts
       - persist_to_workspace: *persist-to-workspace
@@ -398,10 +388,10 @@ workflows:
           matrix:
             parameters:
               python-version: *python-versions
-              cibw-arch: [x86_64, universal2]
+              cibw-arch: [x86_64, arm64]
             exclude:
               - python-version: 3.7.9
-                cibw-arch: universal2
+                cibw-arch: arm64
       - build-windows: *build
       - test-codecov
       - test-doctest
@@ -412,21 +402,15 @@ workflows:
           matrix:
             parameters:
               # test the lowest and highest of each minor for the dependencies
-              dimod-version: [==0.11.0, ~=0.11.0]
+              dimod-version: [==0.12.0.dev0]
               numpy-version: [==1.20.0, ~=1.21.0, ~=1.22.0]
               python-version: *python-versions
             exclude:
               - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
-                dimod-version: ==0.11.0
+                dimod-version: ==0.12.0.dev0
                 python-version: 3.10.0
               - numpy-version: ~=1.22.0  # NumPy 1.22 does not support 3.7
-                dimod-version: ==0.11.0
-                python-version: 3.7.9
-              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
-                dimod-version: ~=0.11.0
-                python-version: 3.10.0
-              - numpy-version: ~=1.22.0  # NumPy 1.22 does not support 3.7
-                dimod-version: ~=0.11.0
+                dimod-version: ==0.12.0.dev0
                 python-version: 3.7.9
       - test-linux-cpp11
       - test-osx:
