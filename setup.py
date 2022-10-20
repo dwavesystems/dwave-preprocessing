@@ -51,7 +51,9 @@ setup(
     name='dwave-preprocessing',
     cmdclass=dict(build_ext=build_ext),
     ext_modules=cythonize(
-        ['dwave/preprocessing/cyfix_variables.pyx'],
+        ['dwave/preprocessing/cyfix_variables.pyx',
+         'dwave/preprocessing/presolve/*.pyx',
+         ],
         annotate=bool(os.getenv('CYTHON_ANNOTATE', False)),
         nthreads=int(os.getenv('CYTHON_NTHREADS', 0)),
         ),
