@@ -30,7 +30,10 @@ cdef class cyPresolver:
         
         if move:
             self.cpppresolver = cppPresolver[bias_type, index_type, double](cppmove(cqm.cppcqm))
-            cqm.clear()
+            
+            # todo: replace with cqm.clear()
+            cqm.variables._clear()
+            cqm.constraint_labels._clear()
         else:
             self.cpppresolver = cppPresolver[bias_type, index_type, double](cqm.cppcqm)
 
