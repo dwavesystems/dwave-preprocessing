@@ -154,20 +154,39 @@ SCENARIO("constrained quadratic models can be presolved") {
                 CHECK(model.constraint_ref(0).num_interactions() == 2);
                 CHECK(model.constraint_ref(0).quadratic(4, 7) == 5);
                 CHECK(model.constraint_ref(0).quadratic(3, 6) == 6);
-
-                // v0 == v0
-                CHECK(model.constraint_ref(1).num_variables() == 2);
-                CHECK(model.constraint_ref(1).is_linear());
-                CHECK(model.constraint_ref(1).variables() == std::vector<int>{0, 5});
-                CHECK(model.constraint_ref(1).linear(0) + model.constraint_ref(1).linear(5) == 0);
-                CHECK(model.constraint_ref(1).rhs() == 0);
-                CHECK(model.constraint_ref(1).sense() == dimod::Sense::EQ);
             }
 
             AND_WHEN("we then undo the transformation") {
                 auto original =
                         presolver.postsolver().apply(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8});
                 CHECK(original == std::vector<int>{1, 2, 3, 4, 5});
+            }
+        }
+    }
+
+    GIVEN("a CQM with a single self-loop") {
+        auto cqm = dimod::ConstrainedQuadraticModel<double>();
+        auto i = cqm.add_variable(dimod::Vartype::INTEGER);
+        auto& constraint = cqm.constraint_ref(cqm.add_constraint());
+        constraint.add_quadratic(i, i, 1);
+        constraint.set_rhs(1);
+        constraint.set_sense(dimod::Sense::LE);
+
+        WHEN("presolving is applied") {
+            auto presolver = presolve::Presolver<double>(std::move(cqm));
+            presolver.load_default_presolvers();
+            presolver.apply();
+
+            THEN("an equality constraint is added") {
+                auto& model = presolver.model();
+
+                // v0 == v0
+                CHECK(model.constraint_ref(1).num_variables() == 2);
+                CHECK(model.constraint_ref(1).is_linear());
+                CHECK(model.constraint_ref(1).variables() == std::vector<int>{0, 1});
+                CHECK(model.constraint_ref(1).linear(0) + model.constraint_ref(1).linear(1) == 0);
+                CHECK(model.constraint_ref(1).rhs() == 0);
+                CHECK(model.constraint_ref(1).sense() == dimod::Sense::EQ);
             }
         }
     }

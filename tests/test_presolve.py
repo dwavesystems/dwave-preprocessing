@@ -41,3 +41,12 @@ class TestPresolver(unittest.TestCase):
     def test_move(self):
         # todo
         pass
+
+    def test_self_loop(self):
+        i = dimod.Integer("i")
+        cqm = dimod.ConstrainedQuadraticModel()
+        cqm.add_constraint(i * i <= 0)
+
+        presolver = Presolver(cqm)
+        presolver.load_default_presolvers()
+        presolver.apply()

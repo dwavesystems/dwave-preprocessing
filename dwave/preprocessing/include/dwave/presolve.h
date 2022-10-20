@@ -148,9 +148,6 @@ class Presolver {
                 model_.add_variable(model_.vartype(v), model_.lower_bound(v),
                                     model_.upper_bound(v));
 
-                // equality constraint
-                model_.add_linear_constraint({v, out.first->second}, {1, -1}, dimod::Sense::EQ, 0);
-
                 postsolver_.add_variable(out.first->second);
             }
 
@@ -170,6 +167,12 @@ class Presolver {
 
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             substitute_self_loops_expr(model_.constraint_ref(c), mapping);
+        }
+
+        // now, we need to add equality constraints for all of the added variables
+        for (const auto& uv : mapping) {
+            // equality constraint
+            model_.add_linear_constraint({uv.first, uv.second}, {1, -1}, dimod::Sense::EQ, 0);
         }
     }
 };
