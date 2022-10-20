@@ -8,4 +8,5 @@ Reference Documentation
    
    composites
    lower_bounds
+   presolve
    cpp

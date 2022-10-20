@@ -24,6 +24,9 @@
 namespace dwave {
 namespace presolve {
 
+template <class Bias, class Index = int, class Assignment = double>
+class Presolver;
+
 template <class Bias, class Index, class Assignment>
 class Postsolver {
  public:
@@ -32,14 +35,9 @@ class Postsolver {
     using size_type = std::size_t;
     using assignment_type = Assignment;
 
-    void add_variable(index_type v);
-
+    /// Return a sample of the original CQM from a sample of the reduced CQM.
     template <class T>
     std::vector<T> apply(std::vector<T> reduced) const;
-
-    void fix_variable(index_type v, assignment_type value);
-
-    void substitute_variable(index_type v, bias_type multiplier, bias_type offset);
 
  private:
     // we want to track what changes were made
@@ -57,6 +55,14 @@ class Postsolver {
         explicit Transform(TransformKind kind)
                 : kind(kind), v(-1), value(NAN), multiplier(NAN), offset(NAN) {}
     };
+
+    friend class Presolver<bias_type, index_type, assignment_type>;
+
+    void add_variable(index_type v);
+
+    void fix_variable(index_type v, assignment_type value);
+
+    void substitute_variable(index_type v, bias_type multiplier, bias_type offset);
 
     std::vector<Transform> transforms_;
 };
@@ -108,7 +114,7 @@ void Postsolver<bias_type, index_type, assignment_type>::substitute_variable(ind
     transforms_.back().offset = offset;
 }
 
-template <class Bias, class Index = int, class Assignment = double>
+template <class Bias, class Index, class Assignment>
 class Presolver {
  public:
     using model_type = dimod::ConstrainedQuadraticModel<Bias, Index>;
@@ -119,19 +125,36 @@ class Presolver {
 
     using assignment_type = Assignment;
 
+    /// Default constructor.
     Presolver();
+
+    /// Construct a presolver from a constrained quadratic model.
     explicit Presolver(model_type model);
 
+    /// Apply any loaded presolve techniques. Acts of the model() in-place.
     void apply();
 
+    /// Detach the constrained quadratic model and return it.
+    /// This clears the model from the presolver.
+    model_type detach_model();
+
+    /// Load the default presolve techniques.
     void load_default_presolvers();
 
+    /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const;
+
+    /// Return a const reference to the held postsolver.
     const Postsolver<bias_type, index_type, assignment_type>& postsolver() const;
 
  private:
     model_type model_;
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
+
+    // todo: replace this with a vector of pointers or similar
+    bool default_techniques_;
+
+    bool detached_;
 
     void substitute_self_loops_expr(dimod::Expression<bias_type, index_type>& expression,
                                     std::unordered_map<index_type, index_type>& mapping) {
@@ -178,15 +201,19 @@ class Presolver {
 };
 
 template <class bias_type, class index_type, class assignment_type>
-Presolver<bias_type, index_type, assignment_type>::Presolver() : model_(), postsolver_() {}
+Presolver<bias_type, index_type, assignment_type>::Presolver()
+        : model_(), postsolver_(), default_techniques_(false), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver(model_type model)
-        : model_(std::move(model)), postsolver_() {}
+        : model_(std::move(model)), postsolver_(), default_techniques_(), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::apply() {
+    if (detached_) throw std::logic_error("model has been detached, presolver is no longer valid");
+    // do nothing if they haven't been loaded
     // todo: actually read from a vector of techniques or similar
+    if (!default_techniques_) return;
 
     // One time techniques ----------------------------------------------------
 
@@ -350,8 +377,21 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
 }
 
 template <class bias_type, class index_type, class assignment_type>
+dimod::ConstrainedQuadraticModel<bias_type, index_type>
+Presolver<bias_type, index_type, assignment_type>::detach_model() {
+    using std::swap;  // ADL, though doubt it makes a difference
+
+    auto cqm = dimod::ConstrainedQuadraticModel<bias_type, index_type>();
+    swap(model_, cqm);
+
+    detached_ = true;
+
+    return cqm;
+}
+
+template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_default_presolvers() {
-    // placeholder, does nothing at the moment
+    default_techniques_ = true;
 }
 
 template <class bias_type, class index_type, class assignment_type>

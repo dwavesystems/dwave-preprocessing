@@ -21,6 +21,28 @@ from dwave.preprocessing import Presolver
 
 
 class TestPresolver(unittest.TestCase):
+    def test_copy_model(self):
+        cqm = dimod.CQM()
+
+        i, j = dimod.Integers('ij')
+
+        cqm.add_variables('INTEGER', 'ij')
+        cqm.add_constraint(i <= 5)
+        cqm.add_constraint(i >= -5)
+        cqm.add_constraint(j == 105)
+
+        presolver = Presolver(cqm)
+
+        presolver.load_default_presolvers()
+        presolver.apply()
+
+        model = presolver.copy_model()
+        self.assertEqual(len(model.variables), 1)
+
+        # and again, since it's just a copy
+        model = presolver.copy_model()
+        self.assertEqual(len(model.variables), 1)
+
     def test_cqm(self):
         cqm = dimod.CQM()
 
@@ -36,11 +58,44 @@ class TestPresolver(unittest.TestCase):
         presolver.load_default_presolvers()
         presolver.apply()
 
-        np.testing.assert_array_equal(presolver.restore_samples([[0], [1]]), [[0, 105], [1, 105]])
+        samplearray, labels = presolver.restore_samples([[0], [1]])
+        np.testing.assert_array_equal(samplearray, [[0, 105], [1, 105]])
+        self.assertEqual(labels, 'ij')
+
+    def test_detach_model(self):
+        cqm = dimod.CQM()
+
+        i, j = dimod.Integers('ij')
+
+        cqm.add_variables('INTEGER', 'ij')
+        cqm.add_constraint(i <= 5)
+        cqm.add_constraint(i >= -5)
+        cqm.add_constraint(j == 105)
+
+        presolver = Presolver(cqm)
+
+        presolver.load_default_presolvers()
+        presolver.apply()
+
+        model = presolver.detach_model()
+        self.assertEqual(len(model.variables), 1)
+
+        with self.assertRaises(RuntimeError):
+            presolver.apply()
 
     def test_move(self):
-        # todo
-        pass
+        cqm = dimod.CQM()
+
+        i, j = dimod.Integers('ij')
+
+        cqm.add_variables('INTEGER', 'ij')
+        cqm.add_constraint(i <= 5)
+        cqm.add_constraint(i >= -5)
+        cqm.add_constraint(j == 105)
+
+        presolver = Presolver(cqm, move=True)
+
+        self.assertTrue(cqm.is_equal(dimod.CQM()))
 
     def test_self_loop(self):
         i = dimod.Integer("i")

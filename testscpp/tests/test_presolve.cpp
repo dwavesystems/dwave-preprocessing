@@ -93,6 +93,48 @@ SCENARIO("constrained quadratic models can be presolved") {
                     CHECK(original == std::vector<int>{3, 5, 7, 5});
                 }
             }
+
+            AND_WHEN("the model is detached") {
+                auto newcqm = presolver.detach_model();
+
+                THEN("it is copied correctly") {
+                    REQUIRE(newcqm.num_variables() == 4);
+                    REQUIRE(newcqm.num_constraints() == 4);
+
+                    CHECK(newcqm.vartype(v0) == dimod::Vartype::INTEGER);
+                    CHECK(newcqm.lower_bound(v0) == 0);
+                    CHECK(newcqm.upper_bound(v0) ==
+                          dimod::vartype_limits<double, dimod::Vartype::INTEGER>::default_max());
+                    CHECK(newcqm.constraint_ref(c0).linear(v0) == 1);
+                    CHECK(newcqm.constraint_ref(c0).sense() == dimod::Sense::LE);
+                    CHECK(newcqm.constraint_ref(c0).rhs() == 5);
+
+                    CHECK(newcqm.vartype(v1) == dimod::Vartype::INTEGER);
+                    CHECK(newcqm.lower_bound(v1) == 5);
+                    CHECK(newcqm.upper_bound(v1) == 5);
+
+                    CHECK(newcqm.vartype(v2) == dimod::Vartype::INTEGER);
+                    CHECK(newcqm.lower_bound(v2) == 0);
+                    CHECK(newcqm.upper_bound(v2) ==
+                          dimod::vartype_limits<double, dimod::Vartype::INTEGER>::default_max());
+                    CHECK(newcqm.constraint_ref(c2).linear(v2) == 1);
+                    CHECK(newcqm.constraint_ref(c2).sense() == dimod::Sense::EQ);
+                    CHECK(newcqm.constraint_ref(c2).rhs() == 7);
+
+                    CHECK(newcqm.vartype(v3) == dimod::Vartype::INTEGER);
+                    CHECK(newcqm.lower_bound(v3) == 0);
+                    CHECK(newcqm.upper_bound(v3) ==
+                          dimod::vartype_limits<double, dimod::Vartype::INTEGER>::default_max());
+                    CHECK(newcqm.constraint_ref(c3a).linear(v3) == 1);
+                    CHECK(newcqm.constraint_ref(c3a).sense() == dimod::Sense::LE);
+                    CHECK(newcqm.constraint_ref(c3a).rhs() == 5.5);
+                    CHECK(newcqm.constraint_ref(c3b).linear(v3) == 1);
+                    CHECK(newcqm.constraint_ref(c3b).sense() == dimod::Sense::GE);
+                    CHECK(newcqm.constraint_ref(c3b).rhs() == 4.5);
+                }
+
+                THEN("the presolver is invalidated") { CHECK_THROWS(presolver.apply()); }
+            }
         }
     }
 

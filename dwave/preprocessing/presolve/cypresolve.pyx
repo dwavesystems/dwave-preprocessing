@@ -17,34 +17,48 @@ from libcpp.utility cimport move as cppmove
 
 import numpy as np
 
-from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel
+import dimod
+
+from dimod.libcpp cimport ConstrainedQuadraticModel as cppConstrainedQuadraticModel
+from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel, make_cqm
 from dimod.cyutilities cimport ConstNumeric
-from dimod.sampleset import as_samples
-from dimod.variables import Variables
 
 
 cdef class cyPresolver:
-    def __init__(self, cyConstrainedQuadraticModel cqm, bint move = False):
+    def __init__(self, cyConstrainedQuadraticModel cqm, *, bint move = False):
         self.variables = cqm.variables  # always a copy
         
         if move:
             self.cpppresolver = cppPresolver[bias_type, index_type, double](cppmove(cqm.cppcqm))
-            # todo: finish deconstructing cqm
+            cqm.clear()
         else:
             self.cpppresolver = cppPresolver[bias_type, index_type, double](cqm.cppcqm)
 
     def apply(self):
+        """Apply any loaded presolve techniques to the held model."""
         self.cpppresolver.apply()
 
+    def clear_model(self):
+        """Clear the held model. This is useful to save memory."""
+        self.cpppresolver.detach_model()
+
+    def copy_model(self):
+        """Return a copy of the held CQM."""
+        cdef cppConstrainedQuadraticModel[bias_type, index_type] tmp = self.cpppresolver.model()  # copy
+        return make_cqm(cppmove(tmp))  # then move
+
+    def detach_model(self):
+        """Create a :class:`dimod.ConstrainedQuadraticModel`` from the held model.
+
+        Subsequent attempts to access the model will raise a :exc:`RuntimeError`.
+        """
+        return make_cqm(cppmove(self.cpppresolver.detach_model()))
+
     def load_default_presolvers(self):
+        """Load the default presolvers."""
         self.cpppresolver.load_default_presolvers()
 
-    def clear_cqm(self):
-        pass  # currently does nothing.
-
-
     def _restore_samples(self, ConstNumeric[:, ::1] samples):
-
         cdef Py_ssize_t num_samples = samples.shape[0]
         cdef Py_ssize_t num_variables = samples.shape[1]
 
@@ -65,7 +79,18 @@ cdef class cyPresolver:
         return original_samples
 
     def restore_samples(self, samples_like):
-        samples, labels = as_samples(samples_like, labels_type=Variables)
+        """Restore a set of reduced samples to the original variable labels.
+
+        Args:
+            samples_like: A `class`:dimod.types.SamplesLike`. The samples must
+                be index-labelled.
+
+        Returns:
+            Tuple: A 2-tuple where the first entry are the restored samples and
+                the second are the original labels.
+
+        """
+        samples, labels = dimod.as_samples(samples_like, labels_type=dimod.variables.Variables)
 
         if not labels.is_range:
             raise ValueError("expected samples to be integer labelled")
@@ -82,4 +107,4 @@ cdef class cyPresolver:
 
         restored = self._restore_samples(samples)
 
-        return np.asarray(restored)
+        return np.asarray(restored), self.variables
