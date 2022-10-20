@@ -1,4 +1,4 @@
-git+https://github.com/arcondello/dimod@feature/cython-CQM
+dimod==0.12.0.dev1
 Cython==0.29.28
 numpy==1.21.6
 
