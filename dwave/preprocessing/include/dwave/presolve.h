@@ -211,8 +211,8 @@ Presolver<bias_type, index_type, assignment_type>::Presolver(model_type model)
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::apply() {
     if (detached_) throw std::logic_error("model has been detached, presolver is no longer valid");
-    // do nothing if they haven't been loaded
-    // todo: actually read from a vector of techniques or similar
+
+    // If no techniques have been loaded, return early.
     if (!default_techniques_) return;
 
     // One time techniques ----------------------------------------------------
@@ -265,7 +265,7 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
             if (constraint.num_variables() == 0) {
                 // remove after checking feasibity
                 if (constraint.offset() != constraint.rhs()) {
-                    throw std::logic_error("infeasible");
+                    throw std::logic_error("infeasible");  // need this exact message for Python
                 }
                 model_.remove_constraint(c);
                 changes = true;
