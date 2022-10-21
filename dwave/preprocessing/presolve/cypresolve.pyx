@@ -12,6 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+cimport cython
+
 from libcpp.vector cimport vector
 from libcpp.utility cimport move as cppmove
 
@@ -26,7 +28,7 @@ from dimod.cyutilities cimport ConstNumeric
 
 cdef class cyPresolver:
     def __init__(self, cyConstrainedQuadraticModel cqm, *, bint move = False):
-        self.variables = cqm.variables  # always a copy
+        self._original_variables = cqm.variables.copy()
         
         if move:
             self.cpppresolver = cppPresolver[bias_type, index_type, double](cppmove(cqm.cppcqm))
@@ -37,9 +39,13 @@ cdef class cyPresolver:
         else:
             self.cpppresolver = cppPresolver[bias_type, index_type, double](cqm.cppcqm)
 
+        # we need this because we may detach the model later
+        self._model_num_variables = self.cpppresolver.model().num_variables()
+
     def apply(self):
         """Apply any loaded presolve techniques to the held model."""
         self.cpppresolver.apply()
+        self._model_num_variables = self.cpppresolver.model().num_variables()
 
     def clear_model(self):
         """Clear the held model. This is useful to save memory."""
@@ -61,11 +67,13 @@ cdef class cyPresolver:
         """Load the default presolvers."""
         self.cpppresolver.load_default_presolvers()
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     def _restore_samples(self, ConstNumeric[:, ::1] samples):
         cdef Py_ssize_t num_samples = samples.shape[0]
         cdef Py_ssize_t num_variables = samples.shape[1]
 
-        cdef double[:, ::1] original_samples = np.empty((num_samples, self.variables.size()), dtype=np.double)
+        cdef double[:, ::1] original_samples = np.empty((num_samples, self._original_variables.size()), dtype=np.double)
 
         cdef vector[double] original
         cdef vector[double] reduced
@@ -75,6 +83,9 @@ cdef class cyPresolver:
                 reduced.push_back(samples[i, vi])
 
             original = self.cpppresolver.postsolver().apply(reduced)
+
+            if original.size() != original_samples.shape[1]:
+                raise RuntimeError("unexpected reduced variables size")
 
             for vi in range(original.size()):
                 original_samples[i, vi] = original[vi]
@@ -98,8 +109,9 @@ cdef class cyPresolver:
         if not labels.is_range:
             raise ValueError("expected samples to be integer labelled")
 
-        if samples.shape[1] != self.cpppresolver.model().num_variables():
-            raise ValueError("given sample has an unexpected number of variables")
+        if samples.shape[1] != self._model_num_variables:
+            raise ValueError(f"sample(s) must have {self._model_num_variables} variables, "
+                             f"given sample(s) have {samples.shape[1]}")
 
         # we need contiguous and unsigned. as_samples actually enforces contiguous
         # but no harm in double checking for some future-proofness
@@ -110,4 +122,4 @@ cdef class cyPresolver:
 
         restored = self._restore_samples(samples)
 
-        return np.asarray(restored), self.variables
+        return np.asarray(restored), self._original_variables
