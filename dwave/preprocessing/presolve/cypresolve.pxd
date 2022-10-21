@@ -25,4 +25,6 @@ __all__ = ['cyPresolver']
 
 cdef class cyPresolver:
     cdef cppPresolver[bias_type, index_type, double] cpppresolver  # dev note: terrible name...
-    cdef readonly cyVariables variables
+    
+    cdef cyVariables _original_variables
+    cdef Py_ssize_t _model_num_variables

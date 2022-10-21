@@ -21,6 +21,51 @@ from dwave.preprocessing import Presolver
 
 
 class TestPresolver(unittest.TestCase):
+    def test_bug0(self):
+        random = np.random.RandomState(0)
+        cqm = dimod.ConstrainedQuadraticModel()
+
+        dimod_vars = [
+            dimod.Binary("a"),
+            dimod.Spin("b"),
+            dimod.Integer("c", lower_bound=-5000, upper_bound=5000),
+            dimod.Real("z", lower_bound=-5000, upper_bound=5000),
+        ]
+
+        discrete_labels = "defghi"
+        discrete = [dimod.Binary(c) for c in discrete_labels]
+        dimod_vars.extend(discrete)
+
+        cqm.add_discrete(discrete_labels)
+
+        obj = dimod.QM()
+        obj.add_variable(dimod.INTEGER, "c", lower_bound=-5000, upper_bound=5000)
+        obj += sum(random.uniform() * u for u in dimod_vars)
+        cqm.set_objective(obj.copy())
+
+        presolver = Presolver(cqm, move=False)
+        presolver.load_default_presolvers()
+        presolver.apply()
+        presolver.clear_model()
+
+        with self.assertRaises(ValueError):
+            presolver.restore_samples(np.array([[]]))
+
+    def test_bug1(self):
+        cqm = dimod.ConstrainedQuadraticModel()
+        cqm.set_objective(dimod.Spin("f"))
+
+        presolver = Presolver(cqm, move=False)
+        presolver.load_default_presolvers()
+        presolver.apply()
+        presolver.clear_model()
+
+        with self.assertRaises(ValueError):
+            # wrong number of variables
+            presolver.restore_samples(np.array([[]]))
+
+        presolver.restore_samples(np.array([[0]]))
+
     def test_copy_model(self):
         cqm = dimod.CQM()
 
@@ -97,6 +142,15 @@ class TestPresolver(unittest.TestCase):
 
         self.assertTrue(cqm.is_equal(dimod.CQM()))
 
+        presolver.load_default_presolvers()
+        presolver.apply()
+
+        self.assertEqual(presolver.copy_model().num_variables(), 1)
+
+        samplearray, labels = presolver.restore_samples([[0], [1]])
+        np.testing.assert_array_equal(samplearray, [[0, 105], [1, 105]])
+        self.assertEqual(labels, 'ij')
+
     def test_self_loop(self):
         i = dimod.Integer("i")
         cqm = dimod.ConstrainedQuadraticModel()
@@ -105,3 +159,13 @@ class TestPresolver(unittest.TestCase):
         presolver = Presolver(cqm)
         presolver.load_default_presolvers()
         presolver.apply()
+
+        reduced = presolver.detach_model()
+
+        samples = [[reduced.lower_bound(v) for v in reduced.variables],
+                   [reduced.upper_bound(v) for v in reduced.variables]]
+
+        samplearray, labels = presolver.restore_samples(samples)
+
+        self.assertEqual(samplearray.shape, (2, 1))
+        self.assertEqual(labels, 'i')
