@@ -169,3 +169,17 @@ class TestPresolver(unittest.TestCase):
 
         self.assertEqual(samplearray.shape, (2, 1))
         self.assertEqual(labels, 'i')
+
+    def test_variable_removal(self):
+        v0, v1, v2, v3 = dimod.Binaries('wxyz')
+
+        cqm = dimod.ConstrainedQuadraticModel()
+        cqm.set_objective(v0 + v1 + v2 + v3)
+        cqm.add_constraint(-3 + 7*v0 >= 3)
+        cqm.add_constraint(-24 + 5*v0 + 12*v3 + 12*v1 + 19*v2 >= -4)
+        cqm.add_constraint(6 - 12*v0 - 12*v2 + 25*v0*v2 >= 3)
+        cqm.add_constraint(-5 + 10*v3 >= -1)
+
+        presolver = Presolver(cqm)
+        presolver.load_default_presolvers()
+        presolver.apply()
