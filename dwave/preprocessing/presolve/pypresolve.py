@@ -16,7 +16,7 @@ import dimod
 
 from dwave.preprocessing.presolve.cypresolve import cyPresolver
 
-__all__ = ['Presolver']
+__all__ = ['Presolver', 'InfeasibleModelError']
 
 
 class InfeasibleModelError(ValueError):

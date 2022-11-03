@@ -264,9 +264,24 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
 
             if (constraint.num_variables() == 0) {
                 // remove after checking feasibity
-                if (constraint.offset() != constraint.rhs()) {
-                    throw std::logic_error("infeasible");  // need this exact message for Python
+                switch (constraint.sense()) {
+                    case dimod::Sense::EQ:
+                        if (constraint.offset() != constraint.rhs()) {
+                            throw std::logic_error("infeasible");  // need this exact message for Python
+                        }
+                        break;
+                    case dimod::Sense::LE:
+                        if (constraint.offset() > constraint.rhs()) {
+                            throw std::logic_error("infeasible");  // need this exact message for Python
+                        }
+                        break;
+                    case dimod::Sense::GE:
+                        if (constraint.offset() < constraint.rhs()) {
+                            throw std::logic_error("infeasible");  // need this exact message for Python
+                        }
+                        break;
                 }
+
                 model_.remove_constraint(c);
                 changes = true;
                 continue;
