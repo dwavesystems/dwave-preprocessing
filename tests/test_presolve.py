@@ -17,7 +17,7 @@ import unittest
 import dimod
 import numpy as np
 
-from dwave.preprocessing import Presolver
+from dwave.preprocessing import Presolver, InfeasibleModelError
 
 
 class TestPresolver(unittest.TestCase):
@@ -150,6 +150,53 @@ class TestPresolver(unittest.TestCase):
         samplearray, labels = presolver.restore_samples([[0], [1]])
         np.testing.assert_array_equal(samplearray, [[0, 105], [1, 105]])
         self.assertEqual(labels, 'ij')
+
+    def test_no_variable_constraints(self):
+        with self.subTest("feasible"):
+            cqm = dimod.ConstrainedQuadraticModel()
+            i = dimod.Integer('i')
+
+            cqm.add_constraint(i <= 1)
+            cqm.add_constraint(i >= -1)
+            cqm.add_constraint(i == 0)
+            cqm.fix_variable('i', 0)
+
+            presolver = Presolver(cqm)
+            presolver.load_default_presolvers()
+            presolver.apply()
+
+        with self.subTest("infeas <="):
+            cqm = dimod.ConstrainedQuadraticModel()
+            i = dimod.Integer('i')
+            cqm.add_constraint(i <= 1)
+            cqm.fix_variable('i', 2)
+
+            presolver = Presolver(cqm)
+            presolver.load_default_presolvers()
+            with self.assertRaises(InfeasibleModelError):
+                presolver.apply()
+
+        with self.subTest("infeas =="):
+            cqm = dimod.ConstrainedQuadraticModel()
+            i = dimod.Integer('i')
+            cqm.add_constraint(i == 1)
+            cqm.fix_variable('i', 2)
+
+            presolver = Presolver(cqm)
+            presolver.load_default_presolvers()
+            with self.assertRaises(InfeasibleModelError):
+                presolver.apply()
+
+        with self.subTest("infeas >="):
+            cqm = dimod.ConstrainedQuadraticModel()
+            i = dimod.Integer('i')
+            cqm.add_constraint(i >= 1)
+            cqm.fix_variable('i', -1)
+
+            presolver = Presolver(cqm)
+            presolver.load_default_presolvers()
+            with self.assertRaises(InfeasibleModelError):
+                presolver.apply()
 
     def test_self_loop(self):
         i = dimod.Integer("i")
