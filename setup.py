@@ -27,11 +27,6 @@ extra_compile_args = {
     'unix': ['-std=c++17', '-pthread'],
 }
 
-extra_link_args = {
-    'msvc': [],
-    'unix': ['-std=c++17'],
-}
-
 
 class build_ext(_build_ext):
     def build_extensions(self):
@@ -41,11 +36,8 @@ class build_ext(_build_ext):
         for ext in self.extensions:
             ext.extra_compile_args.extend(compile_args)
 
-        link_args = extra_link_args[compiler]
-        for ext in self.extensions:
-            ext.extra_compile_args.extend(link_args)
-
         super().build_extensions()
+
 
 setup(
     name='dwave-preprocessing',
