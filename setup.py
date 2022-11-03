@@ -23,13 +23,13 @@ from distutils.extension import Extension
 from distutils.command.build_ext import build_ext as _build_ext
 
 extra_compile_args = {
-    'msvc': ['/EHsc'],
-    'unix': ['-std=c++11'],
+    'msvc': ['/std:c++17', '/EHsc'],
+    'unix': ['-std=c++17', '-pthread'],
 }
 
 extra_link_args = {
     'msvc': [],
-    'unix': ['-std=c++11'],
+    'unix': ['-std=c++17'],
 }
 
 
@@ -60,6 +60,7 @@ setup(
     include_dirs=[
         numpy.get_include(),
         dimod.get_include(),
+        "extern/taskflow/",
         ],
     install_requires=[
         'numpy>=1.20.0,<2.0.0',  # keep synced with circle-ci, pyproject.toml

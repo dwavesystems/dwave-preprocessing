@@ -2,3 +2,6 @@
 	path = testscpp/Catch2
 	url = https://github.com/catchorg/Catch2.git
 	branch = v2.x
+[submodule "extern/taskflow"]
+	path = extern/taskflow
+	url = git@github.com:taskflow/taskflow.git

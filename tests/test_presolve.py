@@ -20,6 +20,16 @@ import numpy as np
 from dwave.preprocessing import Presolver, InfeasibleModelError
 
 
+class TestExperiment(unittest.TestCase):
+    def test_parallel(self):
+        cqm = dimod.CQM()
+        for _ in range(100):
+            cqm.add_constraint(dimod.BQM("BINARY") == 1)
+
+        presolver = Presolver(cqm)
+        self.assertLessEqual(presolver.apply_parallel(), 55)  # should take 100s
+
+
 class TestPresolver(unittest.TestCase):
     def test_bug0(self):
         random = np.random.RandomState(0)

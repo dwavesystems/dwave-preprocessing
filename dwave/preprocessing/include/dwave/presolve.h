@@ -14,12 +14,17 @@
 
 #pragma once
 
+#include <chrono>
+#include <thread>
+
+
 #include <algorithm>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "dimod/constrained_quadratic_model.h"
+#include <dimod/constrained_quadratic_model.h>
+#include <taskflow/taskflow.hpp>
 
 namespace dwave {
 namespace presolve {
@@ -134,9 +139,23 @@ class Presolver {
     /// Apply any loaded presolve techniques. Acts of the model() in-place.
     void apply();
 
+    void apply_parallel() {
+        tf::Executor executor;
+        tf::Taskflow taskflow;
+
+        taskflow.for_each_index(0, static_cast<int>(model_.num_constraints()), 1,
+                                [&](int i) { do_slow_thing(i); });
+
+        executor.run(taskflow).wait();
+    }
+
     /// Detach the constrained quadratic model and return it.
     /// This clears the model from the presolver.
     model_type detach_model();
+
+    void do_slow_thing(index_type c) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 
     /// Load the default presolve techniques.
     void load_default_presolvers();
