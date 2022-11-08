@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import os.path
 import unittest
 
 import dimod
@@ -65,6 +66,22 @@ class TestPresolver(unittest.TestCase):
             presolver.restore_samples(np.array([[]]))
 
         presolver.restore_samples(np.array([[0]]))
+
+    def test_bug56(self):
+        # https://github.com/dwavesystems/dwave-preprocessing/issues/56
+        for fname in ['bug56.0.cqm', 'bug56.1.cqm']:
+            with self.subTest(fname):
+                with open(os.path.join(os.path.dirname(__file__), 'data', fname), 'rb') as f:
+                    cqm = dimod.CQM.from_file(f)
+
+                presolver = Presolver(cqm)
+                presolver.load_default_presolvers()
+                presolver.apply()
+
+                cqm = presolver.detach_model()
+
+                for v in cqm.variables:
+                    self.assertNotEqual(cqm.lower_bound(v), cqm.upper_bound(v))
 
     def test_copy_model(self):
         cqm = dimod.CQM()

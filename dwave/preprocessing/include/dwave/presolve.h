@@ -345,6 +345,7 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
             if (model_.lower_bound(v) == model_.upper_bound(v)) {
                 postsolver_.fix_variable(v, model_.lower_bound(v));
                 model_.fix_variable(v, model_.lower_bound(v));
+                changes = true;
             }
             ++v;
         }
