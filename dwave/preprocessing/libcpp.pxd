@@ -29,6 +29,7 @@ cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
         Presolver()
         Presolver(model_type)
         void apply() except+
+        void apply_parallel() except+
         model_type detach_model()
         void load_default_presolvers()
         model_type& model()

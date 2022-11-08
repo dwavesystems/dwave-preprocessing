@@ -47,6 +47,13 @@ cdef class cyPresolver:
         self.cpppresolver.apply()
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
+    def apply_parallel(self):
+        import time
+
+        t = time.perf_counter()
+        self.cpppresolver.apply_parallel()
+        return time.perf_counter() - t
+
     def clear_model(self):
         """Clear the held model. This is useful to save memory."""
         self.cpppresolver.detach_model()

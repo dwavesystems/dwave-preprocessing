@@ -22,6 +22,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - setup_remote_docker
       - restore_cache: &build-linux-restore-cache
           keys:
@@ -61,6 +63,8 @@ jobs:
 
     steps: &build-steps
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - restore_cache: *build-linux-restore-cache
       - run: *build-linux-wheels
       - save_cache: *build-linux-save-cache
@@ -90,6 +94,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: build sdist
           command: |
@@ -115,6 +121,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: build wheels
           command: |
@@ -152,6 +160,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: install dependencies
           command: |
@@ -181,6 +191,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: install doxygen
           command: sudo apt-get install doxygen

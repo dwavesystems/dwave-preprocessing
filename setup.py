@@ -23,13 +23,8 @@ from distutils.extension import Extension
 from distutils.command.build_ext import build_ext as _build_ext
 
 extra_compile_args = {
-    'msvc': ['/EHsc'],
-    'unix': ['-std=c++11'],
-}
-
-extra_link_args = {
-    'msvc': [],
-    'unix': ['-std=c++11'],
+    'msvc': ['/std:c++17', '/EHsc'],
+    'unix': ['-std=c++17', '-pthread'],
 }
 
 
@@ -41,11 +36,8 @@ class build_ext(_build_ext):
         for ext in self.extensions:
             ext.extra_compile_args.extend(compile_args)
 
-        link_args = extra_link_args[compiler]
-        for ext in self.extensions:
-            ext.extra_compile_args.extend(link_args)
-
         super().build_extensions()
+
 
 setup(
     name='dwave-preprocessing',
@@ -60,6 +52,7 @@ setup(
     include_dirs=[
         numpy.get_include(),
         dimod.get_include(),
+        "extern/taskflow/",
         ],
     install_requires=[
         'numpy>=1.20.0,<2.0.0',  # keep synced with circle-ci, pyproject.toml
