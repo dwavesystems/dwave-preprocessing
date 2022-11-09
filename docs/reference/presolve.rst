@@ -32,6 +32,8 @@ C++ API
 
 .. doxygenclass:: dwave::presolve::Presolver
     :members:
+    :project: dwave-preprocessing
 
 .. doxygenclass:: dwave::presolve::Postsolver
     :members:
+    :project: dwave-preprocessing
