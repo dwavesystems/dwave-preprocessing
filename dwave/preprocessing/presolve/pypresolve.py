@@ -12,6 +12,80 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+"""
+A class for presolve algorithms.
+
+Presolve algorithms enhance performance and solution quality by performing preprocessing
+to reduce a problem’s redundant variables and constraints and to improve the
+accuracy of the CQM.
+
+The purpose of the following example is to show how to locally run the presolve
+algorithms provided here prior to submitting your CQM to a solver, such as the
+:class:`~dwave.system.samplers.LeapHybridCQMSampler`.
+
+This example uses a simplified problem for illustrative purposes: a CQM with just
+a single-variable objective and constraint. This is sufficient to
+show how to run :class:`~dwave.preprocessing.presolve.Presolver` methods.
+
+The CQM created below has a constraint requiring that integer variable ``j``
+not exceed 5.
+
+>>> import dimod
+...
+>>> j = dimod.Integer("j")
+>>> cqm = dimod.ConstrainedQuadraticModel()
+>>> cqm.set_objective(j)
+>>> cqm.add_constraint(j <= 5, "Maximum j")
+'Maximum j'
+
+Clearly, the global optimum for this CQM occurs for the default value of the lower
+bound of ``j``.
+
+>>> cqm.lower_bound("j")
+0.0
+
+To run Ocean's presolve algorithms locally, instantiate a :class:`~dwave.preprocessing.presolve.Presolver`
+on your CQM and apply a supported presolve (default is used here).
+
+>>> from dwave.preprocessing.presolve import Presolver
+...
+>>> presolve = Presolver(cqm)
+>>> presolve.load_default_presolvers()
+>>> presolve.apply()
+
+You now have a preprocessed CQM you can submit to a CQM solver such as a Leap CQM solver.
+
+>>> reduced_cqm = presolve.detach_model()
+>>> print(reduced_cqm.constraints)
+{}
+
+The dimod :class:`~dimod.reference.samplers.ExactCQMSolver` test solver is
+capable of solving this very simple CQM.
+
+>>> sampleset = dimod.ExactCQMSolver().sample_cqm(reduced_cqm)
+>>> print(sampleset.first)
+Sample(sample={0: 0}, energy=0.0, num_occurrences=1, is_satisfied=array([], dtype=bool), is_feasible=True)
+
+View the solution as assignments of the original CQM's variables:
+
+>>> presolve.restore_samples(sampleset.first.sample)
+(array([[0.]]), Variables(['j']))
+
+You can also create the sample set for the original CQM:
+
+>>> restored_sampleset = dimod.SampleSet.from_samples_cqm(presolve.restore_samples(sampleset.samples()), cqm)
+>>> print(restored_sampleset)
+    j energy num_oc. is_sat. is_fea.
+0 0.0    0.0       1 arra...    True
+1 1.0    1.0       1 arra...    True
+2 2.0    2.0       1 arra...    True
+3 3.0    3.0       1 arra...    True
+4 4.0    4.0       1 arra...    True
+5 5.0    5.0       1 arra...    True
+['INTEGER', 6 rows, 6 samples, 1 variables]
+
+"""
+
 import dimod
 
 from dwave.preprocessing.presolve.cypresolve import cyPresolver

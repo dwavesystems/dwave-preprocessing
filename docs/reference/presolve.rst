@@ -4,14 +4,10 @@
 CQM Presolve
 ============
 
-Presolve algorithms enhance performance and solution quality by performing preprocessing
-to reduce a problem’s redundant variables and constraints and to improve the
-accuracy of the CQM.
+.. automodule:: dwave.preprocessing.presolve.pypresolve
 
 Presolver
 ---------
-
-.. automodule:: dwave.preprocessing.presolve
 
 Class
 ~~~~~
