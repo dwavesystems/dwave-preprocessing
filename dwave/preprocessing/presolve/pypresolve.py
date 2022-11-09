@@ -28,16 +28,18 @@ class Presolver(cyPresolver):
 
     Args:
         cqm: A :class:`dimod.ConstrainedQuadraticModel`.
-        move: If ``True``, the original constrained quadratic model is cleared
+        move: If ``True``, the original constrained quadratic model (CQM) is cleared
             and its contents are moved to the presolver. This is useful for
             large models where memory is a concern.
 
     Example:
 
+        This example reduces an implicitly fixed constraint.
+
         >>> import dimod
         >>> from dwave.preprocessing import Presolver
 
-        Given a CQM with one variable fixed by bounds
+        Create a simple CQM with one variable fixed by bounds.
 
         >>> cqm = dimod.ConstrainedQuadraticModel()
         >>> i = dimod.Integer('i', lower_bound=-5, upper_bound=5)
@@ -45,15 +47,15 @@ class Presolver(cyPresolver):
         >>> cqm.set_objective(i + j)
         >>> c0 = cqm.add_constraint(j <= 5)  # implicitly fixes 'j'
 
-        Then run the presolved with default settings.
+        Run presolve with default settings.
 
         >>> presolver = Presolver(cqm)
         >>> presolver.load_default_presolvers()
         >>> presolver.apply()
 
-        # The model has been reduced
+        The model is reduced.
 
-        >>> reduced_cqm = presolver.copy_model()
+        >>> reduced_cqm = presolver.detach_model()
         >>> reduced_cqm.num_variables()
         1
         >>> reduced_cqm.num_constraints()
