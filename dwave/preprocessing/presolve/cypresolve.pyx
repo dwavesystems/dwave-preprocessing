@@ -52,14 +52,14 @@ cdef class cyPresolver:
         self.cpppresolver.detach_model()
 
     def copy_model(self):
-        """Return a copy of the held CQM."""
+        """Return a copy of the held model."""
         cdef cppConstrainedQuadraticModel[bias_type, index_type] tmp = self.cpppresolver.model()  # copy
         return make_cqm(cppmove(tmp))  # then move
 
     def detach_model(self):
         """Create a :class:`dimod.ConstrainedQuadraticModel` from the held model.
 
-        Subsequent attempts to access the model raise a :exc:`RuntimeError`.
+        Subsequent attempts to access the model raises a :exc:`RuntimeError`.
         """
         return make_cqm(cppmove(self.cpppresolver.detach_model()))
 

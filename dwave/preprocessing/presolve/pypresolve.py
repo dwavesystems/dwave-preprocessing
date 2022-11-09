@@ -26,11 +26,16 @@ class InfeasibleModelError(ValueError):
 class Presolver(cyPresolver):
     """Presolver for constrained quadratic models.
 
+    The model held by this class to represent the instantiating constrained
+    quadratic model (CQM) is index-labeled. Because presolve may remove, add,
+    change the type of, and substitute variables, the variables of the original
+    and reduced CQMs may not have a direct relationship, though the models are 
+    mathematically equivalent.
+
     Args:
         cqm: A :class:`dimod.ConstrainedQuadraticModel`.
-        move: If ``True``, the original constrained quadratic model (CQM) is cleared
-            and its contents are moved to the presolver. This is useful for
-            large models where memory is a concern.
+        move: If ``True``, the original CQM is cleared and its contents are moved
+            to the presolver. This is useful for large models where memory is a concern.
 
     Example:
 
