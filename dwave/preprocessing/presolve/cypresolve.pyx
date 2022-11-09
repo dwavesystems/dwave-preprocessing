@@ -43,23 +43,23 @@ cdef class cyPresolver:
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
     def apply(self):
-        """Apply any loaded presolve techniques to the held model."""
+        """Apply any loaded presolve techniques to the held constrained quadratic model."""
         self.cpppresolver.apply()
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
     def clear_model(self):
-        """Clear the held model. This is useful to save memory."""
+        """Clear the held constrained quadratic model. This is useful to save memory."""
         self.cpppresolver.detach_model()
 
     def copy_model(self):
-        """Return a copy of the held model."""
+        """Return a copy of the held constrained quadratic model."""
         cdef cppConstrainedQuadraticModel[bias_type, index_type] tmp = self.cpppresolver.model()  # copy
         return make_cqm(cppmove(tmp))  # then move
 
     def detach_model(self):
         """Create a :class:`dimod.ConstrainedQuadraticModel` from the held model.
 
-        Subsequent attempts to access the model raises a :exc:`RuntimeError`.
+        Subsequent attempts to access the held model raise a :exc:`RuntimeError`.
         """
         return make_cqm(cppmove(self.cpppresolver.detach_model()))
 

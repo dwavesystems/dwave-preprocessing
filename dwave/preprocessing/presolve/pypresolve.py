@@ -27,10 +27,10 @@ class Presolver(cyPresolver):
     """Presolver for constrained quadratic models.
 
     The model held by this class to represent the instantiating constrained
-    quadratic model (CQM) is index-labeled. Because presolve may remove, add,
-    change the type of, and substitute variables, the variables of the original
-    and reduced CQMs may not have a direct relationship, though the models are 
-    mathematically equivalent.
+    quadratic model (CQM) is index-labeled. This is because presolve may remove,
+    add, change the type of, and substitute variables. Consequently, while the
+    models remain mathematically equivalent, variables of the original and reduced
+    CQMs may not have a direct relationship.
 
     Args:
         cqm: A :class:`dimod.ConstrainedQuadraticModel`.
