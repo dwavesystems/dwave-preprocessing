@@ -215,6 +215,34 @@ class TestPresolver(unittest.TestCase):
             with self.assertRaises(InfeasibleModelError):
                 presolver.apply()
 
+    def test_normalization(self):
+        cqm = dimod.ConstrainedQuadraticModel()
+        i, j = dimod.Integers('ij')
+        s = dimod.Spin('s')
+
+        c0 = cqm.add_constraint(i <= 5)
+        c1 = cqm.add_constraint(j >= 2)
+        c2 = cqm.add_constraint(i*i == 4)
+        c3 = cqm.add_constraint(s == 1)
+
+        pre = Presolver(cqm)
+        pre.load_normalization_presolvers()
+        pre.apply()
+
+        reduced = pre.detach_model()
+
+        i0, j0, aux = dimod.Integers((0, 1, 3))
+        x = dimod.Binary(2)
+
+        expected = dimod.ConstrainedQuadraticModel()
+        expected.add_constraint(i0 <= 5, label=0)
+        expected.add_constraint(-j0 <= -2, label=1)
+        expected.add_constraint(i0*aux == 4, label=2)
+        expected.add_constraint(2*x == 2, label=3)
+        expected.add_constraint(i0 - aux == 0, label=4)
+
+        self.assertTrue(reduced.is_equal(expected))
+
     def test_self_loop(self):
         i = dimod.Integer("i")
         cqm = dimod.ConstrainedQuadraticModel()

@@ -67,6 +67,10 @@ cdef class cyPresolver:
         """Load the default presolvers."""
         self.cpppresolver.load_default_presolvers()
 
+    def load_normalization_presolvers(self):
+        """Load the normalization presolvers."""
+        self.cpppresolver.load_normalization_presolvers()
+
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def _restore_samples(self, ConstNumeric[:, ::1] samples):

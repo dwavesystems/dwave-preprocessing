@@ -31,5 +31,6 @@ cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
         void apply() except+
         model_type detach_model()
         void load_default_presolvers()
+        void load_normalization_presolvers()
         model_type& model()
         Postsolver[bias_type, index_type, assignment_type]& postsolver()
