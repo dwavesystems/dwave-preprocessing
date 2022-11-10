@@ -292,7 +292,7 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         while (c < model_.num_constraints()) {
             auto& constraint = model_.constraint_ref(c);
 
-            if (constraint.num_variables() == 0) {
+            if (constraint.num_variables() == 0 && !constraint.is_soft()) {
                 // remove after checking feasibity
                 switch (constraint.sense()) {
                     case dimod::Sense::EQ:
