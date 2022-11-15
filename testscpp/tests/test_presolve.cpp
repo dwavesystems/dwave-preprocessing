@@ -348,6 +348,36 @@ SCENARIO("constrained quadratic models can be presolved") {
             }
         }
     }
+
+    GIVEN("A cqm with 0 biases") {
+        auto cqm = dimod::ConstrainedQuadraticModel<double>();
+        cqm.add_variables(dimod::Vartype::INTEGER, 3, -5, 5);
+
+        auto constraint = cqm.new_constraint();
+        constraint.set_quadratic(0, 1, 0);
+        constraint.set_sense(dimod::Sense::GE);
+        cqm.add_constraint(constraint);
+
+        cqm.add_linear_constraint({0}, {0}, dimod::Sense::GE, -5);
+
+        WHEN("we presolve is applied") {
+            auto presolver = presolve::Presolver<double>(std::move(cqm));
+            presolver.load_default_presolvers();
+            presolver.apply();
+
+            THEN("the bounds do not change") {
+                REQUIRE(presolver.model().num_variables() == 3);
+                CHECK(presolver.model().lower_bound(0) == -5);
+                CHECK(presolver.model().lower_bound(1) == -5);
+                CHECK(presolver.model().upper_bound(0) == +5);
+                CHECK(presolver.model().upper_bound(1) == +5);
+            }
+
+            THEN("the constraints are removed") {
+                CHECK(presolver.model().num_constraints() == 0);
+            }
+        }
+    }
 }
 
 }  // namespace dwave
