@@ -199,7 +199,7 @@ class Presolver {
         }
     }
 
-    static void remove_zero_biases(dimod::Expression<bias_type, index_type>& expression) {
+    static bool remove_zero_biases(dimod::Expression<bias_type, index_type>& expression) {
         // quadratic
         std::vector<std::pair<index_type, index_type>> empty_interactions;
         for (auto it = expression.cbegin_quadratic(); it != expression.cend_quadratic(); ++it) {
@@ -221,6 +221,8 @@ class Presolver {
         for (auto& v : empty_variables) {
             expression.remove_variable(v);
         }
+
+        return empty_interactions.size() || empty_variables.size();
     }
 };
 
@@ -278,9 +280,9 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         changes = false;
 
         // *-- clear out 0 variables/interactions in the constraints and objective
-        remove_zero_biases(model_.objective);
+        changes = remove_zero_biases(model_.objective) || changes;
         for (index_type c = 0; c < model_.num_constraints(); ++c) {
-            remove_zero_biases(model_.constraint_ref(c));
+            changes = remove_zero_biases(model_.constraint_ref(c)) || changes;
         }
 
         // *-- todo: check for NAN
