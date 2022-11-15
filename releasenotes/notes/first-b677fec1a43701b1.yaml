@@ -1,0 +1,3 @@
+---
+prelude: >
+    Begin using `Reno <https://docs.openstack.org/reno>`_ changelog tool.
