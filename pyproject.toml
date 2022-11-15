@@ -12,6 +12,8 @@ build-backend = "setuptools.build_meta"
 [tool.cibuildwheel]
 build-verbosity = "1"
 skip = "pp* *musllinux*"
+before-test = "pip install -r {project}/tests/requirements.txt"
+test-command = "python -m unittest discover {project}/tests/"
 
 [tool.cibuildwheel.linux]
 archs = "x86_64 aarch64"
