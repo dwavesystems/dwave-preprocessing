@@ -26,6 +26,7 @@ Documentation
   :maxdepth: 1
 
   reference/index
+  release_notes
 
 .. sdk-end-marker
 
