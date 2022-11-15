@@ -390,11 +390,10 @@ SCENARIO("constrained quadratic models can be presolved") {
         WHEN("we presolve") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
             presolver.load_default_presolvers();
+            presolver.apply();
 
-            THEN("it keeps the empty soft constraint") {
-                presolver.apply();
-                CHECK(presolver.model().num_constraints() == 1);
-                CHECK(presolver.model().constraint_ref(0).num_variables() == 0);
+            THEN("it removes the empty soft constraint without an error") {
+                CHECK(presolver.model().num_constraints() == 0);
             }
         }
     }
