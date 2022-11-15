@@ -29,10 +29,10 @@ from dimod.cyutilities cimport ConstNumeric
 cdef class cyPresolver:
     def __init__(self, cyConstrainedQuadraticModel cqm, *, bint move = False):
         self._original_variables = cqm.variables.copy()
-        
+
         if move:
             self.cpppresolver = cppPresolver[bias_type, index_type, double](cppmove(cqm.cppcqm))
-            
+
             # todo: replace with cqm.clear()
             cqm.variables._clear()
             cqm.constraint_labels._clear()
@@ -43,23 +43,23 @@ cdef class cyPresolver:
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
     def apply(self):
-        """Apply any loaded presolve techniques to the held model."""
+        """Apply any loaded presolve techniques to the held constrained quadratic model."""
         self.cpppresolver.apply()
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
     def clear_model(self):
-        """Clear the held model. This is useful to save memory."""
+        """Clear the held constrained quadratic model. This is useful to save memory."""
         self.cpppresolver.detach_model()
 
     def copy_model(self):
-        """Return a copy of the held CQM."""
+        """Return a copy of the held constrained quadratic model."""
         cdef cppConstrainedQuadraticModel[bias_type, index_type] tmp = self.cpppresolver.model()  # copy
         return make_cqm(cppmove(tmp))  # then move
 
     def detach_model(self):
-        """Create a :class:`dimod.ConstrainedQuadraticModel`` from the held model.
+        """Create a :class:`dimod.ConstrainedQuadraticModel` from the held model.
 
-        Subsequent attempts to access the model will raise a :exc:`RuntimeError`.
+        Subsequent attempts to access the held model raise a :exc:`RuntimeError`.
         """
         return make_cqm(cppmove(self.cpppresolver.detach_model()))
 
@@ -93,15 +93,16 @@ cdef class cyPresolver:
         return original_samples
 
     def restore_samples(self, samples_like):
-        """Restore a set of reduced samples to the original variable labels.
+        """Restore the original variable labels to a set of reduced samples.
 
         Args:
-            samples_like: A `class`:dimod.types.SamplesLike`. The samples must
-                be index-labelled.
+            samples_like: A :class:`dimod.types.SamplesLike`. The samples must
+                be index-labeled.
 
         Returns:
-            Tuple: A 2-tuple where the first entry are the restored samples and
-                the second are the original labels.
+            Tuple:
+                A 2-tuple where the first entry is the restored samples and the second
+                is the original labels.
 
         """
         samples, labels = dimod.as_samples(samples_like, labels_type=dimod.variables.Variables)

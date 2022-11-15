@@ -4,10 +4,10 @@
 CQM Presolve
 ============
 
+.. automodule:: dwave.preprocessing.presolve.pypresolve
+
 Presolver
 ---------
-
-.. automodule:: dwave.preprocessing.presolve
 
 Class
 ~~~~~
@@ -21,8 +21,8 @@ Methods
    :toctree: generated/
 
    ~Presolver.apply
-   ~Presolver.copy_model
    ~Presolver.clear_model
+   ~Presolver.copy_model
    ~Presolver.detach_model
    ~Presolver.load_default_presolvers
    ~Presolver.restore_samples
@@ -32,6 +32,8 @@ C++ API
 
 .. doxygenclass:: dwave::presolve::Presolver
     :members:
+    :project: dwave-preprocessing
 
 .. doxygenclass:: dwave::presolve::Postsolver
     :members:
+    :project: dwave-preprocessing
