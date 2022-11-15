@@ -293,25 +293,35 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
             auto& constraint = model_.constraint_ref(c);
 
             if (constraint.num_variables() == 0) {
-                // remove after checking feasibity
-                switch (constraint.sense()) {
-                    case dimod::Sense::EQ:
-                        if (constraint.offset() != constraint.rhs()) {
-                            throw std::logic_error("infeasible");  // need this exact message for Python
-                        }
-                        break;
-                    case dimod::Sense::LE:
-                        if (constraint.offset() > constraint.rhs()) {
-                            throw std::logic_error("infeasible");  // need this exact message for Python
-                        }
-                        break;
-                    case dimod::Sense::GE:
-                        if (constraint.offset() < constraint.rhs()) {
-                            throw std::logic_error("infeasible");  // need this exact message for Python
-                        }
-                        break;
+                if (!constraint.is_soft()) {
+                    // check feasibity
+                    switch (constraint.sense()) {
+                        case dimod::Sense::EQ:
+                            if (constraint.offset() != constraint.rhs()) {
+                                // need this exact message for Python
+                                throw std::logic_error("infeasible");
+                            }
+                            break;
+                        case dimod::Sense::LE:
+                            if (constraint.offset() > constraint.rhs()) {
+                                // need this exact message for Python
+                                throw std::logic_error("infeasible");
+                            }
+                            break;
+                        case dimod::Sense::GE:
+                            if (constraint.offset() < constraint.rhs()) {
+                                // need this exact message for Python
+                                throw std::logic_error("infeasible");
+                            }
+                            break;
+                    }
                 }
 
+                // we remove the constraint regardless of whether it's soft
+                // or not. We could use the opportunity to update the objective
+                // offset with the violation of the soft constraint, but
+                // presolve does not preserve the energy in general, so it's
+                // better to avoid side effects and just remove.
                 model_.remove_constraint(c);
                 changes = true;
                 continue;

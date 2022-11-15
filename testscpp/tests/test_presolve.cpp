@@ -378,6 +378,25 @@ SCENARIO("constrained quadratic models can be presolved") {
             }
         }
     }
+
+    GIVEN("an infeasible model with soft constraints") {
+        auto cqm = dimod::ConstrainedQuadraticModel<double>();
+        cqm.add_variables(dimod::Vartype::INTEGER, 2);
+        cqm.add_linear_constraint({0, 1}, {1, 1}, dimod::Sense::EQ, 1);
+        cqm.constraint_ref(0).set_weight(100);
+        cqm.add_linear_constraint({0}, {1}, dimod::Sense::EQ, 0);
+        cqm.add_linear_constraint({1}, {1}, dimod::Sense::EQ, 2);
+
+        WHEN("we presolve") {
+            auto presolver = presolve::Presolver<double>(std::move(cqm));
+            presolver.load_default_presolvers();
+            presolver.apply();
+
+            THEN("it removes the empty soft constraint without an error") {
+                CHECK(presolver.model().num_constraints() == 0);
+            }
+        }
+    }
 }
 
 }  // namespace dwave
