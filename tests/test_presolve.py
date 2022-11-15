@@ -247,3 +247,22 @@ class TestPresolver(unittest.TestCase):
         presolver = Presolver(cqm)
         presolver.load_default_presolvers()
         presolver.apply()
+
+    def test_zero_biases(self):
+        i, j = dimod.Integers('ij')
+        cqm = dimod.ConstrainedQuadraticModel()
+
+        cqm.add_constraint(0*i >= -5)
+
+        cqm.set_lower_bound('i', -5)
+        cqm.set_upper_bound('i', +5)
+
+        presolver = Presolver(cqm)
+        presolver.load_default_presolvers()
+        presolver.apply()
+
+        cqm = presolver.detach_model()
+
+        self.assertEqual(cqm.lower_bound(0), -5)
+        self.assertEqual(cqm.upper_bound(0), +5)
+        self.assertEqual(cqm.num_constraints(), 0)

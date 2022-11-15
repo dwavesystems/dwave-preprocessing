@@ -198,6 +198,32 @@ class Presolver {
             model_.add_linear_constraint({uv.first, uv.second}, {1, -1}, dimod::Sense::EQ, 0);
         }
     }
+
+    static bool remove_zero_biases(dimod::Expression<bias_type, index_type>& expression) {
+        // quadratic
+        std::vector<std::pair<index_type, index_type>> empty_interactions;
+        for (auto it = expression.cbegin_quadratic(); it != expression.cend_quadratic(); ++it) {
+            if (!(it->bias)) {
+                empty_interactions.emplace_back(it->u, it->v);
+            }
+        }
+        for (auto& uv : empty_interactions) {
+            expression.remove_interaction(uv.first, uv.second);
+        }
+
+        // linear
+        std::vector<index_type> empty_variables;
+        for (auto& v : expression.variables()) {
+            if (expression.linear(v)) continue;
+            if (expression.num_interactions(v)) continue;
+            empty_variables.emplace_back(v);
+        }
+        for (auto& v : empty_variables) {
+            expression.remove_variable(v);
+        }
+
+        return empty_interactions.size() || empty_variables.size();
+    }
 };
 
 template <class bias_type, class index_type, class assignment_type>
@@ -253,7 +279,11 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         if (!changes) break;
         changes = false;
 
-        // *-- todo: clear out 0 variables/interactions in the constraints
+        // *-- clear out 0 variables/interactions in the constraints and objective
+        changes = remove_zero_biases(model_.objective) || changes;
+        for (index_type c = 0; c < model_.num_constraints(); ++c) {
+            changes = remove_zero_biases(model_.constraint_ref(c)) || changes;
+        }
 
         // *-- todo: check for NAN
 
