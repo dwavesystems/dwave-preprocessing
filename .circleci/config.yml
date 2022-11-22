@@ -293,7 +293,12 @@ workflows:
           matrix:
             parameters:
               python-version: &python-versions [3.7.9, 3.8.9, 3.9.4, 3.10.0, 3.11.0]
-      - build-and-test-linux-aarch64: *build
+      - build-and-test-linux-aarch64:
+          matrix:
+            parameters:
+              python-version: *python-versions
+            exclude:
+              - python-version: 3.7.9
       - build-sdist
       - build-and-test-osx: &build-and-test-osx
           matrix:
