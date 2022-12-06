@@ -8,8 +8,10 @@ INCLUDES=-I$(SRC)/include/ -I$(DIMOD) -I$(CATCH2) -I$(TASKFLOW)
 
 all: catch2 test_main test_main_parallel tests tests_parallel
 
+tfprof: test_main.out
+	TF_ENABLE_PROFILER=test_main.tfp ./test_main 
+
 tests: test_main.out
-	# TF_ENABLE_PROFILER=test_main.tfp ./test_main 
 	./test_main
 
 tests_parallel: test_main_parallel.out
@@ -28,4 +30,4 @@ catch2:
 	git submodule update
 
 clean:
-	rm -f *.o *.out test_main test_main_parallel *.json
+	rm -f *.o *.out test_main test_main_parallel *.json *.tfp

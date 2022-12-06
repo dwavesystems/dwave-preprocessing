@@ -477,8 +477,8 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_one_time()
 }
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(int max_rounds) {
-    int counter = 0;
-    bool changed = false;
+    int counter;// = 0;
+    bool changed;// = false;
 
     auto alpha = taskflowTrivial_.emplace(
         [&]() {
