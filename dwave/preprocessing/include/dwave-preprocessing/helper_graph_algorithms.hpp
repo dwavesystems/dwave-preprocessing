@@ -15,6 +15,7 @@
 #ifndef HELPER_GRAPH_ALGORITHM_HPP_INCLUDED
 #define HELPER_GRAPH_ALGORITHM_HPP_INCLUDED
 
+#include <limits>
 #include <algorithm>
 #include <atomic>
 #include <iostream>
@@ -70,7 +71,6 @@ int breadthFirstSearchResidual(
     std::vector<std::vector<EdgeType>> &adjacency_list, int start_vertex,
     std::vector<int> &depth_values, bool reverse = false,
     bool print_result = false) {
-  using capacity_t = typename EdgeType::capacity_type;
   int num_vertices = adjacency_list.size();
   int UNVISITED = num_vertices;
   vector_based_queue<int> vertex_queue(num_vertices);

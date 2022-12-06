@@ -15,6 +15,7 @@
 #ifndef IMPLICATION_NETWORK_HPP_INCLUDED
 #define IMPLICATION_NETWORK_HPP_INCLUDED
 
+#include <assert.h>
 #include "helper_graph_algorithms.hpp"
 #include "mapping_policy.hpp"
 #include "push_relabel.hpp"
@@ -116,7 +117,7 @@ public:
   stronglyConnectedComponentsInfo(int num_components,
                                   std::vector<int> vertex_to_component_map,
                                   mapper_t &mapper)
-      : num_components(num_components), num_vertices(mapper.num_vertices()),
+      : num_vertices(mapper.num_vertices()), num_components(num_components), 
         vertex_to_component_map(vertex_to_component_map) {
     components.resize(num_components);
     std::vector<int> component_sizes(num_components, 0);
@@ -290,7 +291,6 @@ ImplicationNetwork<capacity_t>::ImplicationNetwork(PosiformInfo &posiform) {
 
   for (int variable = 0; variable < _num_variables; variable++) {
     int from_vertex = _mapper.variable_to_vertex(variable);
-    int from_vertex_complement = _mapper.complement(from_vertex);
     auto quadratic_span = posiform.getQuadratic(variable);
     auto it = quadratic_span.first;
     auto it_end = quadratic_span.second;
