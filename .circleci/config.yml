@@ -3,11 +3,36 @@ version: 2.1
 orbs:
   win: circleci/windows@2.2.0
 
+commands:
+  run-cibuildwheel:
+    parameters:
+      cibw-version:
+        type: string
+        default: 2.11.2
+    steps:
+      - run:
+          name: run cibuildwheel
+          shell: bash -eo pipefail
+          command: |
+            if [[ $OS == Windows_NT ]]; then
+              python -m pip install --user cibuildwheel==<< parameters.cibw-version >>
+              python -m cibuildwheel --output-dir dist
+            else
+              python3 -m pip install --user cibuildwheel==<< parameters.cibw-version >>
+              python3 -m cibuildwheel --output-dir dist
+            fi
+
+      - store_artifacts: &store-artifacts
+          path: ./dist
+      - persist_to_workspace: &persist-to-workspace
+          root: ./dist/
+          paths: .
+
 environment: &global-environment
   PIP_PROGRESS_BAR: 'off'
 
 jobs:
-  build-linux:
+  build-and-test-linux:
     parameters:
       python-version:
         type: string
@@ -25,28 +50,9 @@ jobs:
       - run: git submodule sync
       - run: git submodule update --init
       - setup_remote_docker
-      - restore_cache: &build-linux-restore-cache
-          keys:
-            - pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
-      - run: &build-linux-wheels
-          name: build wheels
-          command: |
-            python3 -m venv env
-            . env/bin/activate
-            pip install pip --upgrade
-            pip install cibuildwheel==2.10.0
-            cibuildwheel --output-dir dist
-      - save_cache: &build-linux-save-cache
-          paths:
-            - ~/.cache/pip
-          key: pip-{{ .Environment.CIRCLE_JOB }}-{{ checksum "pyproject.toml" }}
-      - store_artifacts: &store-artifacts
-          path: ./dist
-      - persist_to_workspace: &persist-to-workspace
-          root: ./dist/
-          paths: .
+      - run-cibuildwheel
 
-  build-linux-aarch64:
+  build-and-test-linux-aarch64:
     parameters:
       python-version:
         type: string
@@ -61,17 +67,13 @@ jobs:
       CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
       CIBW_ARCHS_LINUX: aarch64
 
-    steps: &build-steps
+    steps:
       - checkout
       - run: git submodule sync
       - run: git submodule update --init
-      - restore_cache: *build-linux-restore-cache
-      - run: *build-linux-wheels
-      - save_cache: *build-linux-save-cache
-      - store_artifacts: *store-artifacts
-      - persist_to_workspace: *persist-to-workspace
+      - run-cibuildwheel
 
-  build-osx:
+  build-and-test-osx:
     parameters:
       python-version:
         type: string
@@ -86,7 +88,9 @@ jobs:
       CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
       CIBW_ARCHS_MACOS: << parameters.cibw-arch >>
 
-    steps: *build-steps
+    steps:
+      - checkout
+      - run-cibuildwheel
 
   build-sdist:
     docker:
@@ -106,7 +110,7 @@ jobs:
       - store_artifacts: *store-artifacts
       - persist_to_workspace: *persist-to-workspace
 
-  build-windows:
+  build-and-test-windows:
     parameters:
       python-version:
         type: string
@@ -123,14 +127,7 @@ jobs:
       - checkout
       - run: git submodule sync
       - run: git submodule update --init
-      - run:
-          name: build wheels
-          command: |
-            python -m pip install pip --upgrade
-            python -m pip install cibuildwheel==2.10.0
-            python -m cibuildwheel --output-dir dist
-      - store_artifacts: *store-artifacts
-      - persist_to_workspace: *persist-to-workspace
+      - run-cibuildwheel
 
   deploy-all:
     docker:
@@ -222,7 +219,7 @@ jobs:
             . env/bin/activate
             make -C docs/ linkcheck
 
-  test-linux:
+  test-dependencies:
     parameters:
       python-version:
         type: string
@@ -232,7 +229,7 @@ jobs:
         type: string
 
     docker:
-      - image: circleci/python:<< parameters.python-version >>
+      - image: python:<< parameters.python-version >>-slim
 
     steps:
       - checkout
@@ -285,56 +282,6 @@ jobs:
             . env/bin/activate
             make -C testscpp/ --always-make
 
-  test-osx:
-    parameters:
-      python-version:
-        type: string
-
-    macos:
-      xcode: 12.5.1
-
-    environment:
-      <<: *global-environment
-      HOMEBREW_NO_AUTO_UPDATE: 1
-
-    steps:
-      - checkout
-      - attach_workspace:
-          at: dist
-      - when:
-          condition:
-            equal: [3.10.0, << parameters.python-version>>]
-          steps:
-            - run: brew update
-      - run:
-          name: install pyenv
-          command: |
-            brew install pyenv
-      - restore_cache:
-          keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.5.1
-      - run:
-          name: install python
-          command: |
-            pyenv install << parameters.python-version>> -s
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.5.1
-      - run:
-          name: install
-          command: |
-            eval "$(pyenv init --path)"
-            eval "$(pyenv init -)"
-            pyenv local << parameters.python-version >>
-            python -m venv env
-            . env/bin/activate
-            pip install pip --upgrade
-            pip install -r requirements.txt
-            pip install -r tests/requirements.txt
-            pip install dwave-preprocessing --no-index -f dist/ --no-deps --force-reinstall
-      - run: *unix-run-tests
-
   test-sdist:
     docker:
       - image: circleci/python:3.9
@@ -351,52 +298,21 @@ jobs:
             pip install dist/dwave-preprocessing*.tar.gz
       - run: *unix-run-tests
 
-  test-windows:
-    parameters:
-      python-version:
-        type: string
-
-    executor:
-      name: win/default
-
-    steps:
-      - checkout
-      - attach_workspace:
-          at: dist
-
-      - run:
-          name: install python and create venv
-          command: |
-            nuget install python -Version << parameters.python-version >> -ExcludeVersion -OutputDirectory .
-            .\python\tools\python.exe --version
-            .\python\tools\python.exe -m venv env
-
-      - run:
-          name: install dependencies
-          command: |
-            env\Scripts\activate.ps1
-            python --version
-            pip install -r requirements.txt
-            pip install -r tests\requirements.txt
-            pip install dwave-preprocessing --no-index -f dist/ --force-reinstall --no-deps
-
-      - run:
-          name: run unittests
-          command: |
-            env\Scripts\activate.ps1
-            cd tests\
-            python -m unittest
-
 workflows:
   tests:
     jobs:
-      - build-linux: &build
+      - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.7.9, 3.8.9, 3.9.4, 3.10.0]
-      - build-linux-aarch64: *build
+              python-version: &python-versions [3.7.9, 3.8.9, 3.9.4, 3.10.0, 3.11.0]
+      - build-and-test-linux-aarch64:
+          matrix:
+            parameters:
+              python-version: *python-versions
+            exclude:
+              - python-version: 3.7.9
       - build-sdist
-      - build-osx: &build-osx
+      - build-and-test-osx: &build-and-test-osx
           matrix:
             parameters:
               python-version: *python-versions
@@ -404,56 +320,54 @@ workflows:
             exclude:
               - python-version: 3.7.9
                 cibw-arch: arm64
-      - build-windows: *build
+      - build-and-test-windows: *build
       - test-codecov
       - test-doctest
-      - test-linux:
-          name: test-linux-numpy<< matrix.numpy-version >>-dimod<< matrix.dimod-version >>-py<< matrix.python-version >>
+      - test-dependencies:
+          name: test-dependencies-numpy<< matrix.numpy-version >>-dimod<< matrix.dimod-version >>-py<< matrix.python-version >>
           requires:
-            - build-linux
+            - build-and-test-linux
           matrix:
             parameters:
               # test the lowest and highest of each minor for the dependencies
-              dimod-version: [==0.12.0rc1]
-              numpy-version: [==1.20.0, ~=1.21.0, ~=1.22.0]
+              dimod-version: [==0.12.2, ~=0.12.0]
+              numpy-version: [==1.20.0, ~=1.23.0]
               python-version: *python-versions
             exclude:
               - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
-                dimod-version: ==0.12.0rc1
+                dimod-version: ==0.12.2
                 python-version: 3.10.0
-              - numpy-version: ~=1.22.0  # NumPy 1.22 does not support 3.7
-                dimod-version: ==0.12.0rc1
+              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
+                dimod-version: ~=0.12.0
+                python-version: 3.10.0
+              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.11
+                dimod-version: ==0.12.2
+                python-version: 3.11.0
+              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.11
+                dimod-version: ~=0.12.0
+                python-version: 3.11.0
+              - numpy-version: ~=1.23.0  # NumPy 1.23 does not support 3.7
+                dimod-version: ==0.12.2
                 python-version: 3.7.9
-      - test-linux-cpp11
-      - test-osx:
-          name: test-osx-py<< matrix.python-version >>
-          requires:
-            - build-osx
-          matrix:
-            parameters:
-              python-version: *python-versions       
+              - numpy-version: ~=1.23.0  # NumPy 1.23 does not support 3.7
+                dimod-version: ~=0.12.0
+                python-version: 3.7.9
+      - test-linux-cpp11  
       - test-sdist:
           requires:
             - build-sdist
-      - test-windows:
-          name: test-windows-py<< matrix.python-version >>
-          requires:
-            - build-windows
-          matrix:
-            parameters:
-              python-version: *python-versions
   deploy:
     jobs:
-      - build-linux: &deploy-build
+      - build-and-test-linux: &deploy-build
           <<: *build
           filters:
             tags:
               only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - build-linux-aarch64: *deploy-build
-      - build-osx:
-          <<: *build-osx
+      - build-and-test-linux-aarch64: *deploy-build
+      - build-and-test-osx:
+          <<: *build-and-test-osx
           filters:
             tags:
               only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
@@ -465,7 +379,7 @@ workflows:
               only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - build-windows: *deploy-build
+      - build-and-test-windows: *deploy-build
       - deploy-all:
           filters:
             tags:
@@ -473,9 +387,8 @@ workflows:
             branches:
               ignore: /.*/
           requires:
-            - build-linux
-            - build-linux-aarch64
-            - build-osx
+            - build-and-test-linux
+            - build-and-test-linux-aarch64
+            - build-and-test-osx
             - build-sdist
-            - build-windows
-
+            - build-and-test-windows
