@@ -196,7 +196,7 @@ class Presolver {
 
     //----- One-time Techniques -----//
 
-    void technq_spin_to_binary() {
+    void technique_spin_to_binary() {
         for (size_type v = 0; v < model_.num_variables(); ++v) {
             if (model_.vartype(v) == dimod::Vartype::SPIN) {
                 postsolver_.substitute_variable(v, 2, -1);
@@ -204,7 +204,7 @@ class Presolver {
             }
         }
     }
-    void technq_remove_offsets() {
+    void technique_remove_offsets() {
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
             if (constraint.offset()) {
@@ -213,7 +213,7 @@ class Presolver {
             }
         }
     }
-    void technq_flip_constraints() {
+    void technique_flip_constraints() {
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
             if (constraint.sense() == dimod::Sense::GE) {
@@ -221,7 +221,7 @@ class Presolver {
             }
         }
     }
-    void technq_remove_self_loops() {
+    void technique_remove_self_loops() {
         std::unordered_map<index_type, index_type> mapping;
 
         substitute_self_loops_expr(model_.objective, mapping);
@@ -236,7 +236,7 @@ class Presolver {
             model_.add_linear_constraint({uv.first, uv.second}, {1, -1}, dimod::Sense::EQ, 0);
         }
     }
-    void technq_remove_invalid_markers() {
+    void technique_remove_invalid_markers() {
         std::vector<index_type> discrete;
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
@@ -277,11 +277,11 @@ class Presolver {
 
     //----- Trivial Techniques -----//
 
-    bool technq_check_for_nan() {
+    bool technique_check_for_nan() {
         // TODO: Implement
         return false;
     }
-    bool technq_remove_single_variable_constraints() {
+    bool technique_remove_single_variable_constraints() {
         bool ret = false;
         size_type c = 0;
         while (c < model_.num_constraints()) {
@@ -351,7 +351,7 @@ class Presolver {
         }
         return ret;
     }
-    bool technq_remove_zero_biases() {
+    bool technique_remove_zero_biases() {
         bool ret = false;
 
         ret |= remove_zero_biases(model_.objective);
@@ -361,7 +361,7 @@ class Presolver {
 
         return ret;
     }
-    bool technq_tighten_bounds() {
+    bool technique_tighten_bounds() {
         bool ret = false;
         bias_type lb;
         bias_type ub;
@@ -387,7 +387,7 @@ class Presolver {
         }
         return ret;
     }
-    bool technq_remove_fixed_variables() {
+    bool technique_remove_fixed_variables() {
         bool ret = false; 
         size_type v = 0;
         while (v < model_.num_variables()) {
@@ -446,13 +446,13 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     // One time techniques ----------------------------------------------------
 
     // *-- spin-to-binary
-    technq_spin_to_binary();
+    technique_spin_to_binary();
     // *-- remove offsets
-    technq_remove_offsets();
+    technique_remove_offsets();
     // *-- flip >= constraints    
-    technq_flip_constraints();
+    technique_flip_constraints();
     // *-- remove self-loops
-    technq_remove_self_loops();
+    technique_remove_self_loops();
 
     // Trivial techniques -----------------------------------------------------
 
@@ -462,21 +462,21 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         changes = false;
 
         // *-- clear out 0 variables/interactions in the constraints and objective
-        changes |= technq_remove_zero_biases();
+        changes |= technique_remove_zero_biases();
         // *-- check for NAN
-        changes |= technq_check_for_nan();
+        changes |= technique_check_for_nan();
         // *-- remove single variable constraints
-        changes |= technq_remove_single_variable_constraints();
+        changes |= technique_remove_single_variable_constraints();
         // *-- tighten bounds based on vartype
-        changes |= technq_tighten_bounds();
+        changes |= technique_tighten_bounds();
         // *-- remove variables that are fixed by bounds    
-        changes |= technq_remove_fixed_variables();
+        changes |= technique_remove_fixed_variables();
     }
 
     // Cleanup
 
     // *-- remove any invalid discrete markers
-    technq_remove_invalid_markers();
+    technique_remove_invalid_markers();
 }
 
 template <class bias_type, class index_type, class assignment_type>
@@ -494,10 +494,10 @@ Presolver<bias_type, index_type, assignment_type>::detach_model() {
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_one_time() {
     auto [a, b, c, d] = taskflowOneTime_.emplace(
-        [&]() { technq_spin_to_binary(); },
-        [&]() { technq_remove_offsets(); },
-        [&]() { technq_flip_constraints(); },
-        [&]() { technq_remove_self_loops(); }
+        [&]() { technique_spin_to_binary(); },
+        [&]() { technique_remove_offsets(); },
+        [&]() { technique_flip_constraints(); },
+        [&]() { technique_remove_self_loops(); }
     );
     a.precede(b);
     b.precede(c);
@@ -515,11 +515,11 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(in
         }
     );
     auto [a, b, c, d, e] = taskflowTrivial_.emplace(
-        [&]() { changed |= technq_remove_zero_biases(); },
-        [&]() { changed |= technq_check_for_nan(); },
-        [&]() { changed |= technq_remove_single_variable_constraints(); },
-        [&]() { changed |= technq_tighten_bounds(); },
-        [&]() { changed |= technq_remove_fixed_variables(); }
+        [&]() { changed |= technique_remove_zero_biases(); },
+        [&]() { changed |= technique_check_for_nan(); },
+        [&]() { changed |= technique_remove_single_variable_constraints(); },
+        [&]() { changed |= technique_tighten_bounds(); },
+        [&]() { changed |= technique_remove_fixed_variables(); }
     );
     auto omega = taskflowTrivial_.emplace(
         [&]() {
@@ -543,7 +543,7 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(in
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_cleanup() {
     taskflowCleanup_.emplace(
-        [&]() { technq_remove_invalid_markers(); }
+        [&]() { technique_remove_invalid_markers(); }
     );
 }
 
