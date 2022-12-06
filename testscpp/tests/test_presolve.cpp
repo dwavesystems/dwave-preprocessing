@@ -405,10 +405,8 @@ TEST_CASE("taskflow_experiment") {
         cqm.add_constraints(10);
 
         auto presolver = presolve::Presolver<double>(std::move(cqm));
-        presolver.load_taskflow_one_time();
-        presolver.load_taskflow_trivial();
-        presolver.load_taskflow_cleanup();
-        presolver.run_taskflow();
+        presolver.load_default_presolvers();
+        presolver.apply();
     }
 }
     
