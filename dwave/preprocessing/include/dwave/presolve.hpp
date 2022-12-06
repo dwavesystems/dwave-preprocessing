@@ -141,12 +141,7 @@ class Presolver {
     /// This clears the model from the presolver.
     model_type detach_model();
 
-    void load_taskflow_one_time();
-    void load_taskflow_trivial(int max_rounds = 100);
-    void load_taskflow_cleanup();
-    void run_taskflow();
-
-    /// Load the default presolve techniques.
+   /// Load the default presolve techniques.
     void load_default_presolvers();
 
     /// Return a const reference to the held constrained quadratic model.
@@ -164,9 +159,13 @@ class Presolver {
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
 
     // todo: replace this with a vector of pointers or similar
-    bool default_techniques_;
+    // bool default_techniques_;
 
     bool detached_;
+
+    void load_taskflow_one_time();
+    void load_taskflow_trivial(int max_rounds = 100);
+    void load_taskflow_cleanup();
 
     void substitute_self_loops_expr(dimod::Expression<bias_type, index_type>& expression,
                                     std::unordered_map<index_type, index_type>& mapping) {
@@ -430,53 +429,20 @@ class Presolver {
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver()
-        : model_(), postsolver_(), default_techniques_(false), detached_(false) {}
+        : model_(), postsolver_(), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver(model_type model)
-        : model_(std::move(model)), postsolver_(), default_techniques_(), detached_(false) {}
+        : model_(std::move(model)), postsolver_(), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::apply() {
     if (detached_) throw std::logic_error("model has been detached, presolver is no longer valid");
 
-    // If no techniques have been loaded, return early.
-    if (!default_techniques_) return;
-
-    // One time techniques ----------------------------------------------------
-
-    // *-- spin-to-binary
-    technique_spin_to_binary();
-    // *-- remove offsets
-    technique_remove_offsets();
-    // *-- flip >= constraints    
-    technique_flip_constraints();
-    // *-- remove self-loops
-    technique_remove_self_loops();
-
-    // Trivial techniques -----------------------------------------------------
-
-    bool changes = true;
-    const index_type max_num_rounds = 100;  // todo: make configurable
-    for (index_type num_rounds = 0; changes && num_rounds < max_num_rounds; ++num_rounds) {
-        changes = false;
-
-        // *-- clear out 0 variables/interactions in the constraints and objective
-        changes |= technique_remove_zero_biases();
-        // *-- check for NAN
-        changes |= technique_check_for_nan();
-        // *-- remove single variable constraints
-        changes |= technique_remove_single_variable_constraints();
-        // *-- tighten bounds based on vartype
-        changes |= technique_tighten_bounds();
-        // *-- remove variables that are fixed by bounds    
-        changes |= technique_remove_fixed_variables();
-    }
-
-    // Cleanup
-
-    // *-- remove any invalid discrete markers
-    technique_remove_invalid_markers();
+    tf::Executor e;
+    e.run(taskflowOneTime_).wait();
+    e.run(taskflowTrivial_).wait();
+    e.run(taskflowCleanup_).wait();
 }
 
 template <class bias_type, class index_type, class assignment_type>
@@ -548,16 +514,10 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_cleanup() 
 }
 
 template <class bias_type, class index_type, class assignment_type>
-void Presolver<bias_type, index_type, assignment_type>::run_taskflow() {
-        tf::Executor e;
-        e.run(taskflowOneTime_).wait();
-        e.run(taskflowTrivial_).wait();
-        e.run(taskflowCleanup_).wait();
-}
- 
-template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_default_presolvers() {
-    default_techniques_ = true;
+    load_taskflow_one_time();
+    load_taskflow_trivial();
+    load_taskflow_cleanup();
 }
 
 template <class bias_type, class index_type, class assignment_type>
