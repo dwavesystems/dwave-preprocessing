@@ -355,7 +355,7 @@ class Presolver {
         bool ret = false;
 
         ret |= remove_zero_biases(model_.objective);
-        for (index_type c = 0; c < model_.num_constraints(); ++c) {
+        for (size_t c = 0; c < model_.num_constraints(); ++c) {
             ret |= remove_zero_biases(model_.constraint_ref(c));
         }
 
@@ -542,7 +542,7 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(in
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_cleanup() {
-    auto [a] = taskflowCleanup_.emplace(
+    taskflowCleanup_.emplace(
         [&]() { technq_remove_invalid_markers(); }
     );
 }
