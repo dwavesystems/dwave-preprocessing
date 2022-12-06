@@ -19,7 +19,7 @@ from libcpp.vector cimport vector
 from dimod.libcpp cimport ConstrainedQuadraticModel
 
 
-cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
+cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
     cdef cppclass Postsolver[bias_type, index_type, assignment_type]:
         vector[T] apply[T](vector[T])
 
@@ -33,8 +33,3 @@ cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
         void load_default_presolvers()
         model_type& model()
         Postsolver[bias_type, index_type, assignment_type]& postsolver()
-
-        void load_taskflow_one_time()
-        void load_taskflow_trivial(max_rounds)
-        void load_taskflow_cleanup()
-        void run_taskflow()
