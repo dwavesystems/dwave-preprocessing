@@ -20,6 +20,20 @@ import numpy as np
 
 from dwave.preprocessing import Presolver, InfeasibleModelError
 
+class TestTaskflow(unittest.TestCase):
+    def test_taskflow(self):
+        cqm = dimod.CQM()
+        for _ in range(100):
+            cqm.add_constraint(dimod.BQM("BINARY") == 1)
+
+        presolver = Presolver(cqm)
+        presolver.load_taskflow_one_time()
+        presolver.load_taskflow_trivial()
+        presolver.load_taskflow_cleanup()
+        presolver.run_taskflow()
+
+        self.assertLessEqual(presolver.num_variables(), 55)
+
 
 class TestPresolver(unittest.TestCase):
     def test_bug0(self):

@@ -47,6 +47,18 @@ cdef class cyPresolver:
         self.cpppresolver.apply()
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
+    def load_taskflow_one_time(self):
+        self.cpppresolver.load_taskflow_one_time()
+
+    def load_taskflow_trivial(self, max_rounds):
+        self.cpppresolver.load_taskflow_trivial()
+
+    def load_taskflow_cleanup(self):
+        self.cpppresolver.load_taskflow_cleanup()
+
+    def run_taskflow(self):
+        self.run_taskflow()
+
     def clear_model(self):
         """Clear the held constrained quadratic model. This is useful to save memory."""
         self.cpppresolver.detach_model()

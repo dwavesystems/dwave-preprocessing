@@ -33,3 +33,8 @@ cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
         void load_default_presolvers()
         model_type& model()
         Postsolver[bias_type, index_type, assignment_type]& postsolver()
+
+        void load_taskflow_one_time()
+        void load_taskflow_trivial(max_rounds)
+        void load_taskflow_cleanup()
+        void run_taskflow()

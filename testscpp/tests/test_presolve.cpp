@@ -399,4 +399,17 @@ SCENARIO("constrained quadratic models can be presolved") {
     }
 }
 
+TEST_CASE("taskflow_experiment") {
+    GIVEN("...") {
+        auto cqm = dimod::ConstrainedQuadraticModel<double>();
+        cqm.add_constraints(10);
+
+        auto presolver = presolve::Presolver<double>(std::move(cqm));
+        presolver.load_taskflow_one_time();
+        presolver.load_taskflow_trivial();
+        presolver.load_taskflow_cleanup();
+        presolver.run_taskflow();
+    }
+}
+    
 }  // namespace dwave
