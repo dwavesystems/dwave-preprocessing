@@ -15,11 +15,14 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <taskflow/taskflow.hpp>
 
 #include "dimod/constrained_quadratic_model.h"
+#include "taskflow/core/executor.hpp"
 
 namespace dwave {
 namespace presolve {
@@ -138,6 +141,11 @@ class Presolver {
     /// This clears the model from the presolver.
     model_type detach_model();
 
+    void load_taskflow_one_time();
+    void load_taskflow_trivial(int max_rounds = 100);
+    void load_taskflow_cleanup();
+    void run_taskflow();
+
     /// Load the default presolve techniques.
     void load_default_presolvers();
 
@@ -148,6 +156,10 @@ class Presolver {
     const Postsolver<bias_type, index_type, assignment_type>& postsolver() const;
 
  private:
+    tf::Taskflow taskflowOneTime_;
+    tf::Taskflow taskflowTrivial_;
+    tf::Taskflow taskflowCleanup_;
+
     model_type model_;
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
 
@@ -182,8 +194,34 @@ class Presolver {
         }
     }
 
-    // todo: break into separate presolver
-    void substitute_self_loops() {
+    //----- One-time Techniques -----//
+
+    void technq_spin_to_binary() {
+        for (size_type v = 0; v < model_.num_variables(); ++v) {
+            if (model_.vartype(v) == dimod::Vartype::SPIN) {
+                postsolver_.substitute_variable(v, 2, -1);
+                model_.change_vartype(dimod::Vartype::BINARY, v);
+            }
+        }
+    }
+    void technq_remove_offsets() {
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            auto& constraint = model_.constraint_ref(c);
+            if (constraint.offset()) {
+                constraint.set_rhs(constraint.rhs() - constraint.offset());
+                constraint.set_offset(0);
+            }
+        }
+    }
+    void technq_flip_constraints() {
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            auto& constraint = model_.constraint_ref(c);
+            if (constraint.sense() == dimod::Sense::GE) {
+                constraint.scale(-1);
+            }
+        }
+    }
+    void technq_remove_self_loops() {
         std::unordered_map<index_type, index_type> mapping;
 
         substitute_self_loops_expr(model_.objective, mapping);
@@ -197,6 +235,170 @@ class Presolver {
             // equality constraint
             model_.add_linear_constraint({uv.first, uv.second}, {1, -1}, dimod::Sense::EQ, 0);
         }
+    }
+    void technq_remove_invalid_markers() {
+        std::vector<index_type> discrete;
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            auto& constraint = model_.constraint_ref(c);
+
+            if (!constraint.marked_discrete()) continue;
+
+            // we can check if it's well formed
+            if (constraint.is_onehot()) {
+                discrete.push_back(c);
+            } else {
+                constraint.mark_discrete(false);  // if it's not one-hot, it's not discrete
+            }
+        }
+        // check if they overlap
+        size_type i = 0;
+        while (i < discrete.size()) {
+            // check if ci overlaps with any other constraints
+            auto& constraint = model_.constraint_ref(discrete[i]);
+
+            bool overlap = false;
+            for (size_type j = i + 1; j < discrete.size(); ++j) {
+                if (model_.constraint_ref(discrete[j]).shares_variables(constraint)) {
+                    // we have overlap!
+                    overlap = true;
+                    constraint.mark_discrete(false);
+                    break;
+                }
+            }
+
+            if (overlap) {
+                discrete.erase(discrete.begin() + i);
+                continue;
+            }
+
+            ++i;
+        }
+    }
+
+    //----- Trivial Techniques -----//
+
+    bool technq_check_for_nan() {
+        // TODO: Implement
+        return false;
+    }
+    bool technq_remove_single_variable_constraints() {
+        bool ret = false;
+        size_type c = 0;
+        while (c < model_.num_constraints()) {
+            auto& constraint = model_.constraint_ref(c);
+
+            if (constraint.num_variables() == 0) {
+                if (!constraint.is_soft()) {
+                    // check feasibity
+                    switch (constraint.sense()) {
+                        case dimod::Sense::EQ:
+                            if (constraint.offset() != constraint.rhs()) {
+                                // need this exact message for Python
+                                throw std::logic_error("infeasible");
+                            }
+                            break;
+                        case dimod::Sense::LE:
+                            if (constraint.offset() > constraint.rhs()) {
+                                // need this exact message for Python
+                                throw std::logic_error("infeasible");
+                            }
+                            break;
+                        case dimod::Sense::GE:
+                            if (constraint.offset() < constraint.rhs()) {
+                                // need this exact message for Python
+                                throw std::logic_error("infeasible");
+                            }
+                            break;
+                    }
+                }
+
+                // we remove the constraint regardless of whether it's soft
+                // or not. We could use the opportunity to update the objective
+                // offset with the violation of the soft constraint, but
+                // presolve does not preserve the energy in general, so it's
+                // better to avoid side effects and just remove.
+                model_.remove_constraint(c);
+                ret = true;
+                continue;
+            } else if (constraint.num_variables() == 1 && !constraint.is_soft()) {
+                index_type v = constraint.variables()[0];
+
+                // ax ◯ c
+                bias_type a = constraint.linear(v);
+                assert(a);  // should have already been removed if 0
+
+                // offset should have already been removed but may as well be safe
+                bias_type rhs = (constraint.rhs() - constraint.offset()) / a;
+
+                // todo: test if negative
+
+                if (constraint.sense() == dimod::Sense::EQ) {
+                    model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
+                    model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
+                } else if ((constraint.sense() == dimod::Sense::LE) != (a < 0)) {
+                    model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
+                } else {
+                    assert((constraint.sense() == dimod::Sense::GE) == (a >= 0));
+                    model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
+                }
+
+                model_.remove_constraint(c);
+                ret = true;
+                continue;
+            }
+
+            ++c;
+        }
+        return ret;
+    }
+    bool technq_remove_zero_biases() {
+        bool ret = false;
+
+        ret |= remove_zero_biases(model_.objective);
+        for (index_type c = 0; c < model_.num_constraints(); ++c) {
+            ret |= remove_zero_biases(model_.constraint_ref(c));
+        }
+
+        return ret;
+    }
+    bool technq_tighten_bounds() {
+        bool ret = false;
+        bias_type lb;
+        bias_type ub;
+        for (size_type v = 0; v < model_.num_variables(); ++v) {
+            switch (model_.vartype(v)) {
+                case dimod::Vartype::SPIN:
+                case dimod::Vartype::BINARY:
+                case dimod::Vartype::INTEGER:
+                    ub = model_.upper_bound(v);
+                    if (ub != std::floor(ub)) {
+                        model_.set_upper_bound(v, std::floor(ub));
+                        ret = true;
+                    }
+                    lb = model_.lower_bound(v);
+                    if (lb != std::ceil(lb)) {
+                        model_.set_lower_bound(v, std::ceil(lb));
+                        ret = true;
+                    }
+                    break;
+                case dimod::Vartype::REAL:
+                    break;
+            }
+        }
+        return ret;
+    }
+    bool technq_remove_fixed_variables() {
+        bool ret = false; 
+        size_type v = 0;
+        while (v < model_.num_variables()) {
+            if (model_.lower_bound(v) == model_.upper_bound(v)) {
+                postsolver_.fix_variable(v, model_.lower_bound(v));
+                model_.fix_variable(v, model_.lower_bound(v));
+                ret = true;
+            }
+            ++v;
+        }
+        return ret;
     }
 
     static bool remove_zero_biases(dimod::Expression<bias_type, index_type>& expression) {
@@ -244,192 +446,37 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     // One time techniques ----------------------------------------------------
 
     // *-- spin-to-binary
-    for (size_type v = 0; v < model_.num_variables(); ++v) {
-        if (model_.vartype(v) == dimod::Vartype::SPIN) {
-            postsolver_.substitute_variable(v, 2, -1);
-            model_.change_vartype(dimod::Vartype::BINARY, v);
-        }
-    }
-
+    technq_spin_to_binary();
     // *-- remove offsets
-    for (size_type c = 0; c < model_.num_constraints(); ++c) {
-        auto& constraint = model_.constraint_ref(c);
-        if (constraint.offset()) {
-            constraint.set_rhs(constraint.rhs() - constraint.offset());
-            constraint.set_offset(0);
-        }
-    }
-
-    // *-- flip >= constraints
-    for (size_type c = 0; c < model_.num_constraints(); ++c) {
-        auto& constraint = model_.constraint_ref(c);
-        if (constraint.sense() == dimod::Sense::GE) {
-            constraint.scale(-1);
-        }
-    }
-
+    technq_remove_offsets();
+    // *-- flip >= constraints    
+    technq_flip_constraints();
     // *-- remove self-loops
-    substitute_self_loops();
+    technq_remove_self_loops();
 
     // Trivial techniques -----------------------------------------------------
 
     bool changes = true;
     const index_type max_num_rounds = 100;  // todo: make configurable
-    for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
-        if (!changes) break;
+    for (index_type num_rounds = 0; changes && num_rounds < max_num_rounds; ++num_rounds) {
         changes = false;
 
         // *-- clear out 0 variables/interactions in the constraints and objective
-        changes = remove_zero_biases(model_.objective) || changes;
-        for (index_type c = 0; c < model_.num_constraints(); ++c) {
-            changes = remove_zero_biases(model_.constraint_ref(c)) || changes;
-        }
-
-        // *-- todo: check for NAN
-
+        changes |= technq_remove_zero_biases();
+        // *-- check for NAN
+        changes |= technq_check_for_nan();
         // *-- remove single variable constraints
-        size_type c = 0;
-        while (c < model_.num_constraints()) {
-            auto& constraint = model_.constraint_ref(c);
-
-            if (constraint.num_variables() == 0) {
-                if (!constraint.is_soft()) {
-                    // check feasibity
-                    switch (constraint.sense()) {
-                        case dimod::Sense::EQ:
-                            if (constraint.offset() != constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
-                            }
-                            break;
-                        case dimod::Sense::LE:
-                            if (constraint.offset() > constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
-                            }
-                            break;
-                        case dimod::Sense::GE:
-                            if (constraint.offset() < constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
-                            }
-                            break;
-                    }
-                }
-
-                // we remove the constraint regardless of whether it's soft
-                // or not. We could use the opportunity to update the objective
-                // offset with the violation of the soft constraint, but
-                // presolve does not preserve the energy in general, so it's
-                // better to avoid side effects and just remove.
-                model_.remove_constraint(c);
-                changes = true;
-                continue;
-            } else if (constraint.num_variables() == 1 && !constraint.is_soft()) {
-                index_type v = constraint.variables()[0];
-
-                // ax ◯ c
-                bias_type a = constraint.linear(v);
-                assert(a);  // should have already been removed if 0
-
-                // offset should have already been removed but may as well be safe
-                bias_type rhs = (constraint.rhs() - constraint.offset()) / a;
-
-                // todo: test if negative
-
-                if (constraint.sense() == dimod::Sense::EQ) {
-                    model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
-                    model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
-                } else if ((constraint.sense() == dimod::Sense::LE) != (a < 0)) {
-                    model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
-                } else {
-                    assert((constraint.sense() == dimod::Sense::GE) == (a >= 0));
-                    model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
-                }
-
-                model_.remove_constraint(c);
-                changes = true;
-                continue;
-            }
-
-            ++c;
-        }
-
+        changes |= technq_remove_single_variable_constraints();
         // *-- tighten bounds based on vartype
-        bias_type lb;
-        bias_type ub;
-        for (size_type v = 0; v < model_.num_variables(); ++v) {
-            switch (model_.vartype(v)) {
-                case dimod::Vartype::SPIN:
-                case dimod::Vartype::BINARY:
-                case dimod::Vartype::INTEGER:
-                    ub = model_.upper_bound(v);
-                    if (ub != std::floor(ub)) {
-                        model_.set_upper_bound(v, std::floor(ub));
-                        changes = true;
-                    }
-                    lb = model_.lower_bound(v);
-                    if (lb != std::ceil(lb)) {
-                        model_.set_lower_bound(v, std::ceil(lb));
-                        changes = true;
-                    }
-                    break;
-                case dimod::Vartype::REAL:
-                    break;
-            }
-        }
-
-        // *-- remove variables that are fixed by bounds
-        size_type v = 0;
-        while (v < model_.num_variables()) {
-            if (model_.lower_bound(v) == model_.upper_bound(v)) {
-                postsolver_.fix_variable(v, model_.lower_bound(v));
-                model_.fix_variable(v, model_.lower_bound(v));
-                changes = true;
-            }
-            ++v;
-        }
+        changes |= technq_tighten_bounds();
+        // *-- remove variables that are fixed by bounds    
+        changes |= technq_remove_fixed_variables();
     }
 
     // Cleanup
 
     // *-- remove any invalid discrete markers
-    std::vector<index_type> discrete;
-    for (size_type c = 0; c < model_.num_constraints(); ++c) {
-        auto& constraint = model_.constraint_ref(c);
-
-        if (!constraint.marked_discrete()) continue;
-
-        // we can check if it's well formed
-        if (constraint.is_onehot()) {
-            discrete.push_back(c);
-        } else {
-            constraint.mark_discrete(false);  // if it's not one-hot, it's not discrete
-        }
-    }
-    // check if they overlap
-    size_type i = 0;
-    while (i < discrete.size()) {
-        // check if ci overlaps with any other constraints
-        auto& constraint = model_.constraint_ref(discrete[i]);
-
-        bool overlap = false;
-        for (size_type j = i + 1; j < discrete.size(); ++j) {
-            if (model_.constraint_ref(discrete[j]).shares_variables(constraint)) {
-                // we have overlap!
-                overlap = true;
-                constraint.mark_discrete(false);
-                break;
-            }
-        }
-
-        if (overlap) {
-            discrete.erase(discrete.begin() + i);
-            continue;
-        }
-
-        ++i;
-    }
+    technq_remove_invalid_markers();
 }
 
 template <class bias_type, class index_type, class assignment_type>
@@ -444,7 +491,70 @@ Presolver<bias_type, index_type, assignment_type>::detach_model() {
 
     return cqm;
 }
+template <class bias_type, class index_type, class assignment_type>
+void Presolver<bias_type, index_type, assignment_type>::load_taskflow_one_time() {
+    auto [a, b, c, d] = taskflowOneTime_.emplace(
+        [&]() { technq_spin_to_binary(); },
+        [&]() { technq_remove_offsets(); },
+        [&]() { technq_flip_constraints(); },
+        [&]() { technq_remove_self_loops(); }
+    );
+    a.precede(b);
+    b.precede(c);
+    c.precede(d);
+}
+template <class bias_type, class index_type, class assignment_type>
+void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(int max_rounds) {
+    int counter;
+    bool changed;
 
+    auto alpha = taskflowTrivial_.emplace(
+        [&]() {
+            changed = false;
+            counter = 0;
+        }
+    );
+    auto [a, b, c, d, e] = taskflowTrivial_.emplace(
+        [&]() { changed |= technq_remove_zero_biases(); },
+        [&]() { changed |= technq_check_for_nan(); },
+        [&]() { changed |= technq_remove_single_variable_constraints(); },
+        [&]() { changed |= technq_tighten_bounds(); },
+        [&]() { changed |= technq_remove_fixed_variables(); }
+    );
+    auto omega = taskflowTrivial_.emplace(
+        [&]() {
+            if(changed && ++counter < max_rounds) {
+                changed = false;
+                return 0; // This will take us back to (a)
+            }
+            return 1; // This will cause us to exit
+        }
+    );
+
+    alpha.precede(a);
+    a.precede(b);
+    b.precede(c);
+    c.precede(d);
+    d.precede(e);
+    e.precede(omega);
+    omega.precede(a); // loops back to (a) iff omega returns 0; o/w this will exit the taskflow 
+}
+
+template <class bias_type, class index_type, class assignment_type>
+void Presolver<bias_type, index_type, assignment_type>::load_taskflow_cleanup() {
+    auto [a] = taskflowCleanup_.emplace(
+        [&]() { technq_remove_invalid_markers(); }
+    );
+}
+
+template <class bias_type, class index_type, class assignment_type>
+void Presolver<bias_type, index_type, assignment_type>::run_taskflow() {
+        tf::Executor e;
+        e.run(taskflowOneTime_).wait();
+        e.run(taskflowTrivial_).wait();
+        e.run(taskflowCleanup_).wait();
+}
+ 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_default_presolvers() {
     default_techniques_ = true;
