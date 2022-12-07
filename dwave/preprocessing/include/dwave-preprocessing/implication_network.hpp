@@ -37,9 +37,9 @@ public:
   ImplicationEdge(int from_vertex, int to_vertex, capacity_t capacity,
                   capacity_t reverse_capacity, int reverse_edge_index,
                   int symmetric_edge_index)
-      : from_vertex(from_vertex), to_vertex(to_vertex), residual(capacity),
+      : from_vertex(from_vertex), to_vertex(to_vertex),
         reverse_edge_index(reverse_edge_index),
-        symmetric_edge_index(symmetric_edge_index) {
+        symmetric_edge_index(symmetric_edge_index), residual(capacity) {
     assert((!capacity || !reverse_capacity) &&
            "Either capacity or reverse edge capacity must be zero.");
     _encoded_capacity = (!capacity) ? -reverse_capacity : capacity;

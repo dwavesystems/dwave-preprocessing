@@ -188,8 +188,9 @@ private:
 template <class EdgeType>
 PushRelabelSolver<EdgeType>::PushRelabelSolver(
     std::vector<std::vector<EdgeType>> &adjacency_list, int source, int sink)
-    : _adjacency_list(adjacency_list), _source(source), _sink(sink),
-      _vertex_queue(vector_based_queue<int>(adjacency_list.size())) {
+    : _sink(sink), _source(source), 
+      _vertex_queue(vector_based_queue<int>(adjacency_list.size())), _adjacency_list(adjacency_list)
+      {
   _num_global_relabels = 0;
   _num_gap_relabels = 0;
   _num_gap_vertices = 0;
