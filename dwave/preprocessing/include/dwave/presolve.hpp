@@ -151,15 +151,20 @@ class Presolver {
     const Postsolver<bias_type, index_type, assignment_type>& postsolver() const;
 
  private:
-    tf::Executor executor_;
-    tf::Taskflow taskflowOneTime_;
-    tf::Taskflow taskflowTrivial_;
-    tf::Taskflow taskflowCleanup_;
-    int loop_counter;
-    bool loop_changed;
+    struct TfStuff {
+        tf::Executor executor_;
+        tf::Taskflow taskflowOneTime_;
+        tf::Taskflow taskflowTrivial_;
+        tf::Taskflow taskflowCleanup_;
+        int loop_counter;
+        bool loop_changed;
 
+        bool operator=(const struct TfStuff& that) {
+            return true;
+        }
+    };
 
-
+    struct TfStuff tfStuff;
     model_type model_;
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
 
@@ -444,9 +449,9 @@ template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::apply() {
     if (detached_) throw std::logic_error("model has been detached, presolver is no longer valid");
 
-    executor_.run(taskflowOneTime_).wait();
-    executor_.run(taskflowTrivial_).wait();
-    executor_.run(taskflowCleanup_).wait();
+    tfStuff.executor_.run(tfStuff.taskflowOneTime_).wait();
+    tfStuff.executor_.run(tfStuff.taskflowTrivial_).wait();
+    tfStuff.executor_.run(tfStuff.taskflowCleanup_).wait();
 }
 
 template <class bias_type, class index_type, class assignment_type>
@@ -463,7 +468,7 @@ Presolver<bias_type, index_type, assignment_type>::detach_model() {
 }
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_one_time() {
-    auto [a, b, c, d] = taskflowOneTime_.emplace(
+    auto [a, b, c, d] = tfStuff.taskflowOneTime_.emplace(
         [&]() { technique_spin_to_binary(); },
         [&]() { technique_remove_offsets(); },
         [&]() { technique_flip_constraints(); },
@@ -481,23 +486,23 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_one_time()
 }
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(int max_rounds) {
-    auto alpha = taskflowTrivial_.emplace(
+    auto alpha = tfStuff.taskflowTrivial_.emplace(
         [&]() {
-            loop_changed = false;
-            loop_counter = 0;
+            tfStuff.loop_changed = false;
+            tfStuff.loop_counter = 0;
         }
     );
-    auto [a, b, c, d, e] = taskflowTrivial_.emplace(
-        [&]() { loop_changed |= technique_remove_zero_biases(); },
-        [&]() { loop_changed |= technique_check_for_nan(); },
-        [&]() { loop_changed |= technique_remove_single_variable_constraints(); },
-        [&]() { loop_changed |= technique_tighten_bounds(); },
-        [&]() { loop_changed |= technique_remove_fixed_variables(); }
+    auto [a, b, c, d, e] = tfStuff.taskflowTrivial_.emplace(
+        [&]() { tfStuff.loop_changed |= technique_remove_zero_biases(); },
+        [&]() { tfStuff.loop_changed |= technique_check_for_nan(); },
+        [&]() { tfStuff.loop_changed |= technique_remove_single_variable_constraints(); },
+        [&]() { tfStuff.loop_changed |= technique_tighten_bounds(); },
+        [&]() { tfStuff.loop_changed |= technique_remove_fixed_variables(); }
     );
-    auto omega = taskflowTrivial_.emplace(
+    auto omega = tfStuff.taskflowTrivial_.emplace(
         [&]() {
-            if(loop_changed && ++loop_counter < max_rounds) {
-                loop_changed = false;
+            if(tfStuff.loop_changed && ++tfStuff.loop_counter < max_rounds) {
+                tfStuff.loop_changed = false;
                 return 0; // This will take us back to (a)
             }
             return 1; // This will cause us to exit
@@ -523,7 +528,7 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(in
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_cleanup() {
-    auto a = taskflowCleanup_.emplace(
+    auto a = tfStuff.taskflowCleanup_.emplace(
         [&]() { technique_remove_invalid_markers(); }
     );
     a.name("remove_invalid_markers");
