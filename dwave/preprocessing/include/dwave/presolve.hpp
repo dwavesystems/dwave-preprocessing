@@ -155,6 +155,10 @@ class Presolver {
     tf::Taskflow taskflowOneTime_;
     tf::Taskflow taskflowTrivial_;
     tf::Taskflow taskflowCleanup_;
+    int loop_counter;
+    bool loop_changed;
+
+
 
     model_type model_;
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
@@ -477,26 +481,23 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_one_time()
 }
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(int max_rounds) {
-    int counter;// = 0;
-    bool changed;// = false;
-
     auto alpha = taskflowTrivial_.emplace(
         [&]() {
-            changed = false;
-            counter = 0;
+            loop_changed = false;
+            loop_counter = 0;
         }
     );
     auto [a, b, c, d, e] = taskflowTrivial_.emplace(
-        [&]() { changed |= technique_remove_zero_biases(); },
-        [&]() { changed |= technique_check_for_nan(); },
-        [&]() { changed |= technique_remove_single_variable_constraints(); },
-        [&]() { changed |= technique_tighten_bounds(); },
-        [&]() { changed |= technique_remove_fixed_variables(); }
+        [&]() { loop_changed |= technique_remove_zero_biases(); },
+        [&]() { loop_changed |= technique_check_for_nan(); },
+        [&]() { loop_changed |= technique_remove_single_variable_constraints(); },
+        [&]() { loop_changed |= technique_tighten_bounds(); },
+        [&]() { loop_changed |= technique_remove_fixed_variables(); }
     );
     auto omega = taskflowTrivial_.emplace(
         [&]() {
-            if(changed && ++counter < max_rounds) {
-                changed = false;
+            if(loop_changed && ++loop_counter < max_rounds) {
+                loop_changed = false;
                 return 0; // This will take us back to (a)
             }
             return 1; // This will cause us to exit

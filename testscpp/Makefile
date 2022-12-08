@@ -3,7 +3,7 @@ SRC := $(ROOT)/dwave/preprocessing/
 CATCH2 := $(ROOT)/testscpp/Catch2/single_include/
 TASKFLOW := $(ROOT)/extern/taskflow/
 DIMOD := $(shell python -c 'import dimod; print(dimod.get_include())')
-FLAGS=-std=c++17 -Wall -Wno-unknown-pragmas -Wno-deprecated-declarations -Wno-sign-compare -g -O0
+FLAGS=-std=c++17 -Wall -Wno-unknown-pragmas -Wno-deprecated-declarations -Wno-sign-compare -g -O3
 INCLUDES=-I$(SRC)/include/ -I$(DIMOD) -I$(CATCH2) -I$(TASKFLOW)
 
 all: catch2 test_main test_main_parallel tests tests_parallel
