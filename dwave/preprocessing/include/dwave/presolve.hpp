@@ -158,6 +158,7 @@ class Presolver {
         tf::Taskflow taskflowCleanup_;
         int loop_counter;
         bool loop_changed;
+        bool model_feasible = true;
 
         bool operator=(const struct TfStuff& that) {
             return true;
@@ -302,20 +303,17 @@ class Presolver {
                     switch (constraint.sense()) {
                         case dimod::Sense::EQ:
                             if (constraint.offset() != constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
+                                tfStuff.model_feasible = false;
                             }
                             break;
                         case dimod::Sense::LE:
                             if (constraint.offset() > constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
+                                tfStuff.model_feasible = false;
                             }
                             break;
                         case dimod::Sense::GE:
                             if (constraint.offset() < constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
+                                tfStuff.model_feasible = false;
                             }
                             break;
                     }
@@ -451,7 +449,13 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
 
     tfStuff.executor_.run(tfStuff.taskflowOneTime_).wait();
     tfStuff.executor_.run(tfStuff.taskflowTrivial_).wait();
-    tfStuff.executor_.run(tfStuff.taskflowCleanup_).wait();
+    if(tfStuff.model_feasible) {
+        tfStuff.executor_.run(tfStuff.taskflowCleanup_).wait();
+    }
+    else {
+        // need this exact message for Python
+        throw std::logic_error("infeasible");
+    }
 }
 
 template <class bias_type, class index_type, class assignment_type>
@@ -468,11 +472,12 @@ Presolver<bias_type, index_type, assignment_type>::detach_model() {
 }
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_one_time() {
-    auto [a, b, c, d] = tfStuff.taskflowOneTime_.emplace(
+    auto [a, b, c, d, e] = tfStuff.taskflowOneTime_.emplace(
         [&]() { technique_spin_to_binary(); },
         [&]() { technique_remove_offsets(); },
         [&]() { technique_flip_constraints(); },
-        [&]() { technique_remove_self_loops(); }
+        [&]() { technique_remove_self_loops(); },
+        [&]() { /* NOOP */ }
     );
 
     a.name("spin_to_binary");
@@ -496,12 +501,25 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(in
         [&]() { tfStuff.loop_changed |= technique_remove_zero_biases(); },
         [&]() { tfStuff.loop_changed |= technique_check_for_nan(); },
         [&]() { tfStuff.loop_changed |= technique_remove_single_variable_constraints(); },
-        [&]() { tfStuff.loop_changed |= technique_tighten_bounds(); },
-        [&]() { tfStuff.loop_changed |= technique_remove_fixed_variables(); }
+        [&]() 
+            { 
+                if(tfStuff.model_feasible) {
+                    tfStuff.loop_changed |= technique_tighten_bounds(); 
+                }
+            },
+        [&]() 
+            { 
+                if(tfStuff.model_feasible) {
+                    tfStuff.loop_changed |= technique_remove_fixed_variables(); 
+                }
+            }
     );
     auto omega = tfStuff.taskflowTrivial_.emplace(
         [&]() {
-            if(tfStuff.loop_changed && ++tfStuff.loop_counter < max_rounds) {
+            if(tfStuff.model_feasible 
+                    && tfStuff.loop_changed 
+                    && ++tfStuff.loop_counter < max_rounds
+            ) {
                 tfStuff.loop_changed = false;
                 return 0; // This will take us back to (a)
             }
