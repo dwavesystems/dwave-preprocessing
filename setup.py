@@ -23,13 +23,20 @@ from distutils.extension import Extension
 from distutils.command.build_ext import build_ext as _build_ext
 
 extra_compile_args = {
-    'msvc': ['/EHsc'],
-    'unix': ['-std=c++11'],
+    'msvc': ['/std:c++17', '/EHsc'],
+    'unix': [
+        '-std=c++17', 
+        '-Wall', 
+        '-Wno-unknown-pragmas', 
+        '-Wno-sign-compare', 
+        '-Wno-deprecated-declarations',
+        '-fcompare-debug-second',
+        ],
 }
 
 extra_link_args = {
     'msvc': [],
-    'unix': ['-std=c++11'],
+    'unix': ['-std=c++17'],
 }
 
 
