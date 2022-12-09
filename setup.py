@@ -26,12 +26,7 @@ extra_compile_args = {
     'msvc': ['/std:c++17', '/EHsc'],
     'unix': [
         '-std=c++17', 
-        '-Wall', 
-        '-Wno-unknown-pragmas', 
-        '-Wno-sign-compare', 
-        '-Wno-deprecated-declarations',
-        '-fcompare-debug-second',
-        ],
+       ],
 }
 
 extra_link_args = {
