@@ -3,7 +3,7 @@ SRC := $(ROOT)/dwave/preprocessing/
 CATCH2 := $(ROOT)/testscpp/Catch2/single_include/
 DIMOD := $(shell python -c 'import dimod; print(dimod.get_include())')
 INCLUDES := -I $(SRC)/include/ -I $(DIMOD) -I $(CATCH2)
-FLAGS := -std=c++17 -Wall -Wno-unknown-pragmas -Wno-sign-compare -O3 
+FLAGS := -std=c++17 -Wall -Wno-unknown-pragmas -Wno-sign-compare -Wno-deprecated-declarations -fcompare-debug-second -O3 
 
 all: catch2 test_main test_main_parallel tests tests_parallel
 
@@ -23,3 +23,6 @@ test_main_parallel: test_main.cpp
 catch2:
 	git submodule init
 	git submodule update
+
+clean:
+	rm -f *.out *.o test_main test_main_parallel
