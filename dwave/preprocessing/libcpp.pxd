@@ -19,7 +19,7 @@ from libcpp.vector cimport vector
 from dimod.libcpp cimport ConstrainedQuadraticModel
 
 
-cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
+cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
     cdef cppclass Postsolver[bias_type, index_type, assignment_type]:
         vector[T] apply[T](vector[T])
 
