@@ -19,6 +19,12 @@
 #include <utility>
 #include <vector>
 
+<<<<<<< Updated upstream:dwave/preprocessing/include/dwave/presolve.h
+=======
+#include "spdlog/spdlog.h"
+#include "taskflow/core/taskflow.hpp"
+#include "taskflow/taskflow.hpp"
+>>>>>>> Stashed changes:dwave/preprocessing/include/dwave/presolve.hpp
 #include "dimod/constrained_quadratic_model.h"
 
 namespace dwave {
