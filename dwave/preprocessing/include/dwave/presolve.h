@@ -221,7 +221,6 @@ class Presolver {
         for (auto& v : empty_variables) {
             expression.remove_variable(v);
         }
-
         return empty_interactions.size() || empty_variables.size();
     }
 };
@@ -242,7 +241,6 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     if (!default_techniques_) return;
 
     // One time techniques ----------------------------------------------------
-
     // *-- spin-to-binary
     for (size_type v = 0; v < model_.num_variables(); ++v) {
         if (model_.vartype(v) == dimod::Vartype::SPIN) {
@@ -272,7 +270,6 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     substitute_self_loops();
 
     // Trivial techniques -----------------------------------------------------
-
     bool changes = true;
     const index_type max_num_rounds = 100;  // todo: make configurable
     for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
@@ -284,6 +281,46 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         for (index_type c = 0; c < model_.num_constraints(); ++c) {
             changes = remove_zero_biases(model_.constraint_ref(c)) || changes;
         }
+
+        // *-- clear out small linear biases in the constraints
+        // todo: temporarily hard-coded the FEASIBILITY_TOLERANCE here.
+        // todo: ideally this should be added to dimod.
+        bias_type FEASIBILITY_TOLERANCE = 1.0e-6;
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            auto& constraint = model_.constraint_ref(c);
+            std::vector<index_type> small_biases;
+            std::vector<index_type> small_biases_temp;
+            bias_type reduction = 0;
+            bias_type reduction_limit = 0;
+
+            for (auto& v : constraint.variables()) {
+                // ax ◯ c
+                bias_type a = constraint.linear(v);
+                bias_type lb = constraint.lower_bound(v);
+                bias_type ub = constraint.upper_bound(v);
+                bias_type v_range = ub - lb;
+
+                if (abs(a) < 1.0e-3 && abs(a) * v_range * constraint.num_variables()
+                < 1.0e-2 * FEASIBILITY_TOLERANCE) {
+                small_biases_temp.emplace_back(v);
+                reduction += a * lb;
+                reduction_limit += abs(a) * v_range;
+                }
+
+                if (abs(a) < 1.0e-10)  small_biases.emplace_back(v);
+                continue;
+            }
+
+            if (reduction_limit < 1.0e-1 * FEASIBILITY_TOLERANCE) {
+                constraint.set_rhs(constraint.rhs() - reduction);
+                for (auto& u : small_biases_temp) small_biases.emplace_back(u);
+            }
+
+
+            for (auto& v : small_biases) {
+                constraint.remove_variable(v);
+            }
+    }
 
         // *-- todo: check for NAN
 
