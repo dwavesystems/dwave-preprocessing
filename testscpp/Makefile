@@ -25,3 +25,6 @@ test_main_parallel: test_main.cpp
 update:
 	git submodule init
 	git submodule update
+
+clean:
+	rm -f *.out *.o test_main test_main_parallel
