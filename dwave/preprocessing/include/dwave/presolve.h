@@ -221,6 +221,7 @@ class Presolver {
         for (auto& v : empty_variables) {
             expression.remove_variable(v);
         }
+
         return empty_interactions.size() || empty_variables.size();
     }
 };
@@ -241,6 +242,7 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     if (!default_techniques_) return;
 
     // One time techniques ----------------------------------------------------
+
     // *-- spin-to-binary
     for (size_type v = 0; v < model_.num_variables(); ++v) {
         if (model_.vartype(v) == dimod::Vartype::SPIN) {
@@ -270,6 +272,7 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     substitute_self_loops();
 
     // Trivial techniques -----------------------------------------------------
+
     bool changes = true;
     const index_type max_num_rounds = 100;  // todo: make configurable
     for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
