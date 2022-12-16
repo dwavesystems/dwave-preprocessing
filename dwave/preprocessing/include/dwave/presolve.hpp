@@ -611,8 +611,11 @@ void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(in
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_cleanup() {
-    auto a = tf_helper_.taskflow_cleanup.emplace([&]() { technique_remove_invalid_markers(); });
-    a.name("remove_invalid_markers");
+    if (presolvers_ | PresolverTechniques::REMOVE_INVALID_MARKERS) {
+        auto task = tf_helper_.taskflow_cleanup.emplace(
+                [&]() { technique_remove_invalid_markers(); });
+        task.name("remove_invalid_markers");
+    }
 }
 
 template <class bias_type, class index_type, class assignment_type>
