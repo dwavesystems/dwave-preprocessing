@@ -20,9 +20,9 @@
 #include <utility>
 #include <vector>
 
+#include "dimod/constrained_quadratic_model.h"
 #include "taskflow/core/taskflow.hpp"
 #include "taskflow/taskflow.hpp"
-#include "dimod/constrained_quadratic_model.h"
 
 namespace dwave {
 namespace presolve {
@@ -118,17 +118,17 @@ void Postsolver<bias_type, index_type, assignment_type>::substitute_variable(ind
 }
 
 class PresolverTechniques {
-public:
-    const static uint64_t SPIN_TO_BINARY                            = 1 << 0; 
-    const static uint64_t REMOVE_OFFSETS                            = 1 << 1; 
-    const static uint64_t FLIP_CONSTRAINTS                          = 1 << 2; 
-    const static uint64_t REMOVE_SELF_LOOPS                         = 1 << 3; 
-    const static uint64_t REMOVE_INVALID_MARKERS                    = 1 << 4; 
-    const static uint64_t CHECK_FOR_NAN                             = 1 << 5; 
-    const static uint64_t REMOVE_SINGLE_VAR_CONSTRAINTS             = 1 << 6; 
-    const static uint64_t REMOVE_ZERO_BIASES                        = 1 << 7; 
-    const static uint64_t TIGHTEN_BOUNDS                            = 1 << 8; 
-    const static uint64_t REMOVE_FIXED_VARS                         = 1 << 9; 
+ public:
+    const static uint64_t SPIN_TO_BINARY = 1 << 0;
+    const static uint64_t REMOVE_OFFSETS = 1 << 1;
+    const static uint64_t FLIP_CONSTRAINTS = 1 << 2;
+    const static uint64_t REMOVE_SELF_LOOPS = 1 << 3;
+    const static uint64_t REMOVE_INVALID_MARKERS = 1 << 4;
+    const static uint64_t CHECK_FOR_NAN = 1 << 5;
+    const static uint64_t REMOVE_SINGLE_VAR_CONSTRAINTS = 1 << 6;
+    const static uint64_t REMOVE_ZERO_BIASES = 1 << 7;
+    const static uint64_t TIGHTEN_BOUNDS = 1 << 8;
+    const static uint64_t REMOVE_FIXED_VARS = 1 << 9;
 
     const static uint64_t ALL = -1;
     const static uint64_t NONE = 0;
@@ -180,13 +180,11 @@ class Presolver {
         bool loop_changed;
         bool model_feasible = true;
 
-        bool operator=(const struct TfHelper& that) {
-            return true;
-        }
+        bool operator=(const struct TfHelper& that) { return true; }
     };
 
     struct TfHelper tf_helper_;
-    
+
     void load_taskflow_onetime();
     void load_taskflow_trivial(int max_rounds = 100);
     void load_taskflow_cleanup();
@@ -235,7 +233,7 @@ class Presolver {
         }
     }
     void technique_remove_offsets() {
-       for (size_type c = 0; c < model_.num_constraints(); ++c) {
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
             if (constraint.offset()) {
                 constraint.set_rhs(constraint.rhs() - constraint.offset());
@@ -244,7 +242,7 @@ class Presolver {
         }
     }
     void technique_flip_constraints() {
-       for (size_type c = 0; c < model_.num_constraints(); ++c) {
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
             if (constraint.sense() == dimod::Sense::GE) {
                 constraint.scale(-1);
@@ -252,7 +250,7 @@ class Presolver {
         }
     }
     void technique_remove_self_loops() {
-       std::unordered_map<index_type, index_type> mapping;
+        std::unordered_map<index_type, index_type> mapping;
 
         substitute_self_loops_expr(model_.objective, mapping);
 
@@ -267,7 +265,7 @@ class Presolver {
         }
     }
     void technique_remove_invalid_markers() {
-       std::vector<index_type> discrete;
+        std::vector<index_type> discrete;
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
 
@@ -312,7 +310,11 @@ class Presolver {
         return false;
     }
     bool technique_remove_single_variable_constraints() {
-       bool ret = false;
+        if (!tf_helper_.model_feasible) {
+            return false;
+        }
+
+        bool ret = false;
         size_type c = 0;
         while (c < model_.num_constraints()) {
             auto& constraint = model_.constraint_ref(c);
@@ -379,17 +381,23 @@ class Presolver {
         return ret;
     }
     bool technique_remove_zero_biases() {
-       bool ret = false;
+        if (!tf_helper_.model_feasible) {
+            return false;
+        }
 
+        bool ret = false;
         ret |= remove_zero_biases(model_.objective);
         for (size_t c = 0; c < model_.num_constraints(); ++c) {
             ret |= remove_zero_biases(model_.constraint_ref(c));
         }
-
         return ret;
     }
     bool technique_tighten_bounds() {
-       bool ret = false;
+        if (!tf_helper_.model_feasible) {
+            return false;
+        }
+
+        bool ret = false;
         bias_type lb;
         bias_type ub;
         for (size_type v = 0; v < model_.num_variables(); ++v) {
@@ -415,7 +423,11 @@ class Presolver {
         return ret;
     }
     bool technique_remove_fixed_variables() {
-       bool ret = false; 
+        if (!tf_helper_.model_feasible) {
+            return false;
+        }
+
+        bool ret = false;
         size_type v = 0;
         while (v < model_.num_variables()) {
             if (model_.lower_bound(v) == model_.upper_bound(v)) {
@@ -470,10 +482,9 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
 
     tf_helper_.executor.run(tf_helper_.taskflow_onetime).wait();
     tf_helper_.executor.run(tf_helper_.taskflow_trivial).wait();
-    if(tf_helper_.model_feasible) {
+    if (tf_helper_.model_feasible) {
         tf_helper_.executor.run(tf_helper_.taskflow_cleanup).wait();
-    }
-    else {
+    } else {
         // need this exact message for Python
         throw std::logic_error("infeasible");
     }
@@ -493,7 +504,8 @@ Presolver<bias_type, index_type, assignment_type>::detach_model() {
 }
 
 template <class bias_type, class index_type, class assignment_type>
-void Presolver<bias_type, index_type, assignment_type>::load_presolvers(uint64_t presolvers, uint32_t max_rounds) {
+void Presolver<bias_type, index_type, assignment_type>::load_presolvers(uint64_t presolvers,
+                                                                        uint32_t max_rounds) {
     presolvers_ = presolvers;
 
     load_taskflow_onetime();
@@ -505,92 +517,101 @@ template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_onetime() {
     std::vector<tf::Task> tasks;
 
-    if(presolvers_ | PresolverTechniques::SPIN_TO_BINARY) {
-        auto task = tf_helper_.taskflow_onetime.emplace( [&]() { technique_spin_to_binary(); } );
+    if (presolvers_ | PresolverTechniques::SPIN_TO_BINARY) {
+        auto task = tf_helper_.taskflow_onetime.emplace([&]() { technique_spin_to_binary(); });
         task.name("spin_to_binary");
         tasks.emplace_back(task);
     }
-    if(presolvers_ | PresolverTechniques::REMOVE_OFFSETS) {
-        auto task = tf_helper_.taskflow_onetime.emplace( [&]() { technique_remove_offsets(); } );
+    if (presolvers_ | PresolverTechniques::REMOVE_OFFSETS) {
+        auto task = tf_helper_.taskflow_onetime.emplace([&]() { technique_remove_offsets(); });
         task.name("remove_offsets");
         tasks.emplace_back(task);
     }
-    if(presolvers_ | PresolverTechniques::FLIP_CONSTRAINTS) {
-        auto task = tf_helper_.taskflow_onetime.emplace( [&]() { technique_flip_constraints(); } );
+    if (presolvers_ | PresolverTechniques::FLIP_CONSTRAINTS) {
+        auto task = tf_helper_.taskflow_onetime.emplace([&]() { technique_flip_constraints(); });
         task.name("flip_constraints");
         tasks.emplace_back(task);
     }
-    if(presolvers_ | PresolverTechniques::REMOVE_SELF_LOOPS) {
-        auto task = tf_helper_.taskflow_onetime.emplace( [&]() { technique_remove_self_loops(); } );
+    if (presolvers_ | PresolverTechniques::REMOVE_SELF_LOOPS) {
+        auto task = tf_helper_.taskflow_onetime.emplace([&]() { technique_remove_self_loops(); });
         task.name("remove_self_loops");
         tasks.emplace_back(task);
     }
 
-    for(auto i = 0; i < tasks.size() - 1; i++) {
-        tasks[i].precede(tasks[i+1]);
+    for (auto i = 0; i < tasks.size() - 1; i++) {
+        tasks[i].precede(tasks[i + 1]);
     }
 }
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_trivial(int max_rounds) {
-    auto alpha = tf_helper_.taskflow_trivial.emplace(
-        [&]() {
-            tf_helper_.loop_changed = false;
-            tf_helper_.loop_counter = 0;
-        }
-    );
-    auto [a, b, c, d, e] = tf_helper_.taskflow_trivial.emplace(
-        [&]() { tf_helper_.loop_changed |= technique_remove_zero_biases(); },
-        [&]() { tf_helper_.loop_changed |= technique_check_for_nan(); },
-        [&]() { tf_helper_.loop_changed |= technique_remove_single_variable_constraints(); },
-        [&]() 
-            { 
-                if(tf_helper_.model_feasible) {
-                    tf_helper_.loop_changed |= technique_tighten_bounds(); 
-                }
-            },
-        [&]() 
-            { 
-                if(tf_helper_.model_feasible) {
-                    tf_helper_.loop_changed |= technique_remove_fixed_variables(); 
-                }
-            }
-    );
-    auto omega = tf_helper_.taskflow_trivial.emplace(
-        [&]() {
-            if(tf_helper_.model_feasible 
-                    && tf_helper_.loop_changed 
-                    && ++tf_helper_.loop_counter < max_rounds
-            ) {
-                tf_helper_.loop_changed = false;
-                return 0; // This will take us back to (a)
-            }
-            return 1; // This will cause us to exit
-        }
-    );
-    
+    auto alpha = tf_helper_.taskflow_trivial.emplace([&]() {
+        tf_helper_.loop_changed = false;
+        tf_helper_.loop_counter = 0;
+    });
     alpha.name("initialize");
-    a.name("remove_zero_biases");
-    b.name("check_for_nan");
-    c.name("remove_single_variable_constraints");
-    d.name("tighten_bounds");
-    e.name("remove_fixed_variables");
+
+    auto omega = tf_helper_.taskflow_trivial.emplace([&]() {
+        if (tf_helper_.model_feasible && tf_helper_.loop_changed &&
+            ++tf_helper_.loop_counter < max_rounds) {
+            tf_helper_.loop_changed = false;
+            return 0;  // This will loop back to the first task in tasks, below
+        }
+        return 1;  // This will exit the loop
+    });
     omega.name("conditional");
 
-    alpha.precede(a);
-    a.precede(b);
-    b.precede(c);
-    c.precede(d);
-    d.precede(e);
-    e.precede(omega);
-    omega.precede(a); // loops back to (a) iff omega returns 0; o/w this will exit the taskflow 
+    std::vector<tf::Task> tasks;
+    if (presolvers_ | PresolverTechniques::REMOVE_ZERO_BIASES) {
+        auto task = tf_helper_.taskflow_trivial.emplace(
+                [&]() { tf_helper_.loop_changed |= technique_remove_zero_biases(); });
+        task.name("remove_zero_biases");
+        tasks.emplace_back(task);
+    }
+    if (presolvers_ | PresolverTechniques::CHECK_FOR_NAN) {
+        auto task = tf_helper_.taskflow_trivial.emplace(
+                [&]() { tf_helper_.loop_changed |= technique_check_for_nan(); });
+        task.name("check_for_nan");
+        tasks.emplace_back(task);
+    }
+    if (presolvers_ | PresolverTechniques::REMOVE_SINGLE_VAR_CONSTRAINTS) {
+        auto task = tf_helper_.taskflow_trivial.emplace([&]() {
+            tf_helper_.loop_changed |= technique_remove_single_variable_constraints();
+        });
+        task.name("remove_single_variable_constraints");
+        tasks.emplace_back(task);
+    }
+    if (presolvers_ | PresolverTechniques::TIGHTEN_BOUNDS) {
+        auto task = tf_helper_.taskflow_trivial.emplace(
+                [&]() { tf_helper_.loop_changed |= technique_tighten_bounds(); });
+        task.name("tighten_bounds");
+        tasks.emplace_back(task);
+    }
+    if (presolvers_ | PresolverTechniques::REMOVE_FIXED_VARS) {
+        auto task = tf_helper_.taskflow_trivial.emplace(
+                [&]() { tf_helper_.loop_changed |= technique_remove_fixed_variables(); });
+        task.name("remove_fixed_variables");
+        tasks.emplace_back(task);
+    }
+
+    if (tasks.size() > 0) {
+        alpha.precede(tasks[0]);
+
+        for (auto i = 0; i < tasks.size() - 1; i++) {
+            tasks[i].precede(tasks[i + 1]);
+        }
+
+        tasks[tasks.size() - 1].precede(omega);
+        omega.precede(tasks[0]);
+    }
+    else {
+        alpha.precede(omega);
+    }
 }
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_taskflow_cleanup() {
-    auto a = tf_helper_.taskflow_cleanup.emplace(
-        [&]() { technique_remove_invalid_markers(); }
-    );
+    auto a = tf_helper_.taskflow_cleanup.emplace([&]() { technique_remove_invalid_markers(); });
     a.name("remove_invalid_markers");
 }
 
