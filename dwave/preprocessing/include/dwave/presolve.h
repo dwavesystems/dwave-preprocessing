@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "spdlog/spdlog.h"
 #include "dimod/constrained_quadratic_model.h"
 
 namespace dwave {
