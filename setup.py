@@ -63,7 +63,8 @@ setup(
     include_dirs=[
         numpy.get_include(),
         dimod.get_include(),
-        'extern/taskflow'
+        'extern/taskflow',
+        'extern/spdlog/include/',
         ],
     install_requires=[
         'numpy>=1.20.0,<2.0.0',  # keep synced with circle-ci, pyproject.toml
