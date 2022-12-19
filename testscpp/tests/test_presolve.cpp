@@ -14,7 +14,7 @@
 
 #include "catch2/catch.hpp"
 #include "dimod/constrained_quadratic_model.h"
-#include "dwave/presolve.hpp"
+#include "dwave/presolve.h"
 
 namespace dwave {
 
