@@ -47,6 +47,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - setup_remote_docker
       - run-cibuildwheel
 
@@ -67,6 +69,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run-cibuildwheel
 
   build-and-test-osx:
@@ -86,6 +90,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run-cibuildwheel
 
   build-sdist:
@@ -94,6 +100,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: build sdist
           command: |
@@ -119,6 +127,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run-cibuildwheel
 
   deploy-all:
@@ -149,6 +159,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: install dependencies
           command: |
@@ -178,6 +190,8 @@ jobs:
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: install doxygen
           command: sudo apt-get install doxygen
