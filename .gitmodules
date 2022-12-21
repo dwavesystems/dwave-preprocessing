@@ -2,6 +2,9 @@
 	path = testscpp/Catch2
 	url = https://github.com/catchorg/Catch2.git
 	branch = v2.x
+[submodule "extern/taskflow"]
+	path = extern/taskflow
+	url = https://github.com/taskflow/taskflow.git
 [submodule "extern/spdlog"]
 	path = extern/spdlog
 	url = https://github.com/gabime/spdlog.git

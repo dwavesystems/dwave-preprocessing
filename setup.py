@@ -26,6 +26,7 @@ extra_compile_args = {
     'msvc': ['/std:c++17', '/EHsc'],
     'unix': [
         '-std=c++17', 
+        '-pthread'
        ],
 }
 
@@ -62,6 +63,7 @@ setup(
     include_dirs=[
         numpy.get_include(),
         dimod.get_include(),
+        'extern/taskflow',
         'extern/spdlog/include/',
         ],
     install_requires=[
