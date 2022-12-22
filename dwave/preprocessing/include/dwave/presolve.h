@@ -198,7 +198,7 @@ class Presolver {
             auto& constraint = model_.constraint_ref(c);
             if (constraint.offset()) {
                 constraint.set_rhs(constraint.rhs() - constraint.offset());
-                constraint.set_offset(0);
+                 constraint.set_offset(0);
             }
         }
     }
@@ -350,6 +350,15 @@ class Presolver {
 
         return ret;
     }
+    bool technique_remove_small_biases() {
+        bool ret = false;
+
+        for (size_t c = 0; c < model_.num_constraints(); ++c) {
+            ret |= remove_small_biases(model_.constraint_ref(c));
+        }
+
+        return ret;
+    }
     bool technique_tighten_bounds() {
         bool ret = false;
         bias_type lb;
@@ -415,6 +424,42 @@ class Presolver {
 
         return empty_interactions.size() || empty_variables.size();
     }
+
+    static bool remove_small_biases(dimod::Constraint<bias_type, index_type>& expression) {
+        // todo: temporarily hard-coded the FEASIBILITY_TOLERANCE here.
+        // todo: ideally this should be added to dimod.
+        static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
+        std::vector<index_type> small_biases;
+        std::vector<index_type> small_biases_temp;
+        bias_type reduction = 0;
+        bias_type reduction_limit = 0;
+        for (auto& v : expression.variables()) {
+            // ax ◯ c
+            bias_type a = expression.linear(v);
+            bias_type lb = expression.lower_bound(v);
+            bias_type ub = expression.upper_bound(v);
+            assert(ub >= lb);
+            bias_type v_range = ub - lb;
+            // todo: document magic numbers
+            if (std::abs(a) < 1.0e-3 && std::abs(a) * v_range * expression.num_variables()
+            < 1.0e-2 * FEASIBILITY_TOLERANCE) {
+                small_biases_temp.emplace_back(v);
+                reduction += a * lb;
+                reduction_limit += std::abs(a) * v_range;
+            }
+            if (std::abs(a) < 1.0e-10)  small_biases.emplace_back(v);
+        }
+        // todo: document magic numbers
+        if (reduction_limit < 1.0e-1 * FEASIBILITY_TOLERANCE) {
+            expression.set_rhs(expression.rhs() - reduction);
+            for (auto& u : small_biases_temp) small_biases.emplace_back(u);
+        }
+
+        for (auto& v : small_biases) {
+            expression.remove_variable(v);
+        }
+        return small_biases.size();
+    }
 };
 
 template <class bias_type, class index_type, class assignment_type>
@@ -453,6 +498,8 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
 
         // *-- clear out 0 variables/interactions in the constraints and objective
         changes |= technique_remove_zero_biases();
+        // *-- clear out small linear biases in the constraints
+        changes |= technique_remove_small_biases();
         // *-- todo: check for NAN
         changes |= technique_check_for_nan();
         // *-- remove single variable constraints
