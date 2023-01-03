@@ -344,7 +344,7 @@ class Presolver {
         bool ret = false;
 
         ret |= remove_zero_biases(model_.objective);
-        for (size_t c = 0; c < model_.num_constraints(); ++c) {
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
             ret |= remove_zero_biases(model_.constraint_ref(c));
         }
 
@@ -353,7 +353,7 @@ class Presolver {
     bool technique_remove_small_biases() {
         bool ret = false;
 
-        for (size_t c = 0; c < model_.num_constraints(); ++c) {
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
             ret |= remove_small_biases(model_.constraint_ref(c));
         }
 
