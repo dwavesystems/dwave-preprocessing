@@ -198,7 +198,7 @@ class Presolver {
             auto& constraint = model_.constraint_ref(c);
             if (constraint.offset()) {
                 constraint.set_rhs(constraint.rhs() - constraint.offset());
-                 constraint.set_offset(0);
+                constraint.set_offset(0);
             }
         }
     }
