@@ -354,7 +354,8 @@ class Presolver {
         bool ret = false;
 
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            ret |= remove_small_biases(model_.constraint_ref(c));
+            if (model_.constraint_ref(c).is_linear())
+                ret |= remove_small_biases(model_.constraint_ref(c));
         }
 
         return ret;
