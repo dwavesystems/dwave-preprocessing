@@ -426,45 +426,46 @@ class Presolver {
     }
 
     static bool remove_small_biases(dimod::Constraint<bias_type, index_type>& expression) {
-        if (expression.is_linear()) {
-            // todo: temporarily hard-coded the FEASIBILITY_TOLERANCE here.
-            // todo: ideally this should be added to dimod.
-            static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
-            static constexpr double CONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-3;
-            static constexpr double CONDITIONAL_REMOVAL_LIMIT = 1.0e-2;
-            static constexpr double UNCONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-10;
-            static constexpr double SUM_REDUCTION_LIMIT = 1.0e-1;
-            std::vector<index_type> small_biases;
-            std::vector<index_type> small_biases_temp;
-            bias_type reduction = 0;
-            bias_type reduction_magnitude = 0;
-            for (auto& v : expression.variables()) {
-                // ax ◯ c
-                bias_type a = expression.linear(v);
-                bias_type lb = expression.lower_bound(v);
-                bias_type ub = expression.upper_bound(v);
-                assert(ub >= lb);
-                bias_type v_range = ub - lb;
-                if (std::abs(a) < CONDITIONAL_REMOVAL_BIAS_LIMIT &&
-                std::abs(a) * v_range * expression.num_variables() <
-                CONDITIONAL_REMOVAL_LIMIT * FEASIBILITY_TOLERANCE) {
-                    small_biases_temp.emplace_back(v);
-                    reduction += a * lb;
-                    reduction_magnitude += std::abs(a) * v_range;
-                }
-                if (std::abs(a) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT)
-                    small_biases.emplace_back(v);
-            }
-            if (reduction_magnitude < SUM_REDUCTION_LIMIT * FEASIBILITY_TOLERANCE) {
-                expression.set_rhs(expression.rhs() - reduction);
-                for (auto& u : small_biases_temp) small_biases.emplace_back(u);
-            }
+        // todo : not yet defined for quadratic expressions
+        if (!expression.is_linear()) return false;
 
-            for (auto& v : small_biases) {
-                expression.remove_variable(v);
+        // todo: temporarily hard-coded the FEASIBILITY_TOLERANCE here
+        // todo: ideally this should be added to dimod
+        static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
+        static constexpr double CONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-3;
+        static constexpr double CONDITIONAL_REMOVAL_LIMIT = 1.0e-2;
+        static constexpr double UNCONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-10;
+        static constexpr double SUM_REDUCTION_LIMIT = 1.0e-1;
+        std::vector<index_type> small_biases;
+        std::vector<index_type> small_biases_temp;
+        bias_type reduction = 0;
+        bias_type reduction_magnitude = 0;
+        for (auto& v : expression.variables()) {
+            // ax ◯ c
+            bias_type a = expression.linear(v);
+            bias_type lb = expression.lower_bound(v);
+            bias_type ub = expression.upper_bound(v);
+            assert(ub >= lb);
+            bias_type v_range = ub - lb;
+            if (std::abs(a) < CONDITIONAL_REMOVAL_BIAS_LIMIT &&
+            std::abs(a) * v_range * expression.num_variables() <
+            CONDITIONAL_REMOVAL_LIMIT * FEASIBILITY_TOLERANCE) {
+                small_biases_temp.emplace_back(v);
+                reduction += a * lb;
+                reduction_magnitude += std::abs(a) * v_range;
             }
-            return small_biases.size();
-        } else return 0;
+            if (std::abs(a) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT)
+                small_biases.emplace_back(v);
+        }
+        if (reduction_magnitude < SUM_REDUCTION_LIMIT * FEASIBILITY_TOLERANCE) {
+            expression.set_rhs(expression.rhs() - reduction);
+            for (auto& u : small_biases_temp) small_biases.emplace_back(u);
+        }
+
+        for (auto& v : small_biases) {
+            expression.remove_variable(v);
+        }
+        return small_biases.size();
     }
 };
 
