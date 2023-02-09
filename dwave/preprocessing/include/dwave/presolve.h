@@ -364,15 +364,6 @@ class Presolver {
 
         return ret;
     }
-    bool technique_domain_propagation() {
-        bool ret = false;
-
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            ret |= domain_propagation(model_.constraint_ref(c));
-        }
-
-        return ret;
-    }
     bool technique_tighten_bounds() {
         bool ret = false;
         bias_type lb;
@@ -397,6 +388,15 @@ class Presolver {
                     break;
             }
         }
+        return ret;
+    }
+    bool technique_domain_propagation() {
+        bool ret = false;
+
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            ret |= domain_propagation(model_.constraint_ref(c));
+        }
+
         return ret;
     }
     bool technique_remove_fixed_variables() {
@@ -621,10 +621,10 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         changes |= technique_check_for_nan();
         // *-- remove single variable constraints
         changes |= technique_remove_single_variable_constraints();
-        // *-- domain propagation
-        changes |= technique_domain_propagation();
         // *-- tighten bounds based on vartype
         changes |= technique_tighten_bounds();
+        // *-- domain propagation
+        changes |= technique_domain_propagation();
         // *-- remove variables that are fixed by bounds
         changes |= technique_remove_fixed_variables();
    }
