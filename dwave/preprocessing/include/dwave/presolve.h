@@ -623,7 +623,7 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         changes |= technique_remove_single_variable_constraints();
         // *-- domain propagation
         changes |= technique_domain_propagation();
-        // *-- remove variables that are fixed by bounds
+        // *-- tighten bounds based on vartype
         changes |= technique_tighten_bounds();
         // *-- remove variables that are fixed by bounds
         changes |= technique_remove_fixed_variables();
