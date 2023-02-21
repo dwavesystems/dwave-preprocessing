@@ -63,6 +63,11 @@ cdef class cyPresolver:
         """
         return make_cqm(cppmove(self.cpppresolver.detach_model()))
 
+    def load_normalization_techniques(self):
+        """Load the normalization techniques."""
+        self.cpppresolver.load_normalization_techniques()
+
+
     def load_default_presolvers(self):
         """Load the default presolvers."""
         self.cpppresolver.load_default_presolvers()

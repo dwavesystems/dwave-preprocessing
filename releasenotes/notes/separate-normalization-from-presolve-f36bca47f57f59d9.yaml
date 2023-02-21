@@ -1,0 +1,4 @@
+---
+features:
+  - |
+    Separated normalization techniques from other presolve techniques.
