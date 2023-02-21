@@ -141,6 +141,7 @@ class Presolver {
 
     /// Load the default presolve techniques.
     void load_default_presolvers();
+    void load_normalization_techniques();
 
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const;
@@ -154,6 +155,7 @@ class Presolver {
 
     // todo: replace this with a vector of pointers or similar
     bool default_techniques_;
+    bool normalization_techniques_;
 
     bool detached_;
 
@@ -471,18 +473,18 @@ class Presolver {
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver()
-        : model_(), postsolver_(), default_techniques_(false), detached_(false) {}
+        : model_(), postsolver_(), default_techniques_(false), normalization_techniques_(false), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver(model_type model)
-        : model_(std::move(model)), postsolver_(), default_techniques_(), detached_(false) {}
+        : model_(std::move(model)), postsolver_(), default_techniques_(), normalization_techniques_(), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::apply() {
     if (detached_) throw std::logic_error("model has been detached, presolver is no longer valid");
 
     // If no techniques have been loaded, return early.
-    if (!default_techniques_) return;
+    if (!normalization_techniques_) return;
 
     // One time techniques ----------------------------------------------------
 
@@ -496,6 +498,7 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     technique_remove_self_loops();
 
     // Trivial techniques -----------------------------------------------------
+    if (!default_techniques_) return;
 
     bool changes = true;
     const index_type max_num_rounds = 100;  // todo: make configurable
@@ -537,7 +540,13 @@ Presolver<bias_type, index_type, assignment_type>::detach_model() {
 }
 
 template <class bias_type, class index_type, class assignment_type>
+void Presolver<bias_type, index_type, assignment_type>::load_normalization_techniques() {
+    normalization_techniques_ = true;
+}
+
+template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::load_default_presolvers() {
+    normalization_techniques_ = true;
     default_techniques_ = true;
 }
 
