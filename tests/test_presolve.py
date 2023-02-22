@@ -315,14 +315,31 @@ class TestPresolver(unittest.TestCase):
 
         reduced = pre.detach_model()
 
-        i0, j0, aux = dimod.Integers((0, 1, 3))
-        x = dimod.Binary(2)
+        i0 = dimod.Integer(0, lower_bound=0, upper_bound=5)
+        aux = dimod.Integer(3)
 
         expected = dimod.ConstrainedQuadraticModel()
-        expected.add_constraint(i0 <= 5, label=0)
-        expected.add_constraint(-j0 <= -2, label=1)
-        expected.add_constraint(i0*aux == 4, label=2)
-        expected.add_constraint(2*x == 2, label=3)
-        expected.add_constraint(i0 - aux == 0, label=4)
+        expected.add_variable('INTEGER', 1, lower_bound=2)
+        expected.add_constraint(i0*aux == 4, label=0)
+        expected.add_constraint(i0 - aux == 0, label=1)
 
         self.assertTrue(reduced.is_equal(expected))
+
+    def test_single_constraint_raise_error(self):
+        cqm = dimod.ConstrainedQuadraticModel()
+        i = dimod.Integer(0, lower_bound=0, upper_bound=5)
+        cqm.add_constraint(i <= -1)
+
+        with self.assertRaises(InfeasibleModelError):
+            pre = Presolver(cqm)
+            pre.load_normalization_techniques()
+            pre.apply()
+
+        cqm = dimod.ConstrainedQuadraticModel()
+        i = dimod.Integer(0, lower_bound=0, upper_bound=5)
+        cqm.add_constraint(i >= 6)
+
+        with self.assertRaises(InfeasibleModelError):
+            pre = Presolver(cqm)
+            pre.load_normalization_techniques()
+            pre.apply()
