@@ -1,4 +1,9 @@
 ---
 features:
   - |
-    Separated normalization techniques from other presolve techniques.
+    Separated normalization techniques, i.e. ``technique_spin_to_binary``, 
+    ``technique_remove_offsets``, ``technique_flip_constraints``, 
+    ``technique_remove_self_loops``, ``technique_remove_zero_biases``, 
+    ``technique_remove_small_biases``, ``technique_check_for_nan`` and
+    ``technique_remove_single_variable_constraints`` from other 
+    presolve techniques.
