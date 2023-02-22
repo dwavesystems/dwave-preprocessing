@@ -327,10 +327,18 @@ class Presolver {
                     model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
                     model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
                 } else if ((constraint.sense() == dimod::Sense::LE) != (a < 0)) {
-                    model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
+                    bias_type new_upper_bound = std::min(rhs, model_.upper_bound(v));
+                    if (new_upper_bound < model_.lower_bound(v)) {
+                        throw std::logic_error("infeasible");
+                    }
+                    model_.set_upper_bound(v, new_upper_bound);
                 } else {
                     assert((constraint.sense() == dimod::Sense::GE) == (a >= 0));
-                    model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
+                    bias_type new_lower_bound = std::max(rhs, model_.lower_bound(v));
+                    if (new_lower_bound > model_.upper_bound(v)) {
+                        throw std::logic_error("infeasible");
+                    }
+                    model_.set_lower_bound(v, new_lower_bound);
                 }
 
                 model_.remove_constraint(c);
@@ -496,6 +504,16 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
     technique_flip_constraints();
     // *-- remove self-loops
     technique_remove_self_loops();
+    // *-- clear out 0 variables/interactions in the constraints and objective
+    technique_remove_zero_biases();
+    // *-- clear out small linear biases in the constraints
+    technique_remove_small_biases();
+    // *-- todo: check for NAN
+    technique_check_for_nan();
+    // *-- remove single variable constraints
+    // this may raise an error, e.g  x <= 0 x >= 1.
+    // Since it's trivially discovered we keep it here
+    technique_remove_single_variable_constraints();
 
     // Trivial techniques -----------------------------------------------------
     if (!default_techniques_) return;
