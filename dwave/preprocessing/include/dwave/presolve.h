@@ -485,7 +485,8 @@ Presolver<bias_type, index_type, assignment_type>::Presolver()
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver(model_type model)
-        : model_(std::move(model)), postsolver_(), default_techniques_(), normalization_techniques_(), detached_(false) {}
+        : model_(std::move(model)), postsolver_(), default_techniques_(false), normalization_techniques_(false),
+         detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::apply() {
