@@ -22,11 +22,6 @@
 #include "spdlog/spdlog.h"
 #include "dimod/constrained_quadratic_model.h"
 
-// todo: temporarily hard-coded the FEASIBILITY_TOLERANCE here
-// todo: ideally this should be added to dimod
-static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
-static constexpr double INF = 1.0e30;
-
 namespace dwave {
 namespace presolve {
 
@@ -154,6 +149,9 @@ class Presolver {
     const Postsolver<bias_type, index_type, assignment_type>& postsolver() const;
 
  private:
+    static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
+    static constexpr double INF = 1.0e30;
+
     model_type model_;
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
 
