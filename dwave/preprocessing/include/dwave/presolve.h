@@ -508,7 +508,7 @@ class Presolver {
     }
     bool domain_propagation(dimod::Constraint<bias_type, index_type>& expression) {
         // only defined for linear constraints
-        if (!expression.is_linear()) return false;
+        if (!expression.is_linear() || expression.is_soft()) return false;
 
         static constexpr double NEW_BOUND_MAX = 1.0e8;
         static constexpr double MIN_CHANGE_FOR_BOUND_UPDATE = 1.0e-3;
