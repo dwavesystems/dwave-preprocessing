@@ -1,6 +1,7 @@
 version: 2.1
 
 orbs:
+  codecov: codecov/codecov@3
   win: circleci/windows@2.2.0
 
 commands:
@@ -155,7 +156,7 @@ jobs:
   # suffices to just do it once
   test-codecov:
     docker:
-      - image: circleci/python:3.9
+      - image: cimg/python:3.9
 
     steps:
       - checkout
@@ -178,11 +179,9 @@ jobs:
           command: |
             . env/bin/activate
             coverage run -m unittest
-      - run:
-          name: codecov
-          command: |
-            . env/bin/activate
-            codecov
+            coverage xml
+      - codecov/upload:
+          file: coverage.xml
 
   test-doctest:
     docker:
