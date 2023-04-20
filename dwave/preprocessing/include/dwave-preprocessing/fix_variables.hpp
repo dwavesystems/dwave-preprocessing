@@ -56,7 +56,7 @@ capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variable
 
   // There may not be 1 to 1 mapping from bqm variables to posiform variables,
   // so we convert the posiform variables back to bqm variables.
-  for (int i = 0; i < fixed_variables_posiform.size(); i++) {
+  for (std::size_t i = 0; i < fixed_variables_posiform.size(); i++) {
     int bqm_variable = posiform_info.mapVariablePosiformToQubo(
         fixed_variables_posiform[i].first);
     fixed_variables.push_back(

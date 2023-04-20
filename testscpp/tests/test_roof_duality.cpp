@@ -38,7 +38,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
 
         REQUIRE(lower_bound == -2);
         REQUIRE(fixed_vars == fixed_vars2);
-        REQUIRE(fixed_vars.size() == num_vars);
+        REQUIRE(fixed_vars.size() == static_cast<std::size_t>(num_vars));
 
         for (auto var : fixed_vars) {
             if (var.first == 2) {
@@ -129,7 +129,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         fixed_vars = result.second;
 
         REQUIRE(lower_bound == 0);
-        REQUIRE(fixed_vars.size() == num_vars);
+        REQUIRE(fixed_vars.size() == static_cast<std::size_t>(num_vars));
 
         for (auto var : fixed_vars) {
             REQUIRE(var.second == 1);

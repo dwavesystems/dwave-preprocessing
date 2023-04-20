@@ -236,7 +236,7 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
   // we are summing up the linear coefficients for the posiform over all the bqm
   // variables, not the posiform variables.
   _posiform_linear_sum_non_integral = 0;
-  for (int bqm_variable = 0; bqm_variable < _linear_double_biases.size();
+  for (std::size_t bqm_variable = 0; bqm_variable < _linear_double_biases.size();
        bqm_variable++) {
     _posiform_linear_sum_non_integral +=
         std::fabs(_linear_double_biases[bqm_variable]);
@@ -290,7 +290,7 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     }
 
     _posiform_linear_sum_integral = 0; // For debugging purposes.
-    for (int bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
+    for (std::size_t bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
         bqm_variable++) {
       if (_linear_integral_biases[bqm_variable]) {
         _num_linear_integral_biases++;
