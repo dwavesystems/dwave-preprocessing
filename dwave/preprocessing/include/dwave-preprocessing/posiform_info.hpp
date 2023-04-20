@@ -20,6 +20,7 @@
 #include <iostream>
 #include <limits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 /**
@@ -210,7 +211,10 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     if (_max_absolute_value < bqm_linear_abs) {
       _max_absolute_value = bqm_linear_abs;
     }
-    auto span = bqm.neighborhood(bqm_variable, bqm_variable + 1);
+    auto span =
+            std::make_pair(std::lower_bound(bqm.cbegin_neighborhood(bqm_variable),
+                                            bqm.cend_neighborhood(bqm_variable), bqm_variable + 1),
+                           bqm.cend_neighborhood(bqm_variable));
     _quadratic_iterators[bqm_variable] = span;
     if (span.first != span.second) {
       for (auto it_end = span.second; span.first != it_end; span.first++) {
