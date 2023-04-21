@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "catch2/catch.hpp"
 #include <dimod/quadratic_model.h>
 
+#include "catch2/catch.hpp"
 #include "dwave-preprocessing/fix_variables.hpp"
 
 namespace fix_variables_ {
 
 TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
     SECTION("Test simple case") {
-        float Q [9] = {22,-4, 0,
-                        0, 0, 4,
-                        0, 0,-2};
+        float Q[9] = {22, -4, 0, 0, 0, 4, 0, 0, -2};
 
         int num_vars = 3;
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
@@ -40,22 +38,19 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
 
         REQUIRE(lower_bound == -2);
         REQUIRE(fixed_vars == fixed_vars2);
-        REQUIRE(fixed_vars.size() == num_vars);
+        REQUIRE(fixed_vars.size() == static_cast<std::size_t>(num_vars));
 
         for (auto var : fixed_vars) {
             if (var.first == 2) {
                 REQUIRE(var.second == 1);
-            }
-            else {
+            } else {
                 REQUIRE(var.second == 0);
             }
         }
     }
 
     SECTION("Test offset") {
-        float Q [9] = {22,-4, 0,
-                        0, 0, 4,
-                        0, 0,-2};
+        float Q[9] = {22, -4, 0, 0, 0, 4, 0, 0, -2};
 
         int num_vars = 3;
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
@@ -67,7 +62,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
     }
 
     SECTION("Test empty case") {
-        float Q [] = {};
+        float Q[] = {};
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, 0, dimod::Vartype::BINARY);
 
         auto result = fixQuboVariables(bqm, true);
@@ -86,9 +81,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
     }
 
     SECTION("Test zero bias case") {
-        float Q [9] = {1, 0, 0,
-                       0, 0, 0,
-                       0, 0, 0};
+        float Q[9] = {1, 0, 0, 0, 0, 0, 0, 0, 0};
 
         int num_vars = 3;
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
@@ -111,8 +104,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         for (auto var : fixed_vars) {
             if (var.first == 0) {
                 REQUIRE(var.second == 0);
-            }
-            else {
+            } else {
                 // variables that didn't contribute should be set to 1
                 REQUIRE(var.second == 1);
             }
@@ -120,9 +112,8 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
     }
 
     SECTION("Test all zero bias case") {
-        float Q [4] = {0, 0, 
-                       0, 0};
-        
+        float Q[4] = {0, 0, 0, 0};
+
         int num_vars = 2;
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
 
@@ -138,7 +129,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
         fixed_vars = result.second;
 
         REQUIRE(lower_bound == 0);
-        REQUIRE(fixed_vars.size() == num_vars);
+        REQUIRE(fixed_vars.size() == static_cast<std::size_t>(num_vars));
 
         for (auto var : fixed_vars) {
             REQUIRE(var.second == 1);
@@ -146,8 +137,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
     }
 
     SECTION("Test from previously found bug (BugSAPI1311)") {
-        float Q [4] = {2.2, -4.0,
-                         0,  2.0};
+        float Q[4] = {2.2, -4.0, 0, 2.0};
 
         int num_vars = 2;
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
@@ -173,9 +163,7 @@ TEST_CASE("Tests for fixQuboVariables", "[roofduality]") {
 
 TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
     SECTION("Test basic case") {
-        float Q [9] = {22,-4, 0,
-                        0, 0, 4,
-                        0, 0,-2};
+        float Q[9] = {22, -4, 0, 0, 0, 4, 0, 0, -2};
 
         int num_vars = 3;
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
@@ -194,13 +182,13 @@ TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
 
         auto span = posiform.getQuadratic(0);
         REQUIRE(std::distance(span.first, span.second) == 1);
-        REQUIRE(span.first->v == 1); // neighbor var
-        REQUIRE(span.first->bias == -4); // quad bias
+        REQUIRE(span.first->v == 1);      // neighbor var
+        REQUIRE(span.first->bias == -4);  // quad bias
 
         span = posiform.getQuadratic(1);
         REQUIRE(std::distance(span.first, span.second) == 1);
-        REQUIRE(span.first->v == 2); // neighbor var
-        REQUIRE(span.first->bias == 4); // quad bias
+        REQUIRE(span.first->v == 2);     // neighbor var
+        REQUIRE(span.first->bias == 4);  // quad bias
 
         span = posiform.getQuadratic(2);
         REQUIRE(std::distance(span.first, span.second) == 0);
@@ -214,18 +202,16 @@ TEST_CASE("Tests for PosiformInfo", "[roofduality]") {
     }
 
     SECTION("Test zero bias case") {
-        float Q [9] = {1, 0, 0,
-                       0, 0, 0,
-                       0, 0, 0};
+        float Q[9] = {1, 0, 0, 0, 0, 0, 0, 0, 0};
 
         int num_vars = 3;
         auto bqm = dimod::BinaryQuadraticModel<float, int>(Q, num_vars, dimod::Vartype::BINARY);
         PosiformInfo<dimod::BinaryQuadraticModel<float, int>, capacity_type> posiform(bqm);
-        
+
         REQUIRE(posiform.getNumVariables() == 1);
 
         REQUIRE(posiform.getLinear(0) > 0);
-        
+
         auto span = posiform.getQuadratic(0);
         REQUIRE(std::distance(span.first, span.second) == 0);
 

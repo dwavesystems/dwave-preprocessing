@@ -118,13 +118,13 @@ int breadthFirstSearchResidual(
     std::vector<std::vector<int>> levels;
     levels.resize(num_vertices + 1);
     level_sizes.resize(num_vertices + 1, 0);
-    for (int i = 0; i < depth_values.size(); i++) {
+    for (std::size_t i = 0; i < depth_values.size(); i++) {
       level_sizes[depth_values[i]]++;
     }
-    for (int i = 0; i < level_sizes.size(); i++) {
+    for (std::size_t i = 0; i < level_sizes.size(); i++) {
       levels[i].reserve(level_sizes[i]);
     }
-    for (int i = 0; i < depth_values.size(); i++) {
+    for (std::size_t i = 0; i < depth_values.size(); i++) {
       levels[depth_values[i]].push_back(i);
     }
     std::cout << std::endl;
@@ -132,13 +132,13 @@ int breadthFirstSearchResidual(
               << "breadth first search result starting from vertex : "
               << start_vertex << std::endl;
     std::cout << std::endl;
-    for (int i = 0; i < levels.size(); i++) {
+    for (std::size_t i = 0; i < levels.size(); i++) {
       if (!levels[i].size()) {
         continue;
       }
       std::cout << "Level " << i << " has " << levels[i].size()
                 << " vertices : " << std::endl;
-      for (int j = 0; j < levels[i].size(); j++) {
+      for (std::size_t j = 0; j < levels[i].size(); j++) {
         std::cout << levels[i][j] << " ";
       }
       std::cout << std::endl;
