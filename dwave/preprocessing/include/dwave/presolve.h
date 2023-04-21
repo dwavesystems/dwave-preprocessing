@@ -149,6 +149,9 @@ class Presolver {
     const Postsolver<bias_type, index_type, assignment_type>& postsolver() const;
 
  private:
+    static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
+    static constexpr double INF = 1.0e30;
+
     model_type model_;
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
 
@@ -385,8 +388,17 @@ class Presolver {
         }
         return ret;
     }
+    bool technique_domain_propagation() {
+        bool ret = false;
+
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            ret |= domain_propagation(model_.constraint_ref(c));
+        }
+
+        return ret;
+    }
     bool technique_remove_fixed_variables() {
-        bool ret = false; 
+        bool ret = false;
         size_type v = 0;
         while (v < model_.num_variables()) {
             if (model_.lower_bound(v) == model_.upper_bound(v)) {
@@ -398,7 +410,6 @@ class Presolver {
         }
         return ret;
     }
-
     static bool remove_zero_biases(dimod::Expression<bias_type, index_type>& expression) {
         // quadratic
         std::vector<std::pair<index_type, index_type>> empty_interactions;
@@ -424,14 +435,10 @@ class Presolver {
 
         return empty_interactions.size() || empty_variables.size();
     }
-
     static bool remove_small_biases(dimod::Constraint<bias_type, index_type>& expression) {
         // todo : not yet defined for quadratic expressions
         if (!expression.is_linear()) return false;
 
-        // todo: temporarily hard-coded the FEASIBILITY_TOLERANCE here
-        // todo: ideally this should be added to dimod
-        static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
         static constexpr double CONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-3;
         static constexpr double CONDITIONAL_REMOVAL_LIMIT = 1.0e-2;
         static constexpr double UNCONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-10;
@@ -466,6 +473,107 @@ class Presolver {
             expression.remove_variable(v);
         }
         return small_biases.size();
+    }
+    static std::pair<bias_type, bias_type> get_min_max_activities(
+    dimod::Constraint<bias_type, index_type>& expression, int exclude_v) {
+        std::pair<bias_type, bias_type> result;
+        bias_type minac = 0;
+        bias_type maxac = 0;
+        for (auto& v : expression.variables()) {
+            if (v == exclude_v) continue;
+
+            bias_type a = expression.linear(v);
+            bias_type lb = expression.lower_bound(v);
+            bias_type ub = expression.upper_bound(v);
+            assert(ub >= lb);
+
+            if (a > 0) {
+                if (lb > - INF) minac += a * lb;
+                else minac = -INF;
+                if (ub < INF) maxac += a * ub;
+                else maxac = INF;
+            }
+            else {
+                if (ub < INF) minac += a * ub;
+                else minac = -INF;
+                if (lb > -INF) maxac += a * lb;
+                else maxac = INF;
+            }
+        }
+        result.first = minac;
+        result.second = maxac;
+        return result;
+    }
+    bool domain_propagation(dimod::Constraint<bias_type, index_type>& expression) {
+        // only defined for linear constraints
+        if (!expression.is_linear() || expression.is_soft()) return false;
+
+        static constexpr double NEW_BOUND_MAX = 1.0e8;
+        static constexpr double MIN_CHANGE_FOR_BOUND_UPDATE = 1.0e-3;
+        bool continue_domain_propagation = false;
+        // equality_constraints should be broken to two inequalities
+        bool equality_constraint = false;
+        if (expression.sense() == dimod::Sense::EQ) equality_constraint = true;
+
+        for (auto& v : expression.variables()) {
+            // domain propagation does not apply to binary variable
+            if (model_.vartype(v) == dimod::Vartype::BINARY) continue;
+
+            // todo: reduce the calls to 'get_min_max_activities' by calling
+            // todo: it once for each constraint and not each variable
+            std::pair<bias_type, bias_type> result = get_min_max_activities(expression, v);
+            auto& minac = result.first;
+            auto& maxac = result.second;
+
+            bias_type a = expression.linear(v);
+            bias_type lb = expression.lower_bound(v);
+            bias_type ub = expression.upper_bound(v);
+            assert(ub >= lb);
+
+            // calculate the potential new bounds
+            bias_type pnb1 = (expression.rhs() - minac)/a; // for LE and EQ constraints
+            bias_type pnb2 = (expression.rhs() - maxac)/a; // only for EQ constraints
+            if (std::abs(pnb1) > NEW_BOUND_MAX) continue;
+            if (equality_constraint && std::abs(pnb2) > NEW_BOUND_MAX) continue;
+
+            if (a > 0) {
+                if (minac > -INF && expression.rhs() < INF &&
+                    ub - pnb1 > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
+                    if (pnb1 > lb && pnb1 < ub) {
+                        model_.set_upper_bound(v, pnb1);
+                        continue_domain_propagation = true;
+                    }
+                    else if (pnb1 < lb) throw std::logic_error("infeasible");
+                }
+                if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
+                    pnb2 - lb > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
+                    if (pnb2 > lb && pnb2 < ub) {
+                        model_.set_lower_bound(v, pnb2);
+                        continue_domain_propagation = true;
+                    }
+                    else if (pnb2 > ub) throw std::logic_error("infeasible");
+                }
+            }
+            if (a < 0) {
+                if (minac > -INF && expression.rhs() < INF &&
+                    pnb1 - lb > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
+                    if (pnb1 > lb && pnb1 < ub) {
+                        model_.set_lower_bound(v, pnb1);
+                        continue_domain_propagation = true;
+                    }
+                else if (pnb1 > ub) throw std::logic_error("infeasible");
+                }
+                if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
+                    ub - pnb2 > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
+                    if (pnb2 > lb && pnb2 < ub){
+                        model_.set_upper_bound(v, pnb2);
+                        continue_domain_propagation = true;
+                    }
+                else if (pnb2 < lb) throw std::logic_error("infeasible");
+                }
+            }
+        }
+        return continue_domain_propagation;
     }
 };
 
@@ -513,6 +621,8 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
         changes |= technique_remove_single_variable_constraints();
         // *-- tighten bounds based on vartype
         changes |= technique_tighten_bounds();
+        // *-- domain propagation
+        changes |= technique_domain_propagation();
         // *-- remove variables that are fixed by bounds
         changes |= technique_remove_fixed_variables();
    }
