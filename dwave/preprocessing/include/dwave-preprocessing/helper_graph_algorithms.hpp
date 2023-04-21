@@ -161,8 +161,6 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
   int num_vertices = adjacency_list.size();
   std::vector<capacity_t> excess(num_vertices, 0);
 
-  std::cout << "Validating flow of flow network ..." << std::endl;
-
   double overflow_detector = 0;
   auto eit = adjacency_list[source].begin();
   auto eit_end = adjacency_list[source].end();
