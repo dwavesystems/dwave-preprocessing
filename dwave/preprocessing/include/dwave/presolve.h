@@ -152,7 +152,59 @@ class Presolver {
     static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
     static constexpr double INF = 1.0e30;
 
-    model_type model_;
+    // We want to control access to the model in order to track changes,
+    // so we create a rump version of the model.
+    class ModelView : private model_type {
+     public:
+        ModelView() = default;
+        ~ModelView() = default;
+
+        explicit ModelView(model_type&& model) : model_type(model) {}
+
+        // Const methods are all safe to expose
+        using model_type::num_constraints;
+        using model_type::num_variables;
+        using model_type::lower_bound;
+        using model_type::upper_bound;
+        using model_type::vartype;
+
+        // We can expose the expression access methods because changes to
+        // the individual expressions don't get tracked
+        using model_type::constraint_ref;
+        using model_type::constraints;
+
+        // Adding/removing constraints isn't tracked
+        using model_type::add_linear_constraint;
+        using model_type::remove_constraint;
+
+        // The bound changes don't get tracked
+        using model_type::set_lower_bound;
+        using model_type::set_upper_bound;
+
+        // Expose the objective. Changes don't get tracked
+        auto& objective() { return static_cast<model_type*>(this)->objective; }
+        const auto& objective() const { return static_cast<model_type*>(this)->objective; }
+
+        // Expose the model as a const reference
+        const model_type& model() const { return *this; }
+
+        // Clear the model, but not the transforms queue.
+        model_type detach_model() {
+            using std::swap;  // ADL, though doubt it makes a difference
+            auto cqm = dimod::ConstrainedQuadraticModel<bias_type, index_type>();
+            swap(*this, cqm);
+            return cqm;
+        }
+
+        // todo: overload
+        using model_type::add_variable;
+        using model_type::change_vartype;
+        using model_type::fix_variable;
+    };
+
+    ModelView model_;
+
+    // model_type model_;
     Postsolver<bias_type, index_type, assignment_type> postsolver_;
 
     // todo: replace this with a vector of pointers or similar
@@ -216,7 +268,7 @@ class Presolver {
     void technique_remove_self_loops() {
         std::unordered_map<index_type, index_type> mapping;
 
-        substitute_self_loops_expr(model_.objective, mapping);
+        substitute_self_loops_expr(model_.objective(), mapping);
 
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             substitute_self_loops_expr(model_.constraint_ref(c), mapping);
@@ -346,7 +398,7 @@ class Presolver {
     bool technique_remove_zero_biases() {
         bool ret = false;
 
-        ret |= remove_zero_biases(model_.objective);
+        ret |= remove_zero_biases(model_.objective());
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             ret |= remove_zero_biases(model_.constraint_ref(c));
         }
@@ -636,14 +688,8 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
 template <class bias_type, class index_type, class assignment_type>
 dimod::ConstrainedQuadraticModel<bias_type, index_type>
 Presolver<bias_type, index_type, assignment_type>::detach_model() {
-    using std::swap;  // ADL, though doubt it makes a difference
-
-    auto cqm = dimod::ConstrainedQuadraticModel<bias_type, index_type>();
-    swap(model_, cqm);
-
     detached_ = true;
-
-    return cqm;
+    return model_.detach_model();
 }
 
 template <class bias_type, class index_type, class assignment_type>
@@ -654,7 +700,7 @@ void Presolver<bias_type, index_type, assignment_type>::load_default_presolvers(
 template <class bias_type, class index_type, class assignment_type>
 const dimod::ConstrainedQuadraticModel<bias_type, index_type>&
 Presolver<bias_type, index_type, assignment_type>::model() const {
-    return model_;
+    return model_.model();
 }
 
 template <class bias_type, class index_type, class assignment_type>

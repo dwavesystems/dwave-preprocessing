@@ -18,6 +18,30 @@
 
 namespace dwave {
 
+using Presolver = presolve::Presolver<double, int, double>;
+using CQM = dimod::ConstrainedQuadraticModel<double, int>;
+
+TEST_CASE("Presover construction") {
+    GIVEN("A Presolver constructed without any arguments") {
+        auto pre = Presolver();
+
+        THEN("Its held model is empty") {
+            CHECK(pre.model().num_variables() == 0);
+            CHECK(pre.model().num_constraints() == 0);
+        }
+    }
+
+    GIVEN("A Presolver constructed with an empty CQM") {
+        auto cqm = CQM();
+        auto pre = Presolver(cqm);
+
+        THEN("Its held model is empty") {
+            CHECK(pre.model().num_variables() == 0);
+            CHECK(pre.model().num_constraints() == 0);
+        }
+    }
+}
+
 SCENARIO("constrained quadratic models can be presolved") {
     GIVEN("a cqm with some trivial issues") {
         auto cqm = dimod::ConstrainedQuadraticModel<double>();
