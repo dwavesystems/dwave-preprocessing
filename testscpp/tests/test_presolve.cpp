@@ -113,7 +113,7 @@ SCENARIO("constrained quadratic models can be presolved") {
                 }
 
                 AND_WHEN("we then undo the transformation") {
-                    auto original = presolver.postsolver().apply(std::vector<int>{3});
+                    auto original = presolver.restore(std::vector<int>{3});
                     CHECK(original == std::vector<int>{3, 5, 7, 5});
                 }
             }
@@ -185,7 +185,7 @@ SCENARIO("constrained quadratic models can be presolved") {
                 }
 
                 AND_WHEN("we then undo the transformation") {
-                    auto original = presolver.postsolver().apply(std::vector<int>{0, 1, 0, 1, 0});
+                    auto original = presolver.restore(std::vector<int>{0, 1, 0, 1, 0});
                     CHECK(original == std::vector<int>{-1, +1, -1, +1, -1});
                 }
             }
@@ -224,7 +224,7 @@ SCENARIO("constrained quadratic models can be presolved") {
 
             AND_WHEN("we then undo the transformation") {
                 auto original =
-                        presolver.postsolver().apply(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8});
+                        presolver.restore(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8});
                 CHECK(original == std::vector<int>{1, 2, 3, 4, 5});
             }
         }

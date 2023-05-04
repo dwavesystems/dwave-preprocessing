@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -26,96 +27,6 @@ namespace dwave {
 namespace presolve {
 
 template <class Bias, class Index = int, class Assignment = double>
-class Presolver;
-
-template <class Bias, class Index, class Assignment>
-class Postsolver {
- public:
-    using bias_type = Bias;
-    using index_type = Index;
-    using size_type = std::size_t;
-    using assignment_type = Assignment;
-
-    /// Return a sample of the original CQM from a sample of the reduced CQM.
-    template <class T>
-    std::vector<T> apply(std::vector<T> reduced) const;
-
- private:
-    // we want to track what changes were made
-    enum TransformKind { FIX, SUBSTITUTE, ADD };
-
-    // todo: we could get fancy with pointers and templates to save a bit of
-    // space here
-    struct Transform {
-        TransformKind kind;
-        index_type v;           // what variable it was applied to
-        assignment_type value;  // if it was fixed what it was fixed to
-        bias_type multiplier;
-        bias_type offset;
-
-        explicit Transform(TransformKind kind)
-                : kind(kind), v(-1), value(NAN), multiplier(NAN), offset(NAN) {}
-    };
-
-    friend class Presolver<bias_type, index_type, assignment_type>;
-
-    void add_variable(index_type v);
-
-    void fix_variable(index_type v, assignment_type value);
-
-    void substitute_variable(index_type v, bias_type multiplier, bias_type offset);
-
-    std::vector<Transform> transforms_;
-};
-
-template <class bias_type, class index_type, class assignment_type>
-void Postsolver<bias_type, index_type, assignment_type>::add_variable(index_type v) {
-    transforms_.emplace_back(TransformKind::ADD);
-    transforms_.back().v = v;
-}
-
-template <class bias_type, class index_type, class assignment_type>
-template <class T>
-std::vector<T> Postsolver<bias_type, index_type, assignment_type>::apply(
-        std::vector<T> sample) const {
-    // all that we have to do is undo the transforms back to front.
-    for (auto it = transforms_.crbegin(); it != transforms_.crend(); ++it) {
-        switch (it->kind) {
-            case TransformKind::FIX:
-                sample.insert(sample.begin() + it->v, it->value);
-                break;
-            case TransformKind::SUBSTITUTE:
-                sample[it->v] *= it->multiplier;
-                sample[it->v] += it->offset;
-                break;
-            case TransformKind::ADD:
-                sample.erase(sample.begin() + it->v);
-                break;
-        }
-    }
-    return sample;
-}
-
-template <class bias_type, class index_type, class assignment_type>
-void Postsolver<bias_type, index_type, assignment_type>::fix_variable(index_type v,
-                                                                      assignment_type value) {
-    transforms_.emplace_back(TransformKind::FIX);
-    transforms_.back().v = v;
-    transforms_.back().value = value;
-}
-
-template <class bias_type, class index_type, class assignment_type>
-void Postsolver<bias_type, index_type, assignment_type>::substitute_variable(index_type v,
-                                                                             bias_type multiplier,
-                                                                             bias_type offset) {
-    assert(multiplier);  // cannot undo when it's 0
-    transforms_.emplace_back(TransformKind::SUBSTITUTE);
-    transforms_.back().v = v;
-    transforms_.back().multiplier = multiplier;
-    transforms_.back().offset = offset;
-}
-
-template <class Bias, class Index, class Assignment>
 class Presolver {
  public:
     using model_type = dimod::ConstrainedQuadraticModel<Bias, Index>;
@@ -145,8 +56,11 @@ class Presolver {
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const;
 
-    /// Return a const reference to the held postsolver.
-    const Postsolver<bias_type, index_type, assignment_type>& postsolver() const;
+    /// Return a sample of the original CQM from a sample of the reduced CQM.
+    template<class T>
+    std::vector<T> restore(std::vector<T> reduced) const {
+        return model_.restore(std::move(reduced));
+    }
 
  private:
     static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
@@ -196,16 +110,80 @@ class Presolver {
             return cqm;
         }
 
-        // todo: overload
-        using model_type::add_variable;
-        using model_type::change_vartype;
-        using model_type::fix_variable;
+        // Track when we add a variable to the model.
+        index_type add_variable(dimod::Vartype vartype, bias_type lb, bias_type ub) {
+            index_type v = model_type::add_variable(vartype, lb, ub);
+            transforms_.emplace_back(TransformKind::ADD);
+            transforms_.back().v = v;
+            return v;
+        }
+
+        // Track when we change the vartype of a variable
+        void change_vartype(dimod::Vartype vartype, index_type v) {
+            if ((model_type::vartype(v) == dimod::Vartype::SPIN) &&
+                (vartype == dimod::Vartype::BINARY)) {
+                // SPIN->BINARY
+                transforms_.emplace_back(TransformKind::SUBSTITUTE);
+                transforms_.back().v = v;
+                transforms_.back().multiplier = 2;
+                transforms_.back().offset = -1;
+            } else {
+                // We currently only need SPIN->BINARY, but can add more as needed
+                throw std::logic_error("unsupported vartype change");
+            }
+            model_type::change_vartype(vartype, v);
+        }
+
+        // Track when we remove a variable from the model by fixing it
+        void fix_variable(index_type v, assignment_type assignment) {
+            model_type::fix_variable(v, assignment);
+
+            transforms_.emplace_back(TransformKind::FIX);
+            transforms_.back().v = v;
+            transforms_.back().value = assignment;
+        }
+
+        // Restore a sample by undoing all of the transforms
+        template <class T>
+        std::vector<T> restore(std::vector<T> sample) const {
+            // all that we have to do is undo the transforms back to front.
+            for (auto it = transforms_.crbegin(); it != transforms_.crend(); ++it) {
+                switch (it->kind) {
+                    case TransformKind::FIX:
+                        sample.insert(sample.begin() + it->v, it->value);
+                        break;
+                    case TransformKind::SUBSTITUTE:
+                        sample[it->v] *= it->multiplier;
+                        sample[it->v] += it->offset;
+                        break;
+                    case TransformKind::ADD:
+                        sample.erase(sample.begin() + it->v);
+                        break;
+                }
+            }
+            return sample;
+        }
+
+     private:
+        // we want to track what changes were made
+        enum TransformKind { FIX, SUBSTITUTE, ADD };
+
+        // We could get fancy with pointers and templates to save a bit of space here
+        struct Transform {
+            TransformKind kind;
+            index_type v;           // what variable it was applied to
+            assignment_type value;  // if it was fixed what it was fixed to
+            bias_type multiplier;
+            bias_type offset;
+
+            explicit Transform(TransformKind kind)
+                    : kind(kind), v(-1), value(NAN), multiplier(NAN), offset(NAN) {}
+        };
+
+        std::vector<Transform> transforms_;
     };
 
     ModelView model_;
-
-    // model_type model_;
-    Postsolver<bias_type, index_type, assignment_type> postsolver_;
 
     // todo: replace this with a vector of pointers or similar
     bool default_techniques_;
@@ -226,8 +204,6 @@ class Presolver {
                 // we haven't seen this variable before
                 model_.add_variable(model_.vartype(v), model_.lower_bound(v),
                                     model_.upper_bound(v));
-
-                postsolver_.add_variable(out.first->second);
             }
 
             assert(static_cast<size_type>(out.first->second) < model_.num_variables());
@@ -243,7 +219,6 @@ class Presolver {
     void technique_spin_to_binary() {
         for (size_type v = 0; v < model_.num_variables(); ++v) {
             if (model_.vartype(v) == dimod::Vartype::SPIN) {
-                postsolver_.substitute_variable(v, 2, -1);
                 model_.change_vartype(dimod::Vartype::BINARY, v);
             }
         }
@@ -454,7 +429,6 @@ class Presolver {
         size_type v = 0;
         while (v < model_.num_variables()) {
             if (model_.lower_bound(v) == model_.upper_bound(v)) {
-                postsolver_.fix_variable(v, model_.lower_bound(v));
                 model_.fix_variable(v, model_.lower_bound(v));
                 ret = true;
             }
@@ -631,11 +605,11 @@ class Presolver {
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver()
-        : model_(), postsolver_(), default_techniques_(false), detached_(false) {}
+        : model_(), default_techniques_(false), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 Presolver<bias_type, index_type, assignment_type>::Presolver(model_type model)
-        : model_(std::move(model)), postsolver_(), default_techniques_(), detached_(false) {}
+        : model_(std::move(model)), default_techniques_(), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
 void Presolver<bias_type, index_type, assignment_type>::apply() {
@@ -701,12 +675,6 @@ template <class bias_type, class index_type, class assignment_type>
 const dimod::ConstrainedQuadraticModel<bias_type, index_type>&
 Presolver<bias_type, index_type, assignment_type>::model() const {
     return model_.model();
-}
-
-template <class bias_type, class index_type, class assignment_type>
-const Postsolver<bias_type, index_type, assignment_type>&
-Presolver<bias_type, index_type, assignment_type>::postsolver() const {
-    return postsolver_;
 }
 
 }  // namespace presolve

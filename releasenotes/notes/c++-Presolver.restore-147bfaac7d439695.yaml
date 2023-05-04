@@ -1,0 +1,5 @@
+---
+features:
+  - Add C++ ``Presolver::restore()`` method for restoring samples.
+upgrade:
+  - Remove C++ ``PostSolver`` class. See `#90 <https://github.com/dwavesystems/dwave-preprocessing/issues/90>`_.
