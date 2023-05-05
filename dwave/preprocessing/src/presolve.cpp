@@ -61,8 +61,13 @@ std::vector<Assignment> Presolver<Bias, Index, Assignment>::restore(
     return impl_->restore(reduced);
 }
 
-// If we start seeing pickup on this library, we can build other numeric
-// combinations. But for now, this is the only CQM combo that dimod distributes.
+// There are many other combinations that we could expose, but since dimod
+// only exposes CQM<float64, int32> via the Cython interface we only do the
+// minimum here for now.
+// We do need to do both int and long because on Cython for MSVC int32 is an
+// alias for long, so if we explicitly instantiate anything but long MSVC gets
+// confused.
 template class Presolver<double, int, double>;
+template class Presolver<double, long, double>;
 
 }  // namespace dwave::presolve
