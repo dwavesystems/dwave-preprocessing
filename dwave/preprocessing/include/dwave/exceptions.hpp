@@ -19,6 +19,8 @@
 
 namespace dwave::presolve {
 
+/// Error for models that are ill-constructed or otherwise not valid models.
+/// This is disctinct from infeasibility.
 struct InvalidModelError : public std::runtime_error {
     explicit InvalidModelError(const std::string& msg);
 };
