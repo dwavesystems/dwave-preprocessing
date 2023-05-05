@@ -14,7 +14,11 @@
 
 #pragma once
 
+#ifndef _WIN32
+// MSVC does not support std::experimental
 #include <experimental/propagate_const>
+#endif
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -58,7 +62,13 @@ class Presolver {
 
  protected:
     class PresolverImpl_;
+
+#ifndef _WIN32
     std::experimental::propagate_const<std::unique_ptr<PresolverImpl_>> impl_;
+#else
+    // MSVC does not support std::experimental
+    std::unique_ptr<PresolverImpl_> impl_;
+#endif
 };
 
 }  // namespace dwave::presolve
