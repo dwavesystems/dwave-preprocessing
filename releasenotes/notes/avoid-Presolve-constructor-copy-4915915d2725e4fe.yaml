@@ -1,0 +1,5 @@
+---
+features:
+  - Improve the performance of the ``Presolver`` constructor by avoiding an unnecessary copy.
+upgrade:
+  - The wrapped C++ ``dwave::presolve::Presolver`` held by ``cyPresolver.cpppresolver`` is now stored as a pointer.

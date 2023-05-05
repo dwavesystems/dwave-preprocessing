@@ -27,20 +27,27 @@ from dimod.cyutilities cimport ConstNumeric
 
 
 cdef class cyPresolver:
-    def __init__(self, cyConstrainedQuadraticModel cqm, *, bint move = False):
-        self._original_variables = cqm.variables.copy()
+    def __cinit__(self, cyConstrainedQuadraticModel cqm, *, bint move = False):
+        self._original_variables = cqm.variables.copy()  # todo: implement Variables.swap()
 
         if move:
-            self.cpppresolver = cppPresolver[bias_type, index_type, double](cppmove(cqm.cppcqm))
+            self.cpppresolver = new cppPresolver[bias_type, index_type, double](cppmove(cqm.cppcqm))
 
-            # todo: replace with cqm.clear()
-            cqm.variables._clear()
-            cqm.constraint_labels._clear()
+            # clear out any remaining variables etc in the original model
+            cqm.clear()
         else:
-            self.cpppresolver = cppPresolver[bias_type, index_type, double](cqm.cppcqm)
+            self.cpppresolver = new cppPresolver[bias_type, index_type, double](cqm.cppcqm)
 
         # we need this because we may detach the model later
         self._model_num_variables = self.cpppresolver.model().num_variables()
+
+    def __init__(self, cyConstrainedQuadraticModel cqm, *, bint move = False):
+        pass
+
+    def __dealloc__(self):
+        if self.cpppresolver is not NULL:
+            del self.cpppresolver
+            self.cpppresolver = NULL
 
     def apply(self):
         """Apply any loaded presolve techniques to the held constrained quadratic model."""
