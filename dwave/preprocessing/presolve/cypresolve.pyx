@@ -82,7 +82,7 @@ cdef class cyPresolver:
             for vi in range(num_variables):
                 reduced.push_back(samples[i, vi])
 
-            original = self.cpppresolver.postsolver().apply(reduced)
+            original = self.cpppresolver.restore(reduced)
 
             if original.size() != original_samples.shape[1]:
                 raise RuntimeError("unexpected reduced variables size")

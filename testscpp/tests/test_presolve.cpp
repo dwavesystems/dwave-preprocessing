@@ -18,6 +18,30 @@
 
 namespace dwave {
 
+using Presolver = presolve::Presolver<double, int, double>;
+using CQM = dimod::ConstrainedQuadraticModel<double, int>;
+
+TEST_CASE("Presover construction") {
+    GIVEN("A Presolver constructed without any arguments") {
+        auto pre = Presolver();
+
+        THEN("Its held model is empty") {
+            CHECK(pre.model().num_variables() == 0);
+            CHECK(pre.model().num_constraints() == 0);
+        }
+    }
+
+    GIVEN("A Presolver constructed with an empty CQM") {
+        auto cqm = CQM();
+        auto pre = Presolver(cqm);
+
+        THEN("Its held model is empty") {
+            CHECK(pre.model().num_variables() == 0);
+            CHECK(pre.model().num_constraints() == 0);
+        }
+    }
+}
+
 SCENARIO("constrained quadratic models can be presolved") {
     GIVEN("a cqm with some trivial issues") {
         auto cqm = dimod::ConstrainedQuadraticModel<double>();
@@ -89,7 +113,7 @@ SCENARIO("constrained quadratic models can be presolved") {
                 }
 
                 AND_WHEN("we then undo the transformation") {
-                    auto original = presolver.postsolver().apply(std::vector<int>{3});
+                    auto original = presolver.restore(std::vector<int>{3});
                     CHECK(original == std::vector<int>{3, 5, 7, 5});
                 }
             }
@@ -161,7 +185,7 @@ SCENARIO("constrained quadratic models can be presolved") {
                 }
 
                 AND_WHEN("we then undo the transformation") {
-                    auto original = presolver.postsolver().apply(std::vector<int>{0, 1, 0, 1, 0});
+                    auto original = presolver.restore(std::vector<int>{0, 1, 0, 1, 0});
                     CHECK(original == std::vector<int>{-1, +1, -1, +1, -1});
                 }
             }
@@ -200,7 +224,7 @@ SCENARIO("constrained quadratic models can be presolved") {
 
             AND_WHEN("we then undo the transformation") {
                 auto original =
-                        presolver.postsolver().apply(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8});
+                        presolver.restore(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8});
                 CHECK(original == std::vector<int>{1, 2, 3, 4, 5});
             }
         }

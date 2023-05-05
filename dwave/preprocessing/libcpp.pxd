@@ -20,9 +20,6 @@ from dimod.libcpp cimport ConstrainedQuadraticModel
 
 
 cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
-    cdef cppclass Postsolver[bias_type, index_type, assignment_type]:
-        vector[T] apply[T](vector[T])
-
     cdef cppclass Presolver[bias_type, index_type, assignment_type]:
         ctypedef ConstrainedQuadraticModel[bias_type, index_type] model_type
 
@@ -32,4 +29,4 @@ cdef extern from "dwave/presolve.h" namespace "dwave::presolve" nogil:
         model_type detach_model()
         void load_default_presolvers()
         model_type& model()
-        Postsolver[bias_type, index_type, assignment_type]& postsolver()
+        vector[T] restore[T](vector[T])

@@ -18,7 +18,7 @@
 from dimod.cyqmbase.cyqmbase_float64 cimport bias_type, index_type
 from dimod.cyvariables cimport cyVariables
 
-from dwave.preprocessing.libcpp cimport Postsolver as cppPostsolver, Presolver as cppPresolver
+from dwave.preprocessing.libcpp cimport Presolver as cppPresolver
 
 __all__ = ['cyPresolver']
 

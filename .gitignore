@@ -62,10 +62,5 @@ dwave/preprocessing/presolve/*.cpp
 dwave/preprocessing/presolve/*.html
 
 # testing stuff
-testscpp/Catch2
-testscpp/test_main
-testscpp/test_main.o
-testscpp/test_main.out
-testscpp/test_main_parallel
-testscpp/test_main_parallel.o
-testscpp/test_main_parallel.out
+testscpp/*.o
+testscpp/*.out
