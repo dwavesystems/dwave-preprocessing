@@ -18,14 +18,17 @@ test_main.o:
 exceptions.o: $(INCLUDE)/dwave/exceptions.hpp $(SRC)/exceptions.cpp
 	$(CXX) $(FLAGS) $(SRC)/exceptions.cpp -c -I$(INCLUDE)
 
-test_presolve.o: tests/test_presolve.cpp $(INCLUDE)/dwave/presolve.h
+presolve.o: $(INCLUDE)/dwave/presolve.hpp $(SRC)/presolve.cpp $(SRC)/presolveimpl.hpp
+	$(CXX) $(FLAGS) $(SRC)/presolve.cpp -c -I$(INCLUDE) -I$(SRC) -I$(DIMOD)
+
+test_presolve.o: tests/test_presolve.cpp $(INCLUDE)/dwave/presolve.hpp 
 	$(CXX) $(FLAGS) tests/test_presolve.cpp -c -I$(CATCH2) -I$(INCLUDE) -I$(DIMOD) -I$(SPDLOG)
 
 test_roof_duality.o: tests/test_roof_duality.cpp $(wildcard $(INCLUDE)/dwave-preprocessing/*hpp)
 	$(CXX) $(FLAGS) tests/test_roof_duality.cpp -c -I$(DIMOD) -I$(CATCH2) -I$(INCLUDE)
 
-tests.out: test_main.o exceptions.o test_presolve.o test_roof_duality.o
-	$(CXX) $(FLAGS) test_main.o exceptions.o test_presolve.o test_roof_duality.o -o tests.out
+tests.out: test_main.o exceptions.o presolve.o test_presolve.o test_roof_duality.o
+	$(CXX) $(FLAGS) test_main.o exceptions.o presolve.o test_presolve.o test_roof_duality.o -o tests.out
 
 tests: tests.out
 	./tests.out
@@ -35,4 +38,4 @@ update:
 	git submodule update
 
 clean:
-	rm *.o *.out
+	rm -f *.o *.out

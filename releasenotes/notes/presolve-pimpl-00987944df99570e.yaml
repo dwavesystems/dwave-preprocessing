@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Reimplement the C++ ``Presolver`` using the PImpl pattern. This will make
+    it easier to maintain binary compatibility going forward.
+    See `#89 <https://github.com/dwavesystems/dwave-preprocessing/issues/89>`_.
+upgrade:
+  - The C++ ``Presolver`` no longer has a header-only implementation.

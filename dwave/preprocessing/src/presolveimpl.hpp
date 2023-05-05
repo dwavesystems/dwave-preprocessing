@@ -20,14 +20,13 @@
 #include <utility>
 #include <vector>
 
-#include "spdlog/spdlog.h"
 #include "dimod/constrained_quadratic_model.h"
 
 namespace dwave {
 namespace presolve {
 
 template <class Bias, class Index = int, class Assignment = double>
-class Presolver {
+class PresolverImpl {
  public:
     using model_type = dimod::ConstrainedQuadraticModel<Bias, Index>;
 
@@ -38,10 +37,10 @@ class Presolver {
     using assignment_type = Assignment;
 
     /// Default constructor.
-    Presolver();
+    PresolverImpl();
 
     /// Construct a presolver from a constrained quadratic model.
-    explicit Presolver(model_type model);
+    explicit PresolverImpl(model_type model);
 
     /// Apply any loaded presolve techniques. Acts of the model() in-place.
     void apply();
@@ -604,15 +603,15 @@ class Presolver {
 };
 
 template <class bias_type, class index_type, class assignment_type>
-Presolver<bias_type, index_type, assignment_type>::Presolver()
+PresolverImpl<bias_type, index_type, assignment_type>::PresolverImpl()
         : model_(), default_techniques_(false), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
-Presolver<bias_type, index_type, assignment_type>::Presolver(model_type model)
+PresolverImpl<bias_type, index_type, assignment_type>::PresolverImpl(model_type model)
         : model_(std::move(model)), default_techniques_(), detached_(false) {}
 
 template <class bias_type, class index_type, class assignment_type>
-void Presolver<bias_type, index_type, assignment_type>::apply() {
+void PresolverImpl<bias_type, index_type, assignment_type>::apply() {
     if (detached_) throw std::logic_error("model has been detached, presolver is no longer valid");
 
     // If no techniques have been loaded, return early.
@@ -661,19 +660,19 @@ void Presolver<bias_type, index_type, assignment_type>::apply() {
 
 template <class bias_type, class index_type, class assignment_type>
 dimod::ConstrainedQuadraticModel<bias_type, index_type>
-Presolver<bias_type, index_type, assignment_type>::detach_model() {
+PresolverImpl<bias_type, index_type, assignment_type>::detach_model() {
     detached_ = true;
     return model_.detach_model();
 }
 
 template <class bias_type, class index_type, class assignment_type>
-void Presolver<bias_type, index_type, assignment_type>::load_default_presolvers() {
+void PresolverImpl<bias_type, index_type, assignment_type>::load_default_presolvers() {
     default_techniques_ = true;
 }
 
 template <class bias_type, class index_type, class assignment_type>
 const dimod::ConstrainedQuadraticModel<bias_type, index_type>&
-Presolver<bias_type, index_type, assignment_type>::model() const {
+PresolverImpl<bias_type, index_type, assignment_type>::model() const {
     return model_.model();
 }
 
