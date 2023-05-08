@@ -37,23 +37,76 @@ class PresolverImpl {
     using assignment_type = Assignment;
 
     /// Default constructor.
-    PresolverImpl();
+    PresolverImpl() = default;
+
+    /// Default destructor.
+    ~PresolverImpl() = default;
 
     /// Construct a presolver from a constrained quadratic model.
-    explicit PresolverImpl(model_type model);
+    explicit PresolverImpl(model_type model)
+            : model_(std::move(model)), default_techniques_(false), detached_(false) {}
 
     /// Apply any loaded presolve techniques. Acts of the model() in-place.
-    void apply();
+    void apply() {
+        if (detached_)
+            throw std::logic_error("model has been detached, presolver is no longer valid");
+
+        // If no techniques have been loaded, return early.
+        if (!default_techniques_) return;
+
+        // One time techniques ----------------------------------------------------
+
+        // *-- spin-to-binary
+        technique_spin_to_binary();
+        // *-- remove offsets
+        technique_remove_offsets();
+        // *-- flip >= constraints
+        technique_flip_constraints();
+        // *-- remove self-loops
+        technique_remove_self_loops();
+
+        // Trivial techniques -----------------------------------------------------
+
+        bool changes = true;
+        const index_type max_num_rounds = 100;  // todo: make configurable
+        for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
+            if (!changes) break;
+            changes = false;
+
+            // *-- clear out 0 variables/interactions in the constraints and objective
+            changes |= technique_remove_zero_biases();
+            // *-- clear out small linear biases in the constraints
+            changes |= technique_remove_small_biases();
+            // *-- todo: check for NAN
+            changes |= technique_check_for_nan();
+            // *-- remove single variable constraints
+            changes |= technique_remove_single_variable_constraints();
+            // *-- tighten bounds based on vartype
+            changes |= technique_tighten_bounds();
+            // *-- domain propagation
+            changes |= technique_domain_propagation();
+            // *-- remove variables that are fixed by bounds
+            changes |= technique_remove_fixed_variables();
+        }
+
+        // Cleanup
+
+        // *-- remove any invalid discrete markers
+        technique_remove_invalid_markers();
+    }
 
     /// Detach the constrained quadratic model and return it.
     /// This clears the model from the presolver.
-    model_type detach_model();
+    model_type detach_model() {
+        detached_ = true;
+        return model_.detach_model();
+    }
 
     /// Load the default presolve techniques.
-    void load_default_presolvers();
+    void load_default_presolvers() { default_techniques_ = true; }
 
     /// Return a const reference to the held constrained quadratic model.
-    const model_type& model() const;
+    const model_type& model() const { return model_.model(); }
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
     template<class T>
@@ -601,80 +654,5 @@ class PresolverImpl {
         return continue_domain_propagation;
     }
 };
-
-template <class bias_type, class index_type, class assignment_type>
-PresolverImpl<bias_type, index_type, assignment_type>::PresolverImpl()
-        : model_(), default_techniques_(false), detached_(false) {}
-
-template <class bias_type, class index_type, class assignment_type>
-PresolverImpl<bias_type, index_type, assignment_type>::PresolverImpl(model_type model)
-        : model_(std::move(model)), default_techniques_(), detached_(false) {}
-
-template <class bias_type, class index_type, class assignment_type>
-void PresolverImpl<bias_type, index_type, assignment_type>::apply() {
-    if (detached_) throw std::logic_error("model has been detached, presolver is no longer valid");
-
-    // If no techniques have been loaded, return early.
-    if (!default_techniques_) return;
-
-    // One time techniques ----------------------------------------------------
-
-    // *-- spin-to-binary
-    technique_spin_to_binary();
-    // *-- remove offsets
-    technique_remove_offsets();
-    // *-- flip >= constraints
-    technique_flip_constraints();
-    // *-- remove self-loops
-    technique_remove_self_loops();
-
-    // Trivial techniques -----------------------------------------------------
-
-    bool changes = true;
-    const index_type max_num_rounds = 100;  // todo: make configurable
-    for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
-        if (!changes) break;
-        changes = false;
-
-        // *-- clear out 0 variables/interactions in the constraints and objective
-        changes |= technique_remove_zero_biases();
-        // *-- clear out small linear biases in the constraints
-        changes |= technique_remove_small_biases();
-        // *-- todo: check for NAN
-        changes |= technique_check_for_nan();
-        // *-- remove single variable constraints
-        changes |= technique_remove_single_variable_constraints();
-        // *-- tighten bounds based on vartype
-        changes |= technique_tighten_bounds();
-        // *-- domain propagation
-        changes |= technique_domain_propagation();
-        // *-- remove variables that are fixed by bounds
-        changes |= technique_remove_fixed_variables();
-   }
-
-    // Cleanup
-
-    // *-- remove any invalid discrete markers
-    technique_remove_invalid_markers();
-}
-
-template <class bias_type, class index_type, class assignment_type>
-dimod::ConstrainedQuadraticModel<bias_type, index_type>
-PresolverImpl<bias_type, index_type, assignment_type>::detach_model() {
-    detached_ = true;
-    return model_.detach_model();
-}
-
-template <class bias_type, class index_type, class assignment_type>
-void PresolverImpl<bias_type, index_type, assignment_type>::load_default_presolvers() {
-    default_techniques_ = true;
-}
-
-template <class bias_type, class index_type, class assignment_type>
-const dimod::ConstrainedQuadraticModel<bias_type, index_type>&
-PresolverImpl<bias_type, index_type, assignment_type>::model() const {
-    return model_.model();
-}
-
 }  // namespace presolve
 }  // namespace dwave
