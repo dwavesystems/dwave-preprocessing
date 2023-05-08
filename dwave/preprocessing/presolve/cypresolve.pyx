@@ -1,3 +1,5 @@
+# distutils: sources = dwave/preprocessing/src/presolve.cpp
+
 # Copyright 2022 D-Wave Systems Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");

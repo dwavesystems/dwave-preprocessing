@@ -14,7 +14,7 @@
 
 #include "catch2/catch.hpp"
 #include "dimod/constrained_quadratic_model.h"
-#include "dwave/presolve.h"
+#include "dwave/presolve.hpp"
 
 namespace dwave {
 
@@ -113,8 +113,8 @@ SCENARIO("constrained quadratic models can be presolved") {
                 }
 
                 AND_WHEN("we then undo the transformation") {
-                    auto original = presolver.restore(std::vector<int>{3});
-                    CHECK(original == std::vector<int>{3, 5, 7, 5});
+                    auto original = presolver.restore(std::vector<double>{3});
+                    CHECK(original == std::vector<double>{3, 5, 7, 5});
                 }
             }
 
@@ -185,8 +185,8 @@ SCENARIO("constrained quadratic models can be presolved") {
                 }
 
                 AND_WHEN("we then undo the transformation") {
-                    auto original = presolver.restore(std::vector<int>{0, 1, 0, 1, 0});
-                    CHECK(original == std::vector<int>{-1, +1, -1, +1, -1});
+                    auto original = presolver.restore(std::vector<double>{0, 1, 0, 1, 0});
+                    CHECK(original == std::vector<double>{-1, +1, -1, +1, -1});
                 }
             }
         }
@@ -224,8 +224,8 @@ SCENARIO("constrained quadratic models can be presolved") {
 
             AND_WHEN("we then undo the transformation") {
                 auto original =
-                        presolver.restore(std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8});
-                CHECK(original == std::vector<int>{1, 2, 3, 4, 5});
+                        presolver.restore(std::vector<double>{1, 2, 3, 4, 5, 6, 7, 8});
+                CHECK(original == std::vector<double>{1, 2, 3, 4, 5});
             }
         }
     }
