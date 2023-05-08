@@ -46,7 +46,7 @@ dimod::ConstrainedQuadraticModel<Bias, Index> Presolver<Bias, Index, Assignment>
 
 template <class Bias, class Index, class Assignment>
 void Presolver<Bias, Index, Assignment>::load_default_presolvers() {
-    impl_->load_default_presolvers();
+    impl_->flags = TechniqueFlags::All;
 }
 
 template <class Bias, class Index, class Assignment>

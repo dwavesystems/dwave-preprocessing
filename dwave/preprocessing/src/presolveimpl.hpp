@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "dimod/constrained_quadratic_model.h"
+#include "dwave/flags.hpp"
 
 namespace dwave {
 namespace presolve {
@@ -44,15 +45,15 @@ class PresolverImpl {
 
     /// Construct a presolver from a constrained quadratic model.
     explicit PresolverImpl(model_type model)
-            : model_(std::move(model)), default_techniques_(false), detached_(false) {}
+            : flags(), model_(std::move(model)), status_() {}
 
     /// Apply any loaded presolve techniques. Acts of the model() in-place.
     void apply() {
-        if (detached_)
+        if (status_ & PresolveStatus::Detached)
             throw std::logic_error("model has been detached, presolver is no longer valid");
 
         // If no techniques have been loaded, return early.
-        if (!default_techniques_) return;
+        if (flags != TechniqueFlags::All) return;
 
         // One time techniques ----------------------------------------------------
 
@@ -98,12 +99,9 @@ class PresolverImpl {
     /// Detach the constrained quadratic model and return it.
     /// This clears the model from the presolver.
     model_type detach_model() {
-        detached_ = true;
+        status_ = status_ | PresolveStatus::Detached;
         return model_.detach_model();
     }
-
-    /// Load the default presolve techniques.
-    void load_default_presolvers() { default_techniques_ = true; }
 
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const { return model_.model(); }
@@ -113,6 +111,10 @@ class PresolverImpl {
     std::vector<T> restore(std::vector<T> reduced) const {
         return model_.restore(std::move(reduced));
     }
+
+    const PresolveStatus& status() const { return status_; }
+
+    TechniqueFlags flags;
 
  private:
     static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
@@ -237,10 +239,7 @@ class PresolverImpl {
 
     ModelView model_;
 
-    // todo: replace this with a vector of pointers or similar
-    bool default_techniques_;
-
-    bool detached_;
+    PresolveStatus status_;
 
     void substitute_self_loops_expr(dimod::Expression<bias_type, index_type>& expression,
                                     std::unordered_map<index_type, index_type>& mapping) {
