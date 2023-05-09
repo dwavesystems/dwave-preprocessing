@@ -57,8 +57,6 @@ class PresolverImpl {
 
         // One time techniques ----------------------------------------------------
 
-        // *-- spin-to-binary
-        technique_spin_to_binary();
         // *-- remove offsets
         technique_remove_offsets();
         // *-- flip >= constraints
@@ -113,7 +111,19 @@ class PresolverImpl {
     void normalize() {
         if (detached_)
             throw std::logic_error("model has been detached, presolver is no longer valid");
+
+        normalize_spin_to_binary();
+
         normalized_ = true;
+    }
+
+    /// Convert any SPIN variables to BINARY variables
+    void normalize_spin_to_binary() {
+        for (size_type v = 0; v < model_.num_variables(); ++v) {
+            if (model_.vartype(v) == dimod::Vartype::SPIN) {
+                model_.change_vartype(dimod::Vartype::BINARY, v);
+            }
+        }
     }
 
     void presolve() {
@@ -285,13 +295,6 @@ class PresolverImpl {
 
     //----- One-time Techniques -----//
 
-    void technique_spin_to_binary() {
-        for (size_type v = 0; v < model_.num_variables(); ++v) {
-            if (model_.vartype(v) == dimod::Vartype::SPIN) {
-                model_.change_vartype(dimod::Vartype::BINARY, v);
-            }
-        }
-    }
     void technique_remove_offsets() {
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
