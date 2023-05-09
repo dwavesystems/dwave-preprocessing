@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "dimod/constrained_quadratic_model.h"
+#include "dwave/flags.hpp"
 
 namespace dwave::presolve {
 

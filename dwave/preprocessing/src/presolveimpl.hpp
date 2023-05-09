@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "dimod/constrained_quadratic_model.h"
+#include "dwave/flags.hpp"
 
 namespace dwave {
 namespace presolve {
@@ -43,8 +44,7 @@ class PresolverImpl {
     ~PresolverImpl() = default;
 
     /// Construct a presolver from a constrained quadratic model.
-    explicit PresolverImpl(model_type model)
-            : model_(std::move(model)), default_techniques_(false), detached_(false) {}
+    explicit PresolverImpl(model_type model) : model_(std::move(model)) {}
 
     /// Apply any loaded presolve techniques. Acts of the model() in-place.
     void apply() {
@@ -52,7 +52,7 @@ class PresolverImpl {
             throw std::logic_error("model has been detached, presolver is no longer valid");
 
         // If no techniques have been loaded, return early.
-        if (!default_techniques_) return;
+        if (!techniques) return;
 
         // One time techniques ----------------------------------------------------
 
@@ -102,8 +102,7 @@ class PresolverImpl {
         return model_.detach_model();
     }
 
-    /// Load the default presolve techniques.
-    void load_default_presolvers() { default_techniques_ = true; }
+    const Feasibility& feasibility() const { return feasibility_; }
 
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const { return model_.model(); }
@@ -113,6 +112,8 @@ class PresolverImpl {
     std::vector<T> restore(std::vector<T> reduced) const {
         return model_.restore(std::move(reduced));
     }
+
+    TechniqueFlags techniques = TechniqueFlags::None;
 
  private:
     static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
@@ -237,10 +238,9 @@ class PresolverImpl {
 
     ModelView model_;
 
-    // todo: replace this with a vector of pointers or similar
-    bool default_techniques_;
+    bool detached_ = false;
 
-    bool detached_;
+    Feasibility feasibility_ = Feasibility::Unknown;
 
     void substitute_self_loops_expr(dimod::Expression<bias_type, index_type>& expression,
                                     std::unordered_map<index_type, index_type>& mapping) {
