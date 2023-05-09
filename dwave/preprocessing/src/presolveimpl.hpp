@@ -48,8 +48,9 @@ class PresolverImpl {
 
     /// Apply any loaded presolve techniques. Acts of the model() in-place.
     void apply() {
-        if (detached_)
-            throw std::logic_error("model has been detached, presolver is no longer valid");
+        // todo: move all of the techniques into normalize() or presolve()
+
+        normalize();
 
         // If no techniques have been loaded, return early.
         if (!techniques) return;
@@ -64,6 +65,8 @@ class PresolverImpl {
         technique_flip_constraints();
         // *-- remove self-loops
         technique_remove_self_loops();
+
+        presolve();
 
         // Trivial techniques -----------------------------------------------------
 
@@ -106,6 +109,19 @@ class PresolverImpl {
 
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const { return model_.model(); }
+
+    void normalize() {
+        if (detached_)
+            throw std::logic_error("model has been detached, presolver is no longer valid");
+        normalized_ = true;
+    }
+
+    void presolve() {
+        if (detached_)
+            throw std::logic_error("model has been detached, presolver is no longer valid");
+        if (!normalized_)
+            throw std::logic_error("model must be normalized before presolve() is applied");
+    }
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
     template<class T>
@@ -239,6 +255,7 @@ class PresolverImpl {
     ModelView model_;
 
     bool detached_ = false;
+    bool normalized_ = false;
 
     Feasibility feasibility_ = Feasibility::Unknown;
 
