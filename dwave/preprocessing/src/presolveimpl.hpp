@@ -31,6 +31,7 @@ class PresolverImpl {
  public:
     using model_type = dimod::ConstrainedQuadraticModel<Bias, Index>;
     using constraint_type = dimod::Constraint<Bias, Index>;
+    using expression_type = dimod::Expression<Bias, Index>;
 
     using bias_type = Bias;
     using index_type = Index;
@@ -60,8 +61,6 @@ class PresolverImpl {
 
         // *-- flip >= constraints
         technique_flip_constraints();
-        // *-- remove self-loops
-        technique_remove_self_loops();
 
         presolve();
 
@@ -113,6 +112,7 @@ class PresolverImpl {
 
         normalize_spin_to_binary();
         normalize_remove_offsets();
+        normalize_remove_self_loops();
 
         normalized_ = true;
     }
@@ -138,6 +138,52 @@ class PresolverImpl {
         if (constraint.offset()) {
             constraint.set_rhs(constraint.rhs() - constraint.offset());
             constraint.set_offset(0);
+        }
+    }
+
+    /// Remove any self-loops (e.g. x^2) by adding a new variable and an equality constraint.
+    void normalize_remove_self_loops() {
+        std::unordered_map<index_type, index_type> mapping;
+
+        // Function to go through the objective/constraints and for each variable in a self-loop,
+        // we add a new variable it can interact with.
+        // We could break this out into a standalone method, but because all of  those methods
+        // would need to share a common mapping, there isn't really an opportunity for
+        // parallization. So let's keep it contained for now.
+        auto substitute = [&](expression_type& expression) {
+            std::size_t current_num_variables = expression.num_variables();
+            for (std::size_t i = 0; i < current_num_variables; ++i) {
+                index_type v = expression.variables()[i];
+
+                if (!expression.has_interaction(v, v)) continue;  // no self loop
+
+                auto it = mapping.find(v);
+                if (it == mapping.end()) {
+                    // we haven't seen this variable before
+                    it = mapping.emplace_hint(
+                            it, v,
+                            model_.add_variable(model_.vartype(v), model_.lower_bound(v),
+                                                model_.upper_bound(v)));
+                }
+
+                assert(it != mapping.end());
+
+                // Set the bias between v and the new variable
+                // We could spread the linear bias out between the two variables, but in that case
+                // we would probably want to do that in every expression for consistency and this
+                // is a lot easier. But it's something we could test in the future
+                expression.add_quadratic(v, it->second, expression.quadratic(v, v));
+                expression.remove_interaction(v, v);
+            }
+        };
+
+        // Actually apply the method
+        substitute(model_.objective());
+        for (auto& constraint : model_.constraints()) substitute(constraint);
+
+        // We add the new constraints last, because otherwise we would cause reallocation
+        for (auto& uv : mapping) {
+            model_.add_linear_constraint({uv.first, uv.second}, {+1, -1}, dimod::Sense::EQ, 0);
         }
     }
 
@@ -284,30 +330,6 @@ class PresolverImpl {
 
     Feasibility feasibility_ = Feasibility::Unknown;
 
-    void substitute_self_loops_expr(dimod::Expression<bias_type, index_type>& expression,
-                                    std::unordered_map<index_type, index_type>& mapping) {
-        size_type num_variables = expression.num_variables();
-        for (size_type i = 0; i < num_variables; ++i) {
-            index_type v = expression.variables()[i];
-
-            if (!expression.has_interaction(v, v)) continue;  // no self loop
-
-            auto out = mapping.emplace(v, model_.num_variables());
-
-            if (out.second) {
-                // we haven't seen this variable before
-                model_.add_variable(model_.vartype(v), model_.lower_bound(v),
-                                    model_.upper_bound(v));
-            }
-
-            assert(static_cast<size_type>(out.first->second) < model_.num_variables());
-
-            // now set the bias between v and the new variable
-            expression.add_quadratic(v, out.first->second, expression.quadratic(v, v));
-            expression.remove_interaction(v, v);
-        }
-    }
-
     //----- One-time Techniques -----//
 
     void technique_flip_constraints() {
@@ -316,21 +338,6 @@ class PresolverImpl {
             if (constraint.sense() == dimod::Sense::GE) {
                 constraint.scale(-1);
             }
-        }
-    }
-    void technique_remove_self_loops() {
-        std::unordered_map<index_type, index_type> mapping;
-
-        substitute_self_loops_expr(model_.objective(), mapping);
-
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            substitute_self_loops_expr(model_.constraint_ref(c), mapping);
-        }
-
-        // now, we need to add equality constraints for all of the added variables
-        for (const auto& uv : mapping) {
-            // equality constraint
-            model_.add_linear_constraint({uv.first, uv.second}, {1, -1}, dimod::Sense::EQ, 0);
         }
     }
     void technique_remove_invalid_markers() {

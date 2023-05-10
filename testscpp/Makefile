@@ -24,7 +24,7 @@ presolve.o: $(INCLUDE)/dwave/presolve.hpp $(SRC)/presolve.cpp $(SRC)/presolveimp
 test_presolve.o: tests/test_presolve.cpp $(INCLUDE)/dwave/presolve.hpp 
 	$(CXX) $(FLAGS) tests/test_presolve.cpp -c -I$(CATCH2) -I$(INCLUDE) -I$(DIMOD) -I$(SPDLOG)
 
-test_presolveimpl.o: tests/test_presolveimpl.cpp $(INCLUDE)/dwave/flags.hpp 
+test_presolveimpl.o: tests/test_presolveimpl.cpp $(SRC)/presolveimpl.hpp $(INCLUDE)/dwave/flags.hpp 
 	$(CXX) $(FLAGS) tests/test_presolveimpl.cpp -c -I$(CATCH2) -I$(INCLUDE) -I$(SRC) -I$(DIMOD)
 
 test_roof_duality.o: tests/test_roof_duality.cpp $(wildcard $(INCLUDE)/dwave-preprocessing/*hpp)

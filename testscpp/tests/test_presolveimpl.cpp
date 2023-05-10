@@ -77,4 +77,61 @@ TEST_CASE("Test normalize_spin_to_binary", "[presolve][impl]") {
         }
     }
 }
+
+TEST_CASE("Test normalize_remove_self_loops", "[presolve][impl]") {
+    GIVEN("A CQM with a single integer self-loop") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::Vartype::INTEGER);
+        cqm.objective.add_linear(v, 2);
+        cqm.objective.add_quadratic(v, v, -7);
+        cqm.objective.add_offset(3);
+
+        WHEN("We give it to the presolver and run normalize_remove_self_loops()") {
+            auto pre = PresolverImpl(cqm);
+            pre.normalize_remove_self_loops();
+
+            THEN("The single integer variable is now two") {
+                REQUIRE(pre.model().num_variables() == 2);
+                REQUIRE(pre.model().num_constraints() == 1);
+
+                CHECK(pre.model().objective.linear(0) == 2.);
+                CHECK(pre.model().objective.linear(1) == 0.);
+                CHECK(pre.model().objective.quadratic(0, 0) == 0.);
+                CHECK(pre.model().objective.quadratic(1, 1) == 0.);
+                CHECK(pre.model().objective.quadratic(0, 1) == -7.);
+                CHECK(pre.model().objective.offset() == 3.);
+
+                CHECK(pre.model().constraint_ref(0).linear(0) +
+                              pre.model().constraint_ref(0).linear(1) ==
+                      pre.model().constraint_ref(0).rhs());
+                CHECK(pre.model().constraint_ref(0).linear(0));
+            }
+        }
+    }
+
+    GIVEN("A CQM with several self-loops") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto i = cqm.add_variable(dimod::Vartype::INTEGER);
+        auto j = cqm.add_variable(dimod::Vartype::INTEGER, -5, 5);
+        auto k = cqm.add_variable(dimod::Vartype::INTEGER, -10, 10);
+
+        auto c0 = cqm.add_constraint();
+        cqm.constraint_ref(c0).add_quadratic(i, i, 2);
+        cqm.constraint_ref(c0).add_quadratic(j, j, 3);
+
+        auto c1 = cqm.add_constraint();
+        cqm.constraint_ref(c1).add_quadratic(j, j, 4);
+        cqm.constraint_ref(c1).add_quadratic(k, k, 5);
+
+        WHEN("We give it to the presolver and run normalize_remove_self_loops()") {
+            auto pre = PresolverImpl(cqm);
+            pre.normalize_remove_self_loops();
+
+            THEN("Three new variables and two constraints are added") {
+                REQUIRE(pre.model().num_variables() == 6);
+                REQUIRE(pre.model().num_constraints() == 5);
+            }
+        }
+    }
+}
 }  // namespace dwave
