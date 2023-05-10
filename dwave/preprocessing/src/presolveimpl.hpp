@@ -30,6 +30,7 @@ template <class Bias, class Index = int, class Assignment = double>
 class PresolverImpl {
  public:
     using model_type = dimod::ConstrainedQuadraticModel<Bias, Index>;
+    using constraint_type = dimod::Constraint<Bias, Index>;
 
     using bias_type = Bias;
     using index_type = Index;
@@ -57,8 +58,6 @@ class PresolverImpl {
 
         // One time techniques ----------------------------------------------------
 
-        // *-- remove offsets
-        technique_remove_offsets();
         // *-- flip >= constraints
         technique_flip_constraints();
         // *-- remove self-loops
@@ -113,6 +112,7 @@ class PresolverImpl {
             throw std::logic_error("model has been detached, presolver is no longer valid");
 
         normalize_spin_to_binary();
+        normalize_remove_offsets();
 
         normalized_ = true;
     }
@@ -123,6 +123,21 @@ class PresolverImpl {
             if (model_.vartype(v) == dimod::Vartype::SPIN) {
                 model_.change_vartype(dimod::Vartype::BINARY, v);
             }
+        }
+    }
+
+    /// Remove the offsets from all constraints in the model.
+    void normalize_remove_offsets() {
+        for (auto& constraint : model_.constraints()) {
+            normalize_remove_offset(constraint);
+        }
+    }
+
+    /// Remove the offset from a cosntraint. E.g. `x + 1 <= 2` becomes `x <= 1`.
+    static void normalize_remove_offset(constraint_type& constraint) {
+        if (constraint.offset()) {
+            constraint.set_rhs(constraint.rhs() - constraint.offset());
+            constraint.set_offset(0);
         }
     }
 
@@ -295,15 +310,6 @@ class PresolverImpl {
 
     //----- One-time Techniques -----//
 
-    void technique_remove_offsets() {
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            auto& constraint = model_.constraint_ref(c);
-            if (constraint.offset()) {
-                constraint.set_rhs(constraint.rhs() - constraint.offset());
-                constraint.set_offset(0);
-            }
-        }
-    }
     void technique_flip_constraints() {
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
