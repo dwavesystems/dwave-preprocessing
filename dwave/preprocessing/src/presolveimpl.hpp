@@ -51,37 +51,7 @@ class PresolverImpl {
 
     /// Apply any loaded presolve techniques. Acts of the model() in-place.
     void apply() {
-        // todo: move all of the techniques into normalize() or presolve()
-
         normalize();
-
-        // If no techniques have been loaded, return early.
-        if (!techniques) return;
-
-        // Trivial techniques -----------------------------------------------------
-
-        bool changes = true;
-        const index_type max_num_rounds = 100;  // todo: make configurable
-        for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
-            if (!changes) break;
-            changes = false;
-
-            // *-- clear out 0 variables/interactions in the constraints and objective
-            changes |= technique_remove_zero_biases();
-            // *-- clear out small linear biases in the constraints
-            changes |= technique_remove_small_biases();
-            // *-- todo: check for NAN
-            changes |= technique_check_for_nan();
-            // *-- remove single variable constraints
-            changes |= technique_remove_single_variable_constraints();
-            // *-- tighten bounds based on vartype
-            changes |= technique_tighten_bounds();
-            // *-- domain propagation
-            changes |= technique_domain_propagation();
-            // *-- remove variables that are fixed by bounds
-            changes |= technique_remove_fixed_variables();
-        }
-
         presolve();
     }
 
@@ -255,6 +225,31 @@ class PresolverImpl {
             throw std::logic_error("model has been detached, presolver is no longer valid");
         if (!normalized_)
             throw std::logic_error("model must be normalized before presolve() is applied");
+
+        // If no techniques have been loaded, return early.
+        if (!techniques) return;
+
+        bool changes = true;
+        const index_type max_num_rounds = 100;  // todo: make configurable
+        for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
+            if (!changes) break;
+            changes = false;
+
+            // *-- clear out 0 variables/interactions in the constraints and objective
+            changes |= technique_remove_zero_biases();
+            // *-- clear out small linear biases in the constraints
+            changes |= technique_remove_small_biases();
+            // *-- todo: check for NAN
+            changes |= technique_check_for_nan();
+            // *-- remove single variable constraints
+            changes |= technique_remove_single_variable_constraints();
+            // *-- tighten bounds based on vartype
+            changes |= technique_tighten_bounds();
+            // *-- domain propagation
+            changes |= technique_domain_propagation();
+            // *-- remove variables that are fixed by bounds
+            changes |= technique_remove_fixed_variables();
+        }
 
         // Cleanup
         // There are a few normalization steps we want to re-run to clean up the model
