@@ -105,26 +105,26 @@ class PresolverImpl {
         if (detached_)
             throw std::logic_error("model has been detached, presolver is no longer valid");
 
-        normalize_spin_to_binary();
-        normalize_remove_offsets();
-        normalize_remove_self_loops();
-        normalize_flip_constraints();
+        normalization_spin_to_binary();
+        normalization_remove_offsets();
+        normalization_remove_self_loops();
+        normalization_flip_constraints();
 
         normalized_ = true;
     }
 
     /// Convert any >= constraints into <=.
-    void normalize_flip_constraints() {
-        for (auto& constraint : model_.constraints()) normalize_flip_constraint(constraint);
+    void normalization_flip_constraints() {
+        for (auto& constraint : model_.constraints()) normalization_flip_constraint(constraint);
     }
 
     /// Convert a >= constraint into <=.
-    static void normalize_flip_constraint(constraint_type& constraint) {
+    static void normalization_flip_constraint(constraint_type& constraint) {
         if (constraint.sense() == dimod::Sense::GE) constraint.scale(-1);
     }
 
     /// Convert any SPIN variables to BINARY variables
-    void normalize_spin_to_binary() {
+    void normalization_spin_to_binary() {
         for (size_type v = 0; v < model_.num_variables(); ++v) {
             if (model_.vartype(v) == dimod::Vartype::SPIN) {
                 model_.change_vartype(dimod::Vartype::BINARY, v);
@@ -133,14 +133,14 @@ class PresolverImpl {
     }
 
     /// Remove the offsets from all constraints in the model.
-    void normalize_remove_offsets() {
+    void normalization_remove_offsets() {
         for (auto& constraint : model_.constraints()) {
-            normalize_remove_offset(constraint);
+            normalization_remove_offset(constraint);
         }
     }
 
     /// Remove the offset from a cosntraint. E.g. `x + 1 <= 2` becomes `x <= 1`.
-    static void normalize_remove_offset(constraint_type& constraint) {
+    static void normalization_remove_offset(constraint_type& constraint) {
         if (constraint.offset()) {
             constraint.set_rhs(constraint.rhs() - constraint.offset());
             constraint.set_offset(0);
@@ -148,7 +148,7 @@ class PresolverImpl {
     }
 
     /// Remove any self-loops (e.g. x^2) by adding a new variable and an equality constraint.
-    void normalize_remove_self_loops() {
+    void normalization_remove_self_loops() {
         std::unordered_map<index_type, index_type> mapping;
 
         // Function to go through the objective/constraints and for each variable in a self-loop,

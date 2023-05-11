@@ -39,7 +39,7 @@ TEST_CASE("Test construction", "[presolve][impl]") {
     }
 }
 
-TEST_CASE("Test normalize_flip_constraints", "[presolve][impl]") {
+TEST_CASE("Test normalization_flip_constraints", "[presolve][impl]") {
     GIVEN("A CQM with three constraints of different senses") {
         auto cqm = ConstrainedQuadraticModel();
         auto i = cqm.add_variable(dimod::Vartype::INTEGER);
@@ -58,9 +58,9 @@ TEST_CASE("Test normalize_flip_constraints", "[presolve][impl]") {
         cqm.constraint_ref(c2).add_offset(14);
         cqm.constraint_ref(c3).add_offset(15);
 
-        WHEN("We give it to the presolver and run normalize_remove_self_loops()") {
+        WHEN("We give it to the presolver and run normalization_remove_self_loops()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalize_flip_constraints();
+            pre.normalization_flip_constraints();
 
             THEN("The EQ and LE constraints are not changed") {
                 for (auto ci : {c1, c2}) {
@@ -99,10 +99,10 @@ TEST_CASE("Test normalize_flip_constraints", "[presolve][impl]") {
     }
 }
 
-TEST_CASE("Test normalize_spin_to_binary", "[presolve][impl]") {
+TEST_CASE("Test normalization_spin_to_binary", "[presolve][impl]") {
     SECTION("Empty model") {
         auto pre = PresolverImpl(ConstrainedQuadraticModel());
-        pre.normalize_spin_to_binary();
+        pre.normalization_spin_to_binary();
         CHECK_FALSE(pre.model().num_variables());
         CHECK_FALSE(pre.model().num_constraints());
         CHECK_FALSE(pre.techniques);
@@ -116,9 +116,9 @@ TEST_CASE("Test normalize_spin_to_binary", "[presolve][impl]") {
         cqm.objective.set_offset(-10);
         auto c = cqm.add_linear_constraint({v}, {-2}, dimod::Sense::EQ, 3);
 
-        WHEN("We give it to the presolver and run normalize_spin_to_binary()") {
+        WHEN("We give it to the presolver and run normalization_spin_to_binary()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalize_spin_to_binary();
+            pre.normalization_spin_to_binary();
 
             THEN("The model will have one binary variable and the energies will match") {
                 REQUIRE(pre.model().num_variables() == 1);
@@ -138,7 +138,7 @@ TEST_CASE("Test normalize_spin_to_binary", "[presolve][impl]") {
     }
 }
 
-TEST_CASE("Test normalize_remove_self_loops", "[presolve][impl]") {
+TEST_CASE("Test normalization_remove_self_loops", "[presolve][impl]") {
     GIVEN("A CQM with a single integer self-loop") {
         auto cqm = ConstrainedQuadraticModel();
         auto v = cqm.add_variable(dimod::Vartype::INTEGER, -5, +5);
@@ -146,9 +146,9 @@ TEST_CASE("Test normalize_remove_self_loops", "[presolve][impl]") {
         cqm.objective.add_quadratic(v, v, -7);
         cqm.objective.add_offset(3);
 
-        WHEN("We give it to the presolver and run normalize_remove_self_loops()") {
+        WHEN("We give it to the presolver and run normalization_remove_self_loops()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalize_remove_self_loops();
+            pre.normalization_remove_self_loops();
 
             THEN("The single integer variable is now two") {
                 REQUIRE(pre.model().num_variables() == 2);
@@ -186,9 +186,9 @@ TEST_CASE("Test normalize_remove_self_loops", "[presolve][impl]") {
         cqm.constraint_ref(c1).add_quadratic(j, j, 4);
         cqm.constraint_ref(c1).add_quadratic(k, k, 5);
 
-        WHEN("We give it to the presolver and run normalize_remove_self_loops()") {
+        WHEN("We give it to the presolver and run normalization_remove_self_loops()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalize_remove_self_loops();
+            pre.normalization_remove_self_loops();
 
             THEN("Three new variables and two constraints are added") {
                 REQUIRE(pre.model().num_variables() == 6);
