@@ -40,6 +40,9 @@ class PresolverImpl {
 
     using assignment_type = Assignment;
 
+    static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
+    static constexpr double INF = 1.0e30;
+
     /// Default constructor.
     PresolverImpl() = default;
 
@@ -267,8 +270,6 @@ class PresolverImpl {
     TechniqueFlags techniques = TechniqueFlags::None;
 
  private:
-    static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
-    static constexpr double INF = 1.0e30;
 
     // We want to control access to the model in order to track changes,
     // so we create a rump version of the model.
