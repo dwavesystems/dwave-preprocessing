@@ -39,6 +39,16 @@ TEST_CASE("Test construction", "[presolve][impl]") {
     }
 }
 
+TEST_CASE("Test normalization_check_nan", "[presolve][impl]") {
+    SECTION("Linear objective with NaNs") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::BINARY);
+        cqm.objective.set_linear(0, std::numeric_limits<double>::quiet_NaN());
+        CHECK_THROWS_AS(PresolverImpl::normalization_check_nan(cqm.objective),
+                        presolve::InvalidModelError);
+    }
+}
+
 TEST_CASE("Test normalization_flip_constraints", "[presolve][impl]") {
     GIVEN("A CQM with three constraints of different senses") {
         auto cqm = ConstrainedQuadraticModel();

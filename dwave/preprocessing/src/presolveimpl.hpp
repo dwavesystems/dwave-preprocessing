@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "dimod/constrained_quadratic_model.h"
+#include "dwave/exceptions.hpp"
 #include "dwave/flags.hpp"
 
 namespace dwave {
@@ -100,6 +101,7 @@ class PresolverImpl {
         if (detached_)
             throw std::logic_error("model has been detached, presolver is no longer valid");
 
+        normalization_check_nan();
         normalization_spin_to_binary();
         normalization_remove_offsets();
         normalization_remove_self_loops();
@@ -107,6 +109,26 @@ class PresolverImpl {
         normalization_remove_invalid_markers();
 
         normalized_ = true;
+    }
+
+    void normalization_check_nan() {
+        normalization_check_nan(model_.objective());
+        for (auto& constraint : model_.constraints()) normalization_check_nan(constraint);
+    }
+
+    static void normalization_check_nan(const dimod::Expression<bias_type, index_type>& expression) {
+        // We only care about the biases, so let's just cast to the base type for speed
+        const dimod::abc::QuadraticModelBase<bias_type, index_type>& base = expression;
+
+        for (auto it = base.cbegin_quadratic(); it != base.cend_quadratic(); ++it) {
+            if (std::isnan(it->bias)) throw InvalidModelError("biases cannot be NAN");
+        }
+
+        for (size_type v = 0; v < base.num_variables(); ++v) {
+            if (std::isnan(base.linear(v))) throw InvalidModelError("biases cannot be NAN");
+        }
+
+        if (std::isnan(base.offset())) throw InvalidModelError("biases cannot be NAN");
     }
 
     /// Convert any >= constraints into <=.
