@@ -242,8 +242,6 @@ class PresolverImpl {
             changes |= technique_remove_zero_biases();
             // *-- clear out small linear biases in the constraints
             changes |= technique_remove_small_biases();
-            // *-- todo: check for NAN
-            changes |= technique_check_for_nan();
             // *-- remove single variable constraints
             changes |= technique_remove_single_variable_constraints();
             // *-- tighten bounds based on vartype
@@ -397,10 +395,6 @@ class PresolverImpl {
 
     //----- Trivial Techniques -----//
 
-    bool technique_check_for_nan() {
-        // TODO: Implement
-        return false;
-    }
     bool technique_remove_single_variable_constraints() {
         bool ret = false;
         size_type c = 0;
