@@ -57,8 +57,6 @@ class PresolverImpl {
         // If no techniques have been loaded, return early.
         if (!techniques) return;
 
-        presolve();
-
         // Trivial techniques -----------------------------------------------------
 
         bool changes = true;
@@ -83,10 +81,7 @@ class PresolverImpl {
             changes |= technique_remove_fixed_variables();
         }
 
-        // Cleanup
-
-        // *-- remove any invalid discrete markers
-        technique_remove_invalid_markers();
+        presolve();
     }
 
     /// Detach the constrained quadratic model and return it.
@@ -109,6 +104,7 @@ class PresolverImpl {
         normalization_remove_offsets();
         normalization_remove_self_loops();
         normalization_flip_constraints();
+        normalization_remove_invalid_markers();
 
         normalized_ = true;
     }
@@ -121,6 +117,45 @@ class PresolverImpl {
     /// Convert a >= constraint into <=.
     static void normalization_flip_constraint(constraint_type& constraint) {
         if (constraint.sense() == dimod::Sense::GE) constraint.scale(-1);
+    }
+
+    void normalization_remove_invalid_markers() {
+        std::vector<index_type> discrete;
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            auto& constraint = model_.constraint_ref(c);
+
+            if (!constraint.marked_discrete()) continue;
+
+            // we can check if it's well formed
+            if (constraint.is_onehot()) {
+                discrete.push_back(c);
+            } else {
+                constraint.mark_discrete(false);  // if it's not one-hot, it's not discrete
+            }
+        }
+        // check if they overlap
+        size_type i = 0;
+        while (i < discrete.size()) {
+            // check if ci overlaps with any other constraints
+            auto& constraint = model_.constraint_ref(discrete[i]);
+
+            bool overlap = false;
+            for (size_type j = i + 1; j < discrete.size(); ++j) {
+                if (model_.constraint_ref(discrete[j]).shares_variables(constraint)) {
+                    // we have overlap!
+                    overlap = true;
+                    constraint.mark_discrete(false);
+                    break;
+                }
+            }
+
+            if (overlap) {
+                discrete.erase(discrete.begin() + i);
+                continue;
+            }
+
+            ++i;
+        }
     }
 
     /// Remove the offsets from all constraints in the model.
@@ -198,6 +233,12 @@ class PresolverImpl {
             throw std::logic_error("model has been detached, presolver is no longer valid");
         if (!normalized_)
             throw std::logic_error("model must be normalized before presolve() is applied");
+
+        // Cleanup
+        // There are a few normalization steps we want to re-run to clean up the model
+        // e.g. discrete variable markers may not be valid anymore.
+        // Todo: we could replace this with a step where we can also add discrete markers
+        normalization_remove_invalid_markers();
     }
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
@@ -335,47 +376,6 @@ class PresolverImpl {
     bool normalized_ = false;
 
     Feasibility feasibility_ = Feasibility::Unknown;
-
-    //----- One-time Techniques -----//
-
-    void technique_remove_invalid_markers() {
-        std::vector<index_type> discrete;
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            auto& constraint = model_.constraint_ref(c);
-
-            if (!constraint.marked_discrete()) continue;
-
-            // we can check if it's well formed
-            if (constraint.is_onehot()) {
-                discrete.push_back(c);
-            } else {
-                constraint.mark_discrete(false);  // if it's not one-hot, it's not discrete
-            }
-        }
-        // check if they overlap
-        size_type i = 0;
-        while (i < discrete.size()) {
-            // check if ci overlaps with any other constraints
-            auto& constraint = model_.constraint_ref(discrete[i]);
-
-            bool overlap = false;
-            for (size_type j = i + 1; j < discrete.size(); ++j) {
-                if (model_.constraint_ref(discrete[j]).shares_variables(constraint)) {
-                    // we have overlap!
-                    overlap = true;
-                    constraint.mark_discrete(false);
-                    break;
-                }
-            }
-
-            if (overlap) {
-                discrete.erase(discrete.begin() + i);
-                continue;
-            }
-
-            ++i;
-        }
-    }
 
     //----- Trivial Techniques -----//
 

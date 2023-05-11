@@ -99,6 +99,52 @@ TEST_CASE("Test normalization_flip_constraints", "[presolve][impl]") {
     }
 }
 
+TEST_CASE("Test normalization_remove_invalid_markers", "[presolve][impl]") {
+    GIVEN("A CQM with overlapping discrete constraints") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variables(dimod::Vartype::BINARY, 8);
+        auto c0 = cqm.add_linear_constraint({0, 1, 2}, {1, 1, 1}, dimod::Sense::EQ, 1);  // overlap
+        auto c1 = cqm.add_linear_constraint({2, 3, 4}, {1, 1, 1}, dimod::Sense::EQ, 1);  // overlap
+        auto c2 = cqm.add_linear_constraint({5, 6, 7}, {1, 1, 1}, dimod::Sense::EQ, 1);  // not
+
+        for (auto ci : {c0, c1, c2}) cqm.constraint_ref(ci).mark_discrete();
+
+        WHEN("We give it to the presolver and run normalization_remove_invalid_markers()") {
+            auto pre = PresolverImpl(cqm);
+            pre.normalization_remove_invalid_markers();
+
+            THEN("Only the valid discrete constraints are still marked") {
+                CHECK(pre.model().constraint_ref(c0).marked_discrete() ^
+                      pre.model().constraint_ref(c1).marked_discrete());
+                CHECK(pre.model().constraint_ref(c2).marked_discrete());
+            }
+        }
+    }
+
+    GIVEN("A CQM with a mis-marked constraint") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variables(dimod::Vartype::BINARY, 9);  // need the constraints to not overlap
+        auto c0 = cqm.add_linear_constraint({0, 1, 2}, {1, 1, 1}, dimod::Sense::EQ, 1);  // valid
+        auto c1 = cqm.add_linear_constraint({3, 4, 5}, {1, 2, 1}, dimod::Sense::EQ, 1);  // invalid
+        auto c2 = cqm.add_linear_constraint({6, 7, 8}, {2, 2, 2}, dimod::Sense::EQ, 2);  // valid
+        // NB: there are other cases we could test, but ultimately we'd just be testing
+        // constraint.is_onehot() so let's rely on dimod to test that method thoroughly.
+
+        for (auto ci : {c0, c1, c2}) cqm.constraint_ref(ci).mark_discrete();
+
+        WHEN("We give it to the presolver and run normalization_remove_invalid_markers()") {
+            auto pre = PresolverImpl(cqm);
+            pre.normalization_remove_invalid_markers();
+
+            THEN("Only the valid discrete constraints are still marked") {
+                CHECK(pre.model().constraint_ref(c0).marked_discrete());
+                CHECK(!pre.model().constraint_ref(c1).marked_discrete());
+                CHECK(pre.model().constraint_ref(c2).marked_discrete());
+            }
+        }
+    }
+}
+
 TEST_CASE("Test normalization_remove_self_loops", "[presolve][impl]") {
     GIVEN("A CQM with a single integer self-loop") {
         auto cqm = ConstrainedQuadraticModel();
