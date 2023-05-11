@@ -123,15 +123,6 @@ class PresolverImpl {
         if (constraint.sense() == dimod::Sense::GE) constraint.scale(-1);
     }
 
-    /// Convert any SPIN variables to BINARY variables
-    void normalization_spin_to_binary() {
-        for (size_type v = 0; v < model_.num_variables(); ++v) {
-            if (model_.vartype(v) == dimod::Vartype::SPIN) {
-                model_.change_vartype(dimod::Vartype::BINARY, v);
-            }
-        }
-    }
-
     /// Remove the offsets from all constraints in the model.
     void normalization_remove_offsets() {
         for (auto& constraint : model_.constraints()) {
@@ -190,6 +181,15 @@ class PresolverImpl {
         // We add the new constraints last, because otherwise we would cause reallocation
         for (auto& uv : mapping) {
             model_.add_linear_constraint({uv.first, uv.second}, {+1, -1}, dimod::Sense::EQ, 0);
+        }
+    }
+
+    /// Convert any SPIN variables to BINARY variables
+    void normalization_spin_to_binary() {
+        for (size_type v = 0; v < model_.num_variables(); ++v) {
+            if (model_.vartype(v) == dimod::Vartype::SPIN) {
+                model_.change_vartype(dimod::Vartype::BINARY, v);
+            }
         }
     }
 
