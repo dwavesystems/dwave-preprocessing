@@ -57,11 +57,6 @@ class PresolverImpl {
         // If no techniques have been loaded, return early.
         if (!techniques) return;
 
-        // One time techniques ----------------------------------------------------
-
-        // *-- flip >= constraints
-        technique_flip_constraints();
-
         presolve();
 
         // Trivial techniques -----------------------------------------------------
@@ -113,8 +108,19 @@ class PresolverImpl {
         normalize_spin_to_binary();
         normalize_remove_offsets();
         normalize_remove_self_loops();
+        normalize_flip_constraints();
 
         normalized_ = true;
+    }
+
+    /// Convert any >= constraints into <=.
+    void normalize_flip_constraints() {
+        for (auto& constraint : model_.constraints()) normalize_flip_constraint(constraint);
+    }
+
+    /// Convert a >= constraint into <=.
+    static void normalize_flip_constraint(constraint_type& constraint) {
+        if (constraint.sense() == dimod::Sense::GE) constraint.scale(-1);
     }
 
     /// Convert any SPIN variables to BINARY variables
@@ -332,14 +338,6 @@ class PresolverImpl {
 
     //----- One-time Techniques -----//
 
-    void technique_flip_constraints() {
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            auto& constraint = model_.constraint_ref(c);
-            if (constraint.sense() == dimod::Sense::GE) {
-                constraint.scale(-1);
-            }
-        }
-    }
     void technique_remove_invalid_markers() {
         std::vector<index_type> discrete;
         for (size_type c = 0; c < model_.num_constraints(); ++c) {

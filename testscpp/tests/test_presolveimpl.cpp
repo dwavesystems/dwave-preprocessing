@@ -39,6 +39,66 @@ TEST_CASE("Test construction", "[presolve][impl]") {
     }
 }
 
+TEST_CASE("Test normalize_flip_constraints", "[presolve][impl]") {
+    GIVEN("A CQM with three constraints of different senses") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto i = cqm.add_variable(dimod::Vartype::INTEGER);
+        auto j = cqm.add_variable(dimod::Vartype::INTEGER, -5, 5);
+        auto k = cqm.add_variable(dimod::Vartype::INTEGER, -10, 10);
+
+        auto c1 = cqm.add_linear_constraint({i, j}, {1, 2}, dimod::Sense::EQ, 3);
+        auto c2 = cqm.add_linear_constraint({j, k}, {4, 5}, dimod::Sense::LE, 6);
+        auto c3 = cqm.add_linear_constraint({i, k}, {7, 8}, dimod::Sense::GE, 9);
+
+        cqm.constraint_ref(c1).add_quadratic(i, j, 10);
+        cqm.constraint_ref(c2).add_quadratic(j, k, 11);
+        cqm.constraint_ref(c3).add_quadratic(i, k, 12);
+
+        cqm.constraint_ref(c1).add_offset(13);
+        cqm.constraint_ref(c2).add_offset(14);
+        cqm.constraint_ref(c3).add_offset(15);
+
+        WHEN("We give it to the presolver and run normalize_remove_self_loops()") {
+            auto pre = PresolverImpl(cqm);
+            pre.normalize_flip_constraints();
+
+            THEN("The EQ and LE constraints are not changed") {
+                for (auto ci : {c1, c2}) {
+                    auto oldconstraint = cqm.constraint_ref(ci);
+                    auto newconstraint = pre.model().constraint_ref(ci);
+
+                    CHECK(oldconstraint.num_variables() == newconstraint.num_variables());
+                    CHECK(oldconstraint.num_interactions() == newconstraint.num_interactions());
+                    for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                        CHECK(oldconstraint.linear(v) == newconstraint.linear(v));
+                    for (std::size_t u = 0; u < cqm.num_variables(); ++u)
+                        for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                            CHECK(oldconstraint.quadratic(u, v) == newconstraint.quadratic(u, v));
+                    CHECK(oldconstraint.offset() == newconstraint.offset());
+                    CHECK(oldconstraint.sense() == newconstraint.sense());
+                    CHECK(oldconstraint.rhs() == newconstraint.rhs());
+                }
+            }
+
+            THEN("The GE constraint is flipped") {
+                auto oldconstraint = cqm.constraint_ref(c3);
+                auto newconstraint = pre.model().constraint_ref(c3);
+
+                CHECK(oldconstraint.num_variables() == newconstraint.num_variables());
+                CHECK(oldconstraint.num_interactions() == newconstraint.num_interactions());
+                for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                    CHECK(oldconstraint.linear(v) == -newconstraint.linear(v));
+                for (std::size_t u = 0; u < cqm.num_variables(); ++u)
+                    for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                        CHECK(oldconstraint.quadratic(u, v) == -newconstraint.quadratic(u, v));
+                CHECK(oldconstraint.offset() == -newconstraint.offset());
+                CHECK(dimod::Sense::LE == newconstraint.sense());
+                CHECK(oldconstraint.rhs() == -newconstraint.rhs());
+            }
+        }
+    }
+}
+
 TEST_CASE("Test normalize_spin_to_binary", "[presolve][impl]") {
     SECTION("Empty model") {
         auto pre = PresolverImpl(ConstrainedQuadraticModel());
@@ -81,7 +141,7 @@ TEST_CASE("Test normalize_spin_to_binary", "[presolve][impl]") {
 TEST_CASE("Test normalize_remove_self_loops", "[presolve][impl]") {
     GIVEN("A CQM with a single integer self-loop") {
         auto cqm = ConstrainedQuadraticModel();
-        auto v = cqm.add_variable(dimod::Vartype::INTEGER);
+        auto v = cqm.add_variable(dimod::Vartype::INTEGER, -5, +5);
         cqm.objective.add_linear(v, 2);
         cqm.objective.add_quadratic(v, v, -7);
         cqm.objective.add_offset(3);
@@ -100,6 +160,9 @@ TEST_CASE("Test normalize_remove_self_loops", "[presolve][impl]") {
                 CHECK(pre.model().objective.quadratic(1, 1) == 0.);
                 CHECK(pre.model().objective.quadratic(0, 1) == -7.);
                 CHECK(pre.model().objective.offset() == 3.);
+                CHECK(pre.model().vartype(v) == dimod::Vartype::INTEGER);
+                CHECK(pre.model().lower_bound(v) == -5);
+                CHECK(pre.model().upper_bound(v) == +5);
 
                 CHECK(pre.model().constraint_ref(0).linear(0) +
                               pre.model().constraint_ref(0).linear(1) ==
