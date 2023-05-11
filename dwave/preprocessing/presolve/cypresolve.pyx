@@ -1,4 +1,4 @@
-# distutils: sources = dwave/preprocessing/src/presolve.cpp
+# distutils: sources = dwave/preprocessing/src/presolve.cpp dwave/preprocessing/src/exceptions.cpp
 
 # Copyright 2022 D-Wave Systems Inc.
 #
@@ -26,6 +26,11 @@ import dimod
 from dimod.libcpp cimport ConstrainedQuadraticModel as cppConstrainedQuadraticModel
 from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel, make_cqm
 from dimod.cyutilities cimport ConstNumeric
+
+# We want to establish a relationship between presolveimpl.hpp and this file, so that
+# changes to presolveimpl.hpp will trigger a rebuild.
+cdef extern from "../src/presolveimpl.hpp" namespace "dwave::presolve" nogil:
+    pass
 
 
 cdef class cyPresolver:
