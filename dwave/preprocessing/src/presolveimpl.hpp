@@ -52,7 +52,7 @@ class PresolverImpl {
     /// Construct a presolver from a constrained quadratic model.
     explicit PresolverImpl(model_type model) : model_(std::move(model)) {}
 
-    /// Apply any loaded presolve techniques. Acts of the model() in-place.
+    /// Apply any loaded presolve techniques. Acts on the model() in-place.
     void apply() {
         normalize();
         presolve();

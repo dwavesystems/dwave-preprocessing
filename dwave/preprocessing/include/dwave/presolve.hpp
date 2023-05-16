@@ -45,7 +45,7 @@ class Presolver {
     /// Construct a presolver from a constrained quadratic model.
     explicit Presolver(model_type model);
 
-    /// Apply any loaded presolve techniques. Acts of the model() in-place.
+    /// Apply any loaded presolve techniques. Acts on the model() in-place.
     void apply();
 
     /// Detach the constrained quadratic model and return it.
