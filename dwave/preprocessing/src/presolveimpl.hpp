@@ -72,7 +72,7 @@ class PresolverImpl {
 
     void normalize() {
         if (detached_)
-            throw std::logic_error("model has been detached, presolver is no longer valid");
+            throw std::logic_error("model has been detached, so there is no model to apply presolve() to");
 
         normalization_check_nan();
         normalization_spin_to_binary();
@@ -231,7 +231,7 @@ class PresolverImpl {
 
     void presolve() {
         if (detached_)
-            throw std::logic_error("model has been detached, presolver is no longer valid");
+            throw std::logic_error("model has been detached, so there is no model to apply presolve() to");
         if (!normalized_)
             throw std::logic_error("model must be normalized before presolve() is applied");
 
