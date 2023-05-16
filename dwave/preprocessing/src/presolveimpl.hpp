@@ -71,8 +71,10 @@ class PresolverImpl {
     const model_type& model() const { return model_.model(); }
 
     void normalize() {
-        if (detached_)
-            throw std::logic_error("model has been detached, so there is no model to apply presolve() to");
+        if (detached_) {
+            throw std::logic_error(
+                    "model has been detached, so there is no model to apply presolve() to");
+        }
 
         normalization_check_nan();
         normalization_spin_to_binary();
@@ -103,7 +105,9 @@ class PresolverImpl {
             if (std::isnan(base.linear(v))) throw InvalidModelError("biases cannot be NAN");
         }
 
-        if (std::isnan(base.offset())) throw InvalidModelError("biases cannot be NAN");
+        if (std::isnan(base.offset())) {
+            throw InvalidModelError("biases cannot be NAN");
+        }
     }
 
     /// Convert any >= constraints into <=.
@@ -115,7 +119,9 @@ class PresolverImpl {
 
     /// Convert a >= constraint into <=.
     static void normalization_flip_constraint(constraint_type& constraint) {
-        if (constraint.sense() == dimod::Sense::GE) constraint.scale(-1);
+        if (constraint.sense() == dimod::Sense::GE) {
+            constraint.scale(-1);
+        }
     }
 
     void normalization_remove_invalid_markers() {
@@ -123,7 +129,9 @@ class PresolverImpl {
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
 
-            if (!constraint.marked_discrete()) continue;
+            if (!constraint.marked_discrete()) {
+                continue;
+            }
 
             // we can check if it's well formed
             if (constraint.is_onehot()) {
@@ -186,7 +194,10 @@ class PresolverImpl {
             for (std::size_t i = 0; i < current_num_variables; ++i) {
                 index_type v = expression.variables()[i];
 
-                if (!expression.has_interaction(v, v)) continue;  // no self loop
+                if (!expression.has_interaction(v, v)) {
+                    // no self-loop
+                    continue;
+                }
 
                 auto it = mapping.find(v);
                 if (it == mapping.end()) {
@@ -230,18 +241,25 @@ class PresolverImpl {
     }
 
     void presolve() {
-        if (detached_)
-            throw std::logic_error("model has been detached, so there is no model to apply presolve() to");
-        if (!normalized_)
+        if (detached_) {
+            throw std::logic_error(
+                    "model has been detached, so there is no model to apply presolve() to");
+        }
+        if (!normalized_) {
             throw std::logic_error("model must be normalized before presolve() is applied");
+        }
 
         // If no techniques have been loaded, return early.
-        if (!techniques) return;
+        if (!techniques) {
+            return;
+        }
 
         bool changes = true;
         const index_type max_num_rounds = 100;  // todo: make configurable
         for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
-            if (!changes) break;
+            if (!changes) {
+                break;
+            }
             changes = false;
 
             // *-- clear out 0 variables/interactions in the constraints and objective
@@ -564,7 +582,9 @@ class PresolverImpl {
     }
     static bool remove_small_biases(dimod::Constraint<bias_type, index_type>& expression) {
         // todo : not yet defined for quadratic expressions
-        if (!expression.is_linear()) return false;
+        if (!expression.is_linear()) {
+            return false;
+        }
 
         static constexpr double CONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-3;
         static constexpr double CONDITIONAL_REMOVAL_LIMIT = 1.0e-2;
@@ -635,18 +655,24 @@ class PresolverImpl {
     }
     bool domain_propagation(dimod::Constraint<bias_type, index_type>& expression) {
         // only defined for linear constraints
-        if (!expression.is_linear() || expression.is_soft()) return false;
+        if (!expression.is_linear() || expression.is_soft()) {
+            return false;
+        }
 
         static constexpr double NEW_BOUND_MAX = 1.0e8;
         static constexpr double MIN_CHANGE_FOR_BOUND_UPDATE = 1.0e-3;
         bool continue_domain_propagation = false;
         // equality_constraints should be broken to two inequalities
         bool equality_constraint = false;
-        if (expression.sense() == dimod::Sense::EQ) equality_constraint = true;
+        if (expression.sense() == dimod::Sense::EQ) {
+            equality_constraint = true;
+        }
 
         for (auto& v : expression.variables()) {
             // domain propagation does not apply to binary variable
-            if (model_.vartype(v) == dimod::Vartype::BINARY) continue;
+            if (model_.vartype(v) == dimod::Vartype::BINARY) {
+                continue;
+            }
 
             // todo: reduce the calls to 'get_min_max_activities' by calling
             // todo: it once for each constraint and not each variable
@@ -662,8 +688,12 @@ class PresolverImpl {
             // calculate the potential new bounds
             bias_type pnb1 = (expression.rhs() - minac)/a; // for LE and EQ constraints
             bias_type pnb2 = (expression.rhs() - maxac)/a; // only for EQ constraints
-            if (std::abs(pnb1) > NEW_BOUND_MAX) continue;
-            if (equality_constraint && std::abs(pnb2) > NEW_BOUND_MAX) continue;
+            if (std::abs(pnb1) > NEW_BOUND_MAX) {
+                continue;
+            }
+            if (equality_constraint && std::abs(pnb2) > NEW_BOUND_MAX) {
+                continue;
+            }
 
             if (a > 0) {
                 if (minac > -INF && expression.rhs() < INF &&
@@ -671,16 +701,17 @@ class PresolverImpl {
                     if (pnb1 > lb && pnb1 < ub) {
                         model_.set_upper_bound(v, pnb1);
                         continue_domain_propagation = true;
-                    }
-                    else if (pnb1 < lb) throw std::logic_error("infeasible");
+                    } else if (pnb1 < lb)
+                        throw std::logic_error("infeasible");
                 }
                 if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
                     pnb2 - lb > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
                     if (pnb2 > lb && pnb2 < ub) {
                         model_.set_lower_bound(v, pnb2);
                         continue_domain_propagation = true;
+                    } else if (pnb2 > ub) {
+                        throw std::logic_error("infeasible");
                     }
-                    else if (pnb2 > ub) throw std::logic_error("infeasible");
                 }
             }
             if (a < 0) {
@@ -689,16 +720,18 @@ class PresolverImpl {
                     if (pnb1 > lb && pnb1 < ub) {
                         model_.set_lower_bound(v, pnb1);
                         continue_domain_propagation = true;
+                    } else if (pnb1 > ub) {
+                        throw std::logic_error("infeasible");
                     }
-                else if (pnb1 > ub) throw std::logic_error("infeasible");
                 }
                 if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
                     ub - pnb2 > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
-                    if (pnb2 > lb && pnb2 < ub){
+                    if (pnb2 > lb && pnb2 < ub) {
                         model_.set_upper_bound(v, pnb2);
                         continue_domain_propagation = true;
+                    } else if (pnb2 < lb) {
+                        throw std::logic_error("infeasible");
                     }
-                else if (pnb2 < lb) throw std::logic_error("infeasible");
                 }
             }
         }
