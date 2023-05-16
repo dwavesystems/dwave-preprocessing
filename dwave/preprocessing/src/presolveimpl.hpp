@@ -86,7 +86,9 @@ class PresolverImpl {
 
     void normalization_check_nan() {
         normalization_check_nan(model_.objective());
-        for (auto& constraint : model_.constraints()) normalization_check_nan(constraint);
+        for (auto& constraint : model_.constraints()) {
+            normalization_check_nan(constraint);
+        }
     }
 
     static void normalization_check_nan(const dimod::Expression<bias_type, index_type>& expression) {
@@ -106,7 +108,9 @@ class PresolverImpl {
 
     /// Convert any >= constraints into <=.
     void normalization_flip_constraints() {
-        for (auto& constraint : model_.constraints()) normalization_flip_constraint(constraint);
+        for (auto& constraint : model_.constraints()) {
+            normalization_flip_constraint(constraint);
+        }
     }
 
     /// Convert a >= constraint into <=.
@@ -206,7 +210,9 @@ class PresolverImpl {
 
         // Actually apply the method
         substitute(model_.objective());
-        for (auto& constraint : model_.constraints()) substitute(constraint);
+        for (auto& constraint : model_.constraints()) {
+            substitute(constraint);
+        }
 
         // We add the new constraints last, because otherwise we would cause reallocation
         for (auto& uv : mapping) {
@@ -587,7 +593,9 @@ class PresolverImpl {
         }
         if (reduction_magnitude < SUM_REDUCTION_LIMIT * FEASIBILITY_TOLERANCE) {
             expression.set_rhs(expression.rhs() - reduction);
-            for (auto& u : small_biases_temp) small_biases.emplace_back(u);
+            for (auto& u : small_biases_temp) {
+                small_biases.emplace_back(u);
+            }
         }
 
         for (auto& v : small_biases) {

@@ -79,11 +79,14 @@ TEST_CASE("Test normalization_flip_constraints", "[presolve][impl]") {
 
                     CHECK(oldconstraint.num_variables() == newconstraint.num_variables());
                     CHECK(oldconstraint.num_interactions() == newconstraint.num_interactions());
-                    for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                    for (std::size_t v = 0; v < cqm.num_variables(); ++v) {
                         CHECK(oldconstraint.linear(v) == newconstraint.linear(v));
-                    for (std::size_t u = 0; u < cqm.num_variables(); ++u)
-                        for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                    }
+                    for (std::size_t u = 0; u < cqm.num_variables(); ++u) {
+                        for (std::size_t v = 0; v < cqm.num_variables(); ++v) {
                             CHECK(oldconstraint.quadratic(u, v) == newconstraint.quadratic(u, v));
+                        }
+                    }
                     CHECK(oldconstraint.offset() == newconstraint.offset());
                     CHECK(oldconstraint.sense() == newconstraint.sense());
                     CHECK(oldconstraint.rhs() == newconstraint.rhs());
@@ -96,11 +99,14 @@ TEST_CASE("Test normalization_flip_constraints", "[presolve][impl]") {
 
                 CHECK(oldconstraint.num_variables() == newconstraint.num_variables());
                 CHECK(oldconstraint.num_interactions() == newconstraint.num_interactions());
-                for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                for (std::size_t v = 0; v < cqm.num_variables(); ++v) {
                     CHECK(oldconstraint.linear(v) == -newconstraint.linear(v));
-                for (std::size_t u = 0; u < cqm.num_variables(); ++u)
-                    for (std::size_t v = 0; v < cqm.num_variables(); ++v)
+                }
+                for (std::size_t u = 0; u < cqm.num_variables(); ++u) {
+                    for (std::size_t v = 0; v < cqm.num_variables(); ++v) {
                         CHECK(oldconstraint.quadratic(u, v) == -newconstraint.quadratic(u, v));
+                    }
+                }
                 CHECK(oldconstraint.offset() == -newconstraint.offset());
                 CHECK(dimod::Sense::LE == newconstraint.sense());
                 CHECK(oldconstraint.rhs() == -newconstraint.rhs());
@@ -117,7 +123,9 @@ TEST_CASE("Test normalization_remove_invalid_markers", "[presolve][impl]") {
         auto c1 = cqm.add_linear_constraint({2, 3, 4}, {1, 1, 1}, dimod::Sense::EQ, 1);  // overlap
         auto c2 = cqm.add_linear_constraint({5, 6, 7}, {1, 1, 1}, dimod::Sense::EQ, 1);  // not
 
-        for (auto ci : {c0, c1, c2}) cqm.constraint_ref(ci).mark_discrete();
+        for (auto ci : {c0, c1, c2}) {
+            cqm.constraint_ref(ci).mark_discrete();
+        }
 
         WHEN("We give it to the presolver and run normalization_remove_invalid_markers()") {
             auto pre = PresolverImpl(cqm);
@@ -140,7 +148,9 @@ TEST_CASE("Test normalization_remove_invalid_markers", "[presolve][impl]") {
         // NB: there are other cases we could test, but ultimately we'd just be testing
         // constraint.is_onehot() so let's rely on dimod to test that method thoroughly.
 
-        for (auto ci : {c0, c1, c2}) cqm.constraint_ref(ci).mark_discrete();
+        for (auto ci : {c0, c1, c2}) {
+            cqm.constraint_ref(ci).mark_discrete();
+        }
 
         WHEN("We give it to the presolver and run normalization_remove_invalid_markers()") {
             auto pre = PresolverImpl(cqm);
