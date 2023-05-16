@@ -30,6 +30,9 @@ enum TechniqueFlags : std::uint64_t {
     // todo: individual technique flags
 
     All = 0xffffffffffffffffu,
+
+    // For now, we default to all techniques, but that could change in the future.
+    Default = All,
 };
 
 }  // namespace dwave::presolve
