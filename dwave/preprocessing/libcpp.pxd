@@ -18,6 +18,11 @@ from libcpp.vector cimport vector
 
 from dimod.libcpp cimport ConstrainedQuadraticModel
 
+cdef extern from "dwave/exceptions.hpp" namespace "dwave::presolve" nogil:
+    pass
+
+cdef extern from "dwave/flags.hpp" namespace "dwave::presolve" nogil:
+    pass
 
 cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
     cdef cppclass Presolver[bias_type, index_type, assignment_type]:

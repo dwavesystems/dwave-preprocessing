@@ -21,6 +21,8 @@
 #include <vector>
 
 #include "dimod/constrained_quadratic_model.h"
+#include "dwave/exceptions.hpp"
+#include "dwave/flags.hpp"
 
 namespace dwave {
 namespace presolve {
@@ -29,12 +31,17 @@ template <class Bias, class Index = int, class Assignment = double>
 class PresolverImpl {
  public:
     using model_type = dimod::ConstrainedQuadraticModel<Bias, Index>;
+    using constraint_type = dimod::Constraint<Bias, Index>;
+    using expression_type = dimod::Expression<Bias, Index>;
 
     using bias_type = Bias;
     using index_type = Index;
     using size_type = typename model_type::size_type;
 
     using assignment_type = Assignment;
+
+    static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
+    static constexpr double INF = 1.0e30;
 
     /// Default constructor.
     PresolverImpl() = default;
@@ -43,42 +50,222 @@ class PresolverImpl {
     ~PresolverImpl() = default;
 
     /// Construct a presolver from a constrained quadratic model.
-    explicit PresolverImpl(model_type model)
-            : model_(std::move(model)), default_techniques_(false), detached_(false) {}
+    explicit PresolverImpl(model_type model) : model_(std::move(model)) {}
 
-    /// Apply any loaded presolve techniques. Acts of the model() in-place.
+    /// Apply any loaded presolve techniques. Acts on the model() in-place.
     void apply() {
-        if (detached_)
-            throw std::logic_error("model has been detached, presolver is no longer valid");
+        normalize();
+        presolve();
+    }
+
+    /// Detach the constrained quadratic model and return it.
+    /// This clears the model from the presolver.
+    model_type detach_model() {
+        detached_ = true;
+        return model_.detach_model();
+    }
+
+    const Feasibility& feasibility() const { return feasibility_; }
+
+    /// Return a const reference to the held constrained quadratic model.
+    const model_type& model() const { return model_.model(); }
+
+    void normalize() {
+        if (detached_) {
+            throw std::logic_error(
+                    "model has been detached, so there is no model to apply presolve() to");
+        }
+
+        normalization_check_nan();
+        normalization_spin_to_binary();
+        normalization_remove_offsets();
+        normalization_remove_self_loops();
+        normalization_flip_constraints();
+        normalization_remove_invalid_markers();
+
+        normalized_ = true;
+    }
+
+    void normalization_check_nan() {
+        normalization_check_nan(model_.objective());
+        for (auto& constraint : model_.constraints()) {
+            normalization_check_nan(constraint);
+        }
+    }
+
+    static void normalization_check_nan(const dimod::Expression<bias_type, index_type>& expression) {
+        // We only care about the biases, so let's just cast to the base type for speed
+        const dimod::abc::QuadraticModelBase<bias_type, index_type>& base = expression;
+
+        for (auto it = base.cbegin_quadratic(); it != base.cend_quadratic(); ++it) {
+            if (std::isnan(it->bias)) throw InvalidModelError("biases cannot be NAN");
+        }
+
+        for (size_type v = 0; v < base.num_variables(); ++v) {
+            if (std::isnan(base.linear(v))) throw InvalidModelError("biases cannot be NAN");
+        }
+
+        if (std::isnan(base.offset())) {
+            throw InvalidModelError("biases cannot be NAN");
+        }
+    }
+
+    /// Convert any >= constraints into <=.
+    void normalization_flip_constraints() {
+        for (auto& constraint : model_.constraints()) {
+            normalization_flip_constraint(constraint);
+        }
+    }
+
+    /// Convert a >= constraint into <=.
+    static void normalization_flip_constraint(constraint_type& constraint) {
+        if (constraint.sense() == dimod::Sense::GE) {
+            constraint.scale(-1);
+        }
+    }
+
+    void normalization_remove_invalid_markers() {
+        std::vector<index_type> discrete;
+        for (size_type c = 0; c < model_.num_constraints(); ++c) {
+            auto& constraint = model_.constraint_ref(c);
+
+            if (!constraint.marked_discrete()) {
+                continue;
+            }
+
+            // we can check if it's well formed
+            if (constraint.is_onehot()) {
+                discrete.push_back(c);
+            } else {
+                constraint.mark_discrete(false);  // if it's not one-hot, it's not discrete
+            }
+        }
+        // check if they overlap
+        size_type i = 0;
+        while (i < discrete.size()) {
+            // check if ci overlaps with any other constraints
+            auto& constraint = model_.constraint_ref(discrete[i]);
+
+            bool overlap = false;
+            for (size_type j = i + 1; j < discrete.size(); ++j) {
+                if (model_.constraint_ref(discrete[j]).shares_variables(constraint)) {
+                    // we have overlap!
+                    overlap = true;
+                    constraint.mark_discrete(false);
+                    break;
+                }
+            }
+
+            if (overlap) {
+                discrete.erase(discrete.begin() + i);
+                continue;
+            }
+
+            ++i;
+        }
+    }
+
+    /// Remove the offsets from all constraints in the model.
+    void normalization_remove_offsets() {
+        for (auto& constraint : model_.constraints()) {
+            normalization_remove_offset(constraint);
+        }
+    }
+
+    /// Remove the offset from a cosntraint. E.g. `x + 1 <= 2` becomes `x <= 1`.
+    static void normalization_remove_offset(constraint_type& constraint) {
+        if (constraint.offset()) {
+            constraint.set_rhs(constraint.rhs() - constraint.offset());
+            constraint.set_offset(0);
+        }
+    }
+
+    /// Remove any self-loops (e.g. x^2) by adding a new variable and an equality constraint.
+    void normalization_remove_self_loops() {
+        std::unordered_map<index_type, index_type> mapping;
+
+        // Function to go through the objective/constraints and for each variable in a self-loop,
+        // we add a new variable it can interact with.
+        // We could break this out into a standalone method, but because all of  those methods
+        // would need to share a common mapping, there isn't really an opportunity for
+        // parallization. So let's keep it contained for now.
+        auto substitute = [&](expression_type& expression) {
+            std::size_t current_num_variables = expression.num_variables();
+            for (std::size_t i = 0; i < current_num_variables; ++i) {
+                index_type v = expression.variables()[i];
+
+                if (!expression.has_interaction(v, v)) {
+                    // no self-loop
+                    continue;
+                }
+
+                auto it = mapping.find(v);
+                if (it == mapping.end()) {
+                    // we haven't seen this variable before
+                    it = mapping.emplace_hint(
+                            it, v,
+                            model_.add_variable(model_.vartype(v), model_.lower_bound(v),
+                                                model_.upper_bound(v)));
+                }
+
+                assert(it != mapping.end());
+
+                // Set the bias between v and the new variable
+                // We could spread the linear bias out between the two variables, but in that case
+                // we would probably want to do that in every expression for consistency and this
+                // is a lot easier. But it's something we could test in the future
+                expression.add_quadratic(v, it->second, expression.quadratic(v, v));
+                expression.remove_interaction(v, v);
+            }
+        };
+
+        // Actually apply the method
+        substitute(model_.objective());
+        for (auto& constraint : model_.constraints()) {
+            substitute(constraint);
+        }
+
+        // We add the new constraints last, because otherwise we would cause reallocation
+        for (auto& uv : mapping) {
+            model_.add_linear_constraint({uv.first, uv.second}, {+1, -1}, dimod::Sense::EQ, 0);
+        }
+    }
+
+    /// Convert any SPIN variables to BINARY variables
+    void normalization_spin_to_binary() {
+        for (size_type v = 0; v < model_.num_variables(); ++v) {
+            if (model_.vartype(v) == dimod::Vartype::SPIN) {
+                model_.change_vartype(dimod::Vartype::BINARY, v);
+            }
+        }
+    }
+
+    void presolve() {
+        if (detached_) {
+            throw std::logic_error(
+                    "model has been detached, so there is no model to apply presolve() to");
+        }
+        if (!normalized_) {
+            throw std::logic_error("model must be normalized before presolve() is applied");
+        }
 
         // If no techniques have been loaded, return early.
-        if (!default_techniques_) return;
-
-        // One time techniques ----------------------------------------------------
-
-        // *-- spin-to-binary
-        technique_spin_to_binary();
-        // *-- remove offsets
-        technique_remove_offsets();
-        // *-- flip >= constraints
-        technique_flip_constraints();
-        // *-- remove self-loops
-        technique_remove_self_loops();
-
-        // Trivial techniques -----------------------------------------------------
+        if (!techniques) {
+            return;
+        }
 
         bool changes = true;
         const index_type max_num_rounds = 100;  // todo: make configurable
         for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
-            if (!changes) break;
+            if (!changes) {
+                break;
+            }
             changes = false;
 
             // *-- clear out 0 variables/interactions in the constraints and objective
             changes |= technique_remove_zero_biases();
             // *-- clear out small linear biases in the constraints
             changes |= technique_remove_small_biases();
-            // *-- todo: check for NAN
-            changes |= technique_check_for_nan();
             // *-- remove single variable constraints
             changes |= technique_remove_single_variable_constraints();
             // *-- tighten bounds based on vartype
@@ -90,23 +277,11 @@ class PresolverImpl {
         }
 
         // Cleanup
-
-        // *-- remove any invalid discrete markers
-        technique_remove_invalid_markers();
+        // There are a few normalization steps we want to re-run to clean up the model
+        // e.g. discrete variable markers may not be valid anymore.
+        // Todo: we could replace this with a step where we can also add discrete markers
+        normalization_remove_invalid_markers();
     }
-
-    /// Detach the constrained quadratic model and return it.
-    /// This clears the model from the presolver.
-    model_type detach_model() {
-        detached_ = true;
-        return model_.detach_model();
-    }
-
-    /// Load the default presolve techniques.
-    void load_default_presolvers() { default_techniques_ = true; }
-
-    /// Return a const reference to the held constrained quadratic model.
-    const model_type& model() const { return model_.model(); }
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
     template<class T>
@@ -114,9 +289,9 @@ class PresolverImpl {
         return model_.restore(std::move(reduced));
     }
 
+    TechniqueFlags techniques = TechniqueFlags::None;
+
  private:
-    static constexpr double FEASIBILITY_TOLERANCE = 1.0e-6;
-    static constexpr double INF = 1.0e30;
 
     // We want to control access to the model in order to track changes,
     // so we create a rump version of the model.
@@ -237,121 +412,13 @@ class PresolverImpl {
 
     ModelView model_;
 
-    // todo: replace this with a vector of pointers or similar
-    bool default_techniques_;
+    bool detached_ = false;
+    bool normalized_ = false;
 
-    bool detached_;
-
-    void substitute_self_loops_expr(dimod::Expression<bias_type, index_type>& expression,
-                                    std::unordered_map<index_type, index_type>& mapping) {
-        size_type num_variables = expression.num_variables();
-        for (size_type i = 0; i < num_variables; ++i) {
-            index_type v = expression.variables()[i];
-
-            if (!expression.has_interaction(v, v)) continue;  // no self loop
-
-            auto out = mapping.emplace(v, model_.num_variables());
-
-            if (out.second) {
-                // we haven't seen this variable before
-                model_.add_variable(model_.vartype(v), model_.lower_bound(v),
-                                    model_.upper_bound(v));
-            }
-
-            assert(static_cast<size_type>(out.first->second) < model_.num_variables());
-
-            // now set the bias between v and the new variable
-            expression.add_quadratic(v, out.first->second, expression.quadratic(v, v));
-            expression.remove_interaction(v, v);
-        }
-    }
-
-    //----- One-time Techniques -----//
-
-    void technique_spin_to_binary() {
-        for (size_type v = 0; v < model_.num_variables(); ++v) {
-            if (model_.vartype(v) == dimod::Vartype::SPIN) {
-                model_.change_vartype(dimod::Vartype::BINARY, v);
-            }
-        }
-    }
-    void technique_remove_offsets() {
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            auto& constraint = model_.constraint_ref(c);
-            if (constraint.offset()) {
-                constraint.set_rhs(constraint.rhs() - constraint.offset());
-                constraint.set_offset(0);
-            }
-        }
-    }
-    void technique_flip_constraints() {
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            auto& constraint = model_.constraint_ref(c);
-            if (constraint.sense() == dimod::Sense::GE) {
-                constraint.scale(-1);
-            }
-        }
-    }
-    void technique_remove_self_loops() {
-        std::unordered_map<index_type, index_type> mapping;
-
-        substitute_self_loops_expr(model_.objective(), mapping);
-
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            substitute_self_loops_expr(model_.constraint_ref(c), mapping);
-        }
-
-        // now, we need to add equality constraints for all of the added variables
-        for (const auto& uv : mapping) {
-            // equality constraint
-            model_.add_linear_constraint({uv.first, uv.second}, {1, -1}, dimod::Sense::EQ, 0);
-        }
-    }
-    void technique_remove_invalid_markers() {
-        std::vector<index_type> discrete;
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            auto& constraint = model_.constraint_ref(c);
-
-            if (!constraint.marked_discrete()) continue;
-
-            // we can check if it's well formed
-            if (constraint.is_onehot()) {
-                discrete.push_back(c);
-            } else {
-                constraint.mark_discrete(false);  // if it's not one-hot, it's not discrete
-            }
-        }
-        // check if they overlap
-        size_type i = 0;
-        while (i < discrete.size()) {
-            // check if ci overlaps with any other constraints
-            auto& constraint = model_.constraint_ref(discrete[i]);
-
-            bool overlap = false;
-            for (size_type j = i + 1; j < discrete.size(); ++j) {
-                if (model_.constraint_ref(discrete[j]).shares_variables(constraint)) {
-                    // we have overlap!
-                    overlap = true;
-                    constraint.mark_discrete(false);
-                    break;
-                }
-            }
-
-            if (overlap) {
-                discrete.erase(discrete.begin() + i);
-                continue;
-            }
-
-            ++i;
-        }
-    }
+    Feasibility feasibility_ = Feasibility::Unknown;
 
     //----- Trivial Techniques -----//
 
-    bool technique_check_for_nan() {
-        // TODO: Implement
-        return false;
-    }
     bool technique_remove_single_variable_constraints() {
         bool ret = false;
         size_type c = 0;
@@ -515,7 +582,9 @@ class PresolverImpl {
     }
     static bool remove_small_biases(dimod::Constraint<bias_type, index_type>& expression) {
         // todo : not yet defined for quadratic expressions
-        if (!expression.is_linear()) return false;
+        if (!expression.is_linear()) {
+            return false;
+        }
 
         static constexpr double CONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-3;
         static constexpr double CONDITIONAL_REMOVAL_LIMIT = 1.0e-2;
@@ -544,7 +613,9 @@ class PresolverImpl {
         }
         if (reduction_magnitude < SUM_REDUCTION_LIMIT * FEASIBILITY_TOLERANCE) {
             expression.set_rhs(expression.rhs() - reduction);
-            for (auto& u : small_biases_temp) small_biases.emplace_back(u);
+            for (auto& u : small_biases_temp) {
+                small_biases.emplace_back(u);
+            }
         }
 
         for (auto& v : small_biases) {
@@ -584,18 +655,24 @@ class PresolverImpl {
     }
     bool domain_propagation(dimod::Constraint<bias_type, index_type>& expression) {
         // only defined for linear constraints
-        if (!expression.is_linear() || expression.is_soft()) return false;
+        if (!expression.is_linear() || expression.is_soft()) {
+            return false;
+        }
 
         static constexpr double NEW_BOUND_MAX = 1.0e8;
         static constexpr double MIN_CHANGE_FOR_BOUND_UPDATE = 1.0e-3;
         bool continue_domain_propagation = false;
         // equality_constraints should be broken to two inequalities
         bool equality_constraint = false;
-        if (expression.sense() == dimod::Sense::EQ) equality_constraint = true;
+        if (expression.sense() == dimod::Sense::EQ) {
+            equality_constraint = true;
+        }
 
         for (auto& v : expression.variables()) {
             // domain propagation does not apply to binary variable
-            if (model_.vartype(v) == dimod::Vartype::BINARY) continue;
+            if (model_.vartype(v) == dimod::Vartype::BINARY) {
+                continue;
+            }
 
             // todo: reduce the calls to 'get_min_max_activities' by calling
             // todo: it once for each constraint and not each variable
@@ -611,8 +688,12 @@ class PresolverImpl {
             // calculate the potential new bounds
             bias_type pnb1 = (expression.rhs() - minac)/a; // for LE and EQ constraints
             bias_type pnb2 = (expression.rhs() - maxac)/a; // only for EQ constraints
-            if (std::abs(pnb1) > NEW_BOUND_MAX) continue;
-            if (equality_constraint && std::abs(pnb2) > NEW_BOUND_MAX) continue;
+            if (std::abs(pnb1) > NEW_BOUND_MAX) {
+                continue;
+            }
+            if (equality_constraint && std::abs(pnb2) > NEW_BOUND_MAX) {
+                continue;
+            }
 
             if (a > 0) {
                 if (minac > -INF && expression.rhs() < INF &&
@@ -620,16 +701,17 @@ class PresolverImpl {
                     if (pnb1 > lb && pnb1 < ub) {
                         model_.set_upper_bound(v, pnb1);
                         continue_domain_propagation = true;
-                    }
-                    else if (pnb1 < lb) throw std::logic_error("infeasible");
+                    } else if (pnb1 < lb)
+                        throw std::logic_error("infeasible");
                 }
                 if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
                     pnb2 - lb > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
                     if (pnb2 > lb && pnb2 < ub) {
                         model_.set_lower_bound(v, pnb2);
                         continue_domain_propagation = true;
+                    } else if (pnb2 > ub) {
+                        throw std::logic_error("infeasible");
                     }
-                    else if (pnb2 > ub) throw std::logic_error("infeasible");
                 }
             }
             if (a < 0) {
@@ -638,16 +720,18 @@ class PresolverImpl {
                     if (pnb1 > lb && pnb1 < ub) {
                         model_.set_lower_bound(v, pnb1);
                         continue_domain_propagation = true;
+                    } else if (pnb1 > ub) {
+                        throw std::logic_error("infeasible");
                     }
-                else if (pnb1 > ub) throw std::logic_error("infeasible");
                 }
                 if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
                     ub - pnb2 > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
-                    if (pnb2 > lb && pnb2 < ub){
+                    if (pnb2 > lb && pnb2 < ub) {
                         model_.set_upper_bound(v, pnb2);
                         continue_domain_propagation = true;
+                    } else if (pnb2 < lb) {
+                        throw std::logic_error("infeasible");
                     }
-                else if (pnb2 < lb) throw std::logic_error("infeasible");
                 }
             }
         }

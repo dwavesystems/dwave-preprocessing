@@ -14,12 +14,13 @@
 
 #include "catch2/catch.hpp"
 #include "dimod/constrained_quadratic_model.h"
+#include "dwave/exceptions.hpp"
 #include "dwave/presolve.hpp"
 
 namespace dwave {
 
 using Presolver = presolve::Presolver<double, int, double>;
-using CQM = dimod::ConstrainedQuadraticModel<double, int>;
+using ConstrainedQuadraticModel = dimod::ConstrainedQuadraticModel<double, int>;
 
 TEST_CASE("Presover construction") {
     GIVEN("A Presolver constructed without any arguments") {
@@ -32,12 +33,25 @@ TEST_CASE("Presover construction") {
     }
 
     GIVEN("A Presolver constructed with an empty CQM") {
-        auto cqm = CQM();
+        auto cqm = ConstrainedQuadraticModel();
         auto pre = Presolver(cqm);
 
         THEN("Its held model is empty") {
             CHECK(pre.model().num_variables() == 0);
             CHECK(pre.model().num_constraints() == 0);
+        }
+    }
+}
+
+TEST_CASE("Models with NANs raise an exception", "[presolve]") {
+    GIVEN("A CQM with NANs in the objective's linear biases") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::Vartype::BINARY);
+        cqm.objective.set_linear(v, NAN);
+
+        THEN("Presolving raises an error") {
+            auto pre = Presolver(cqm);
+            CHECK_THROWS_AS(pre.apply(), presolve::InvalidModelError);
         }
     }
 }
