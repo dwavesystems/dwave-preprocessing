@@ -53,9 +53,9 @@ class PresolverImpl {
     explicit PresolverImpl(model_type model) : model_(std::move(model)) {}
 
     /// Apply any loaded presolve techniques. Acts on the model() in-place.
-    void apply() {
-        normalize();
-        presolve();
+    bool apply() {
+        // Use | rather than || because we don't want to short-circuit
+        return normalize() | presolve();
     }
 
     /// Detach the constrained quadratic model and return it.
@@ -70,30 +70,35 @@ class PresolverImpl {
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const { return model_.model(); }
 
-    void normalize() {
+    bool normalize() {
         if (detached_) {
             throw std::logic_error(
                     "model has been detached, so there is no model to apply presolve() to");
         }
 
-        normalization_check_nan();
-        normalization_spin_to_binary();
-        normalization_remove_offsets();
-        normalization_remove_self_loops();
-        normalization_flip_constraints();
-        normalization_remove_invalid_markers();
+        bool changes = false;
+
+        changes |= normalization_check_nan();
+        changes |= normalization_spin_to_binary();
+        changes |= normalization_remove_offsets();
+        changes |= normalization_remove_self_loops();
+        changes |= normalization_flip_constraints();
+        changes |= normalization_remove_invalid_markers();
 
         normalized_ = true;
+
+        return changes;
     }
 
-    void normalization_check_nan() {
-        normalization_check_nan(model_.objective());
+    bool normalization_check_nan() const {
+        bool changes = normalization_check_nan(model_.objective());
         for (auto& constraint : model_.constraints()) {
-            normalization_check_nan(constraint);
+            changes |= normalization_check_nan(constraint);
         }
+        return changes;
     }
 
-    static void normalization_check_nan(const dimod::Expression<bias_type, index_type>& expression) {
+    static bool normalization_check_nan(const dimod::Expression<bias_type, index_type>& expression) {
         // We only care about the biases, so let's just cast to the base type for speed
         const dimod::abc::QuadraticModelBase<bias_type, index_type>& base = expression;
 
@@ -108,23 +113,32 @@ class PresolverImpl {
         if (std::isnan(base.offset())) {
             throw InvalidModelError("biases cannot be NAN");
         }
+
+        return false; // no changes made
     }
 
     /// Convert any >= constraints into <=.
-    void normalization_flip_constraints() {
+    bool normalization_flip_constraints() {
+        bool changes = false;
         for (auto& constraint : model_.constraints()) {
-            normalization_flip_constraint(constraint);
+            changes |= normalization_flip_constraint(constraint);
         }
+        return changes;
     }
 
     /// Convert a >= constraint into <=.
-    static void normalization_flip_constraint(constraint_type& constraint) {
+    static bool normalization_flip_constraint(constraint_type& constraint) {
         if (constraint.sense() == dimod::Sense::GE) {
             constraint.scale(-1);
+            return true;   // we made changes
         }
+
+        return false; // no changes made
     }
 
-    void normalization_remove_invalid_markers() {
+    bool normalization_remove_invalid_markers() {
+        bool changes = false;
+
         std::vector<index_type> discrete;
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
@@ -138,6 +152,7 @@ class PresolverImpl {
                 discrete.push_back(c);
             } else {
                 constraint.mark_discrete(false);  // if it's not one-hot, it's not discrete
+                changes = true;
             }
         }
         // check if they overlap
@@ -152,6 +167,7 @@ class PresolverImpl {
                     // we have overlap!
                     overlap = true;
                     constraint.mark_discrete(false);
+                    changes = true;
                     break;
                 }
             }
@@ -163,25 +179,32 @@ class PresolverImpl {
 
             ++i;
         }
+
+        return changes;
     }
 
     /// Remove the offsets from all constraints in the model.
-    void normalization_remove_offsets() {
+    bool normalization_remove_offsets() {
+        bool changes = false;
         for (auto& constraint : model_.constraints()) {
-            normalization_remove_offset(constraint);
+            changes |= normalization_remove_offset(constraint);
         }
+        return changes;
     }
 
     /// Remove the offset from a cosntraint. E.g. `x + 1 <= 2` becomes `x <= 1`.
-    static void normalization_remove_offset(constraint_type& constraint) {
+    static bool normalization_remove_offset(constraint_type& constraint) {
         if (constraint.offset()) {
             constraint.set_rhs(constraint.rhs() - constraint.offset());
             constraint.set_offset(0);
+            return true;   // we made changes
         }
+
+        return false; // no changes made
     }
 
     /// Remove any self-loops (e.g. x^2) by adding a new variable and an equality constraint.
-    void normalization_remove_self_loops() {
+    bool normalization_remove_self_loops() {
         std::unordered_map<index_type, index_type> mapping;
 
         // Function to go through the objective/constraints and for each variable in a self-loop,
@@ -229,18 +252,23 @@ class PresolverImpl {
         for (auto& uv : mapping) {
             model_.add_linear_constraint({uv.first, uv.second}, {+1, -1}, dimod::Sense::EQ, 0);
         }
+
+        return mapping.size();
     }
 
     /// Convert any SPIN variables to BINARY variables
-    void normalization_spin_to_binary() {
+    bool normalization_spin_to_binary() {
+        bool changes = false;
         for (size_type v = 0; v < model_.num_variables(); ++v) {
             if (model_.vartype(v) == dimod::Vartype::SPIN) {
                 model_.change_vartype(dimod::Vartype::BINARY, v);
+                changes = true;
             }
         }
+        return changes;
     }
 
-    void presolve() {
+    bool presolve() {
         if (detached_) {
             throw std::logic_error(
                     "model has been detached, so there is no model to apply presolve() to");
@@ -251,7 +279,7 @@ class PresolverImpl {
 
         // If no techniques have been loaded, return early.
         if (!techniques) {
-            return;
+            return false;
         }
 
         bool changes = true;
@@ -280,7 +308,12 @@ class PresolverImpl {
         // There are a few normalization steps we want to re-run to clean up the model
         // e.g. discrete variable markers may not be valid anymore.
         // Todo: we could replace this with a step where we can also add discrete markers
-        normalization_remove_invalid_markers();
+        changes |= normalization_remove_invalid_markers();
+
+        // Sanity check that we didn't break normalization
+        assert(!normalize());
+
+        return changes;
     }
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
@@ -324,7 +357,7 @@ class PresolverImpl {
 
         // Expose the objective. Changes don't get tracked
         auto& objective() { return static_cast<model_type*>(this)->objective; }
-        const auto& objective() const { return static_cast<model_type*>(this)->objective; }
+        const auto& objective() const { return static_cast<const model_type*>(this)->objective; }
 
         // Expose the model as a const reference
         const model_type& model() const { return *this; }

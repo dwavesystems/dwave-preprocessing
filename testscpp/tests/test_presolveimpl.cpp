@@ -70,7 +70,7 @@ TEST_CASE("Test normalization_flip_constraints", "[presolve][impl]") {
 
         WHEN("We give it to the presolver and run normalization_remove_self_loops()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalization_flip_constraints();
+            CHECK(pre.normalization_flip_constraints());
 
             THEN("The EQ and LE constraints are not changed") {
                 for (auto ci : {c1, c2}) {
@@ -129,7 +129,7 @@ TEST_CASE("Test normalization_remove_invalid_markers", "[presolve][impl]") {
 
         WHEN("We give it to the presolver and run normalization_remove_invalid_markers()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalization_remove_invalid_markers();
+            CHECK(pre.normalization_remove_invalid_markers());
 
             THEN("Only the valid discrete constraints are still marked") {
                 CHECK(pre.model().constraint_ref(c0).marked_discrete() ^
@@ -154,7 +154,7 @@ TEST_CASE("Test normalization_remove_invalid_markers", "[presolve][impl]") {
 
         WHEN("We give it to the presolver and run normalization_remove_invalid_markers()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalization_remove_invalid_markers();
+            CHECK(pre.normalization_remove_invalid_markers());
 
             THEN("Only the valid discrete constraints are still marked") {
                 CHECK(pre.model().constraint_ref(c0).marked_discrete());
@@ -175,7 +175,7 @@ TEST_CASE("Test normalization_remove_self_loops", "[presolve][impl]") {
 
         WHEN("We give it to the presolver and run normalization_remove_self_loops()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalization_remove_self_loops();
+            CHECK(pre.normalization_remove_self_loops());
 
             THEN("The single integer variable is now two") {
                 REQUIRE(pre.model().num_variables() == 2);
@@ -215,7 +215,7 @@ TEST_CASE("Test normalization_remove_self_loops", "[presolve][impl]") {
 
         WHEN("We give it to the presolver and run normalization_remove_self_loops()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalization_remove_self_loops();
+            CHECK(pre.normalization_remove_self_loops());
 
             THEN("Three new variables and two constraints are added") {
                 REQUIRE(pre.model().num_variables() == 6);
@@ -228,7 +228,7 @@ TEST_CASE("Test normalization_remove_self_loops", "[presolve][impl]") {
 TEST_CASE("Test normalization_spin_to_binary", "[presolve][impl]") {
     SECTION("Empty model") {
         auto pre = PresolverImpl(ConstrainedQuadraticModel());
-        pre.normalization_spin_to_binary();
+        CHECK(!pre.normalization_spin_to_binary());
         CHECK_FALSE(pre.model().num_variables());
         CHECK_FALSE(pre.model().num_constraints());
         CHECK_FALSE(pre.techniques);
@@ -244,7 +244,7 @@ TEST_CASE("Test normalization_spin_to_binary", "[presolve][impl]") {
 
         WHEN("We give it to the presolver and run normalization_spin_to_binary()") {
             auto pre = PresolverImpl(cqm);
-            pre.normalization_spin_to_binary();
+            CHECK(pre.normalization_spin_to_binary());
 
             THEN("The model will have one binary variable and the energies will match") {
                 REQUIRE(pre.model().num_variables() == 1);
