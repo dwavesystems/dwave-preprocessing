@@ -54,6 +54,7 @@ class PresolverImpl {
 
     /// Apply any loaded presolve techniques. Acts on the model() in-place.
     bool apply() {
+        // Use | rather than || because we don't want to short-circuit
         return normalize() | presolve();
     }
 
@@ -113,7 +114,7 @@ class PresolverImpl {
             throw InvalidModelError("biases cannot be NAN");
         }
 
-        return false;
+        return false; // no changes made
     }
 
     /// Convert any >= constraints into <=.
@@ -130,9 +131,9 @@ class PresolverImpl {
         if (constraint.sense() == dimod::Sense::GE) {
             constraint.scale(-1);
             return true;   // we made changes
-        } else {
-            return false;  // no changes made
         }
+
+        return false; // no changes made
     }
 
     bool normalization_remove_invalid_markers() {
@@ -197,9 +198,9 @@ class PresolverImpl {
             constraint.set_rhs(constraint.rhs() - constraint.offset());
             constraint.set_offset(0);
             return true;   // we made changes
-        } else {
-            return false;  // no changes made
         }
+
+        return false; // no changes made
     }
 
     /// Remove any self-loops (e.g. x^2) by adding a new variable and an equality constraint.
