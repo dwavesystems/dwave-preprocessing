@@ -84,9 +84,60 @@ class PresolverImpl {
         changes |= normalization_remove_self_loops();
         changes |= normalization_flip_constraints();
         changes |= normalization_remove_invalid_markers();
+        changes |= normalization_fix_bounds();
 
         normalized_ = true;
 
+        return changes;
+    }
+
+    /// Normalize the variable bounds by vartype and check that lb <= ub
+    bool normalization_fix_bounds() {
+        bool changes = false;
+        bias_type lb;
+        bias_type ub;
+        for (size_type v = 0; v < model_.num_variables(); ++v) {
+            // tighten bounds based on the vartype
+            switch (model_.vartype(v)) {
+                case dimod::Vartype::SPIN:
+                    throw std::logic_error(
+                            "normalization_fix_bounds() must be run after "
+                            "normalization_spin_to_binary()");
+                case dimod::Vartype::BINARY:
+                    if (model_.upper_bound(v) > 1) {
+                        model_.set_upper_bound(v, 1);
+                        changes = true;
+                    }
+                    if (model_.lower_bound(v) < 0) {
+                        model_.set_lower_bound(v, 0);
+                        changes = true;
+                    }
+
+                    // we carry on into INTEGER to handle fractional
+
+                case dimod::Vartype::INTEGER:
+                    ub = model_.upper_bound(v);
+                    if (ub != std::floor(ub)) {
+                        model_.set_upper_bound(v, std::floor(ub));
+                        changes = true;
+                    }
+                    lb = model_.lower_bound(v);
+                    if (lb != std::ceil(lb)) {
+                        model_.set_lower_bound(v, std::ceil(lb));
+                        changes = true;
+                    }
+                    break;
+                case dimod::Vartype::REAL:
+                    break;
+            }
+
+            // check that the bounds are valid
+            // Dev note: should we consider using FEASIBILITY_TOLERANCE here?
+            if (model_.lower_bound(v) > model_.upper_bound(v)) {
+                throw InvalidModelError(
+                        "variable lower bound must be less than or equal to upper bound");
+            }
+        }
         return changes;
     }
 

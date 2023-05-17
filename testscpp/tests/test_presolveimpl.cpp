@@ -39,6 +39,85 @@ TEST_CASE("Test construction", "[presolve][impl]") {
     }
 }
 
+TEST_CASE("Test normalization_fix_bounds", "[presolve][impl]") {
+    GIVEN("A CQM with valid bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::Vartype::REAL, -5, +5);
+        cqm.add_variable(dimod::Vartype::INTEGER, -104, 123);
+        cqm.add_variable(dimod::Vartype::BINARY);
+
+        THEN("normalization_fix_bounds() does nothing") {
+            auto pre = PresolverImpl(cqm);
+            CHECK(!pre.normalization_fix_bounds());
+        }
+    }
+
+    GIVEN("A CQM with invalid bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::Vartype::REAL, -5, +5);
+        cqm.set_lower_bound(v, 10);
+
+        THEN("normalization_fix_bounds() throws an error") {
+            auto pre = PresolverImpl(cqm);
+            CHECK_THROWS_AS(pre.normalization_fix_bounds(), presolve::InvalidModelError);
+        }
+    }
+
+    GIVEN("A CQM with fractional integer bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::Vartype::INTEGER, -5.5, 7.4);
+
+        WHEN("We give it to the presolver and run normalization_fix_bounds()") {
+            auto pre = PresolverImpl(cqm);
+            CHECK(pre.normalization_fix_bounds());
+
+            THEN("the bounds are adjusted") {
+                CHECK(pre.model().lower_bound(v) == -5.0);
+                CHECK(pre.model().upper_bound(v) == +7.0);
+            }
+        }
+    }
+
+    GIVEN("A CQM with invalid fractional integer bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::Vartype::INTEGER, 5.1, 5.9);
+
+        THEN("normalization_fix_bounds() throws an error") {
+            auto pre = PresolverImpl(cqm);
+            CHECK_THROWS_AS(pre.normalization_fix_bounds(), presolve::InvalidModelError);
+        }
+    }
+
+    GIVEN("A CQM with binary variables with loose bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::Vartype::BINARY);
+        cqm.set_lower_bound(v, -5);
+        cqm.set_upper_bound(v, +5);
+
+        WHEN("We give it to the presolver and run normalization_fix_bounds()") {
+            auto pre = PresolverImpl(cqm);
+            CHECK(pre.normalization_fix_bounds());
+
+            THEN("the bounds are tightened") {
+                CHECK(pre.model().lower_bound(v) == 0.0);
+                CHECK(pre.model().upper_bound(v) == 1.0);
+            }
+        }
+    }
+
+    GIVEN("A CQM with binary variables with invalid bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::Vartype::BINARY);
+        cqm.set_lower_bound(v, -5);
+        cqm.set_upper_bound(v, -7);
+
+        THEN("normalization_fix_bounds() throws an error") {
+            auto pre = PresolverImpl(cqm);
+            CHECK_THROWS_AS(pre.normalization_fix_bounds(), presolve::InvalidModelError);
+        }
+    }
+}
+
 TEST_CASE("Test normalization_check_nan", "[presolve][impl]") {
     SECTION("Linear objective with NaNs") {
         auto cqm = ConstrainedQuadraticModel();
