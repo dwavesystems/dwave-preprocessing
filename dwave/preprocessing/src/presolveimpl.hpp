@@ -378,7 +378,7 @@ class PresolverImpl {
             loop_changes = false;
 
             if (techniques & TechniqueFlags::RemoveSmallBiases) {
-                changes |= technique_remove_small_biases(model_.objective());
+                loop_changes |= technique_remove_small_biases(model_.objective());
                 for (auto& constraint : model_.constraints()) {
                     loop_changes |= technique_remove_small_biases(constraint);
                 }
