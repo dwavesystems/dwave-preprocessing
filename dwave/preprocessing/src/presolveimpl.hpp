@@ -33,6 +33,7 @@ class PresolverImpl {
     using model_type = dimod::ConstrainedQuadraticModel<Bias, Index>;
     using constraint_type = dimod::Constraint<Bias, Index>;
     using expression_type = dimod::Expression<Bias, Index>;
+    using expression_base_type = dimod::abc::QuadraticModelBase<Bias, Index>;
 
     using bias_type = Bias;
     using index_type = Index;
@@ -65,7 +66,53 @@ class PresolverImpl {
         return model_.detach_model();
     }
 
-    const Feasibility& feasibility() const { return feasibility_; }
+    const Feasibility& feasibility() const { return model_.feasibility; }
+
+    // Get the maximal activity constributed by variable v
+    static bias_type maximal_activity(const constraint_type& constraint, index_type v) {
+        assert(constraint.is_linear());  // todo: support quadratic
+
+        bias_type a = constraint.linear(v);
+        if (a > 0) {
+            return a * constraint.upper_bound(v);
+        } else {
+            return a * constraint.lower_bound(v);
+        }
+    }
+
+    // Get the maximal activity of a constraint
+    static bias_type maximal_activity(const constraint_type& constraint) {
+        assert(constraint.is_linear());  // todo: support quadratic
+
+        bias_type activity = constraint.offset();  // should be 0, but just in case
+        for (const auto& v : constraint.variables()) {
+            activity += maximal_activity(constraint, v);
+        }
+        return activity;
+    }
+
+    // Get the minimal activity constributed by variable v
+    static bias_type minimal_activity(const constraint_type& constraint, index_type v) {
+        assert(constraint.is_linear());  // todo: support quadratic
+
+        bias_type a = constraint.linear(v);
+        if (a > 0) {
+            return a * constraint.lower_bound(v);
+        } else {
+            return a * constraint.upper_bound(v);
+        }
+    }
+
+    // Get the minimal activity of a constraint
+    static bias_type minimal_activity(const constraint_type& constraint) {
+        assert(constraint.is_linear());  // todo: support quadratic
+
+        bias_type activity = constraint.offset();  // should be 0, but just in case
+        for (const auto& v : constraint.variables()) {
+            activity += minimal_activity(constraint, v);
+        }
+        return activity;
+    }
 
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const { return model_.model(); }
@@ -94,8 +141,6 @@ class PresolverImpl {
     /// Normalize the variable bounds by vartype and check that lb <= ub
     bool normalization_fix_bounds() {
         bool changes = false;
-        bias_type lb;
-        bias_type ub;
         for (size_type v = 0; v < model_.num_variables(); ++v) {
             // tighten bounds based on the vartype
             switch (model_.vartype(v)) {
@@ -104,28 +149,19 @@ class PresolverImpl {
                             "normalization_fix_bounds() must be run after "
                             "normalization_spin_to_binary()");
                 case dimod::Vartype::BINARY:
-                    if (model_.upper_bound(v) > 1) {
-                        model_.set_upper_bound(v, 1);
-                        changes = true;
-                    }
-                    if (model_.lower_bound(v) < 0) {
-                        model_.set_lower_bound(v, 0);
-                        changes = true;
-                    }
+                    changes |= model_.set_upper_bound(v, 1);
+                    changes |= model_.set_lower_bound(v, 0);
 
                     // we carry on into INTEGER to handle fractional
 
                 case dimod::Vartype::INTEGER:
-                    ub = model_.upper_bound(v);
-                    if (ub != std::floor(ub)) {
-                        model_.set_upper_bound(v, std::floor(ub));
-                        changes = true;
+                    if (std::ceil(model_.lower_bound(v)) > std::floor(model_.upper_bound(v))) {
+                        throw InvalidModelError(
+                                "variable lower bound must be less than or equal to upper bound");
                     }
-                    lb = model_.lower_bound(v);
-                    if (lb != std::ceil(lb)) {
-                        model_.set_lower_bound(v, std::ceil(lb));
-                        changes = true;
-                    }
+
+                    changes |= model_.set_upper_bound(v, std::floor(model_.upper_bound(v)));
+                    changes |= model_.set_lower_bound(v, std::ceil(model_.lower_bound(v)));
                     break;
                 case dimod::Vartype::REAL:
                     break;
@@ -333,29 +369,73 @@ class PresolverImpl {
             return false;
         }
 
-        bool changes = true;
-        const index_type max_num_rounds = 100;  // todo: make configurable
-        for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
-            if (!changes) {
-                break;
-            }
-            changes = false;
+        bool changes = false;
 
-            // *-- clear out 0 variables/interactions in the constraints and objective
-            changes |= technique_remove_zero_biases();
-            // *-- clear out small linear biases in the constraints
-            changes |= technique_remove_small_biases();
-            // *-- remove single variable constraints
-            changes |= technique_remove_single_variable_constraints();
-            // *-- tighten bounds based on vartype
-            changes |= technique_tighten_bounds();
-            // *-- domain propagation
-            changes |= technique_domain_propagation();
-            // *-- remove variables that are fixed by bounds
-            changes |= technique_remove_fixed_variables();
+        bool loop_changes = true;
+        for (index_type num_rounds = 0;
+             num_rounds < max_num_rounds && loop_changes && feasibility() != Feasibility::Infeasible;
+             ++num_rounds) {
+            loop_changes = false;
+
+            if (techniques & TechniqueFlags::RemoveSmallBiases) {
+                changes |= technique_remove_small_biases(model_.objective());
+                for (auto& constraint : model_.constraints()) {
+                    loop_changes |= technique_remove_small_biases(constraint);
+                }
+            }
+
+            if (techniques & TechniqueFlags::DomainPropagation) {
+                for (auto& constraint : model_.constraints()) {
+                    loop_changes |= technique_domain_propagation(constraint);
+                }
+            }
+
+            if (techniques & TechniqueFlags::RemoveRedundantConstraints) {
+                for (auto& constraint : model_.constraints()) {
+                    changes |= technique_clear_redundant_constraint(constraint);
+                }
+            }
+
+            changes |= loop_changes;
         }
 
-        // Cleanup
+        // Cleanup. We do these steps even in the infeasible case.
+
+        // These steps are not broken out into methods because we only want to do them here.
+        // Otherwise we may reallocate vectors we don't want to reallocate.
+
+        // remove any constraints of the form 0==0, 0<=0, or 0>=0
+        {
+            size_type i = 0;
+            while (i < model_.num_constraints()) {
+                const constraint_type& constraint = model_.constraint_ref(i);
+                if (!constraint.num_variables() && !constraint.offset() && !constraint.rhs()) {
+                    // is a 0==0 or 0<=0 or 0>=0 constraint
+                    model_.remove_constraint(i);
+                    changes = true;
+                } else {
+                    ++i;
+                }
+            }
+        }
+
+        /// Remove variables that are fixed by their bounds
+        {
+            std::vector<index_type> variables;
+            std::vector<assignment_type> values;
+
+            for (size_type v = 0; v < model_.num_variables(); ++v) {
+                if (model_.lower_bound(v) == model_.upper_bound(v)) {
+                    variables.emplace_back(v);
+                    values.emplace_back(model_.lower_bound(v));
+                }
+            }
+
+            model_.fix_variables(variables.begin(), variables.end(), values.begin());
+
+            changes |= variables.size();
+        }
+
         // There are a few normalization steps we want to re-run to clean up the model
         // e.g. discrete variable markers may not be valid anymore.
         // Todo: we could replace this with a step where we can also add discrete markers
@@ -373,10 +453,282 @@ class PresolverImpl {
         return model_.restore(std::move(reduced));
     }
 
+    /// Clear redundant constraints by turning them into 0 == 0 constraints.
+    /// We don't actually remove them (yet) because we don't want to reallocate
+    /// our constraint vector.
+    bool technique_clear_redundant_constraint(constraint_type& constraint) {
+        // not currently implemented for quadratic constraints.
+        // todo: extend to quadratic
+        if (!constraint.is_linear()) {
+            return false;
+        }
+
+        // skip the ones that have already been cleared
+        if (constraint.num_variables() == 0 && !constraint.offset() && !constraint.rhs()) {
+            // the constraint is already empty, nothing to do
+            return false;
+        }
+
+        bias_type minac = minimal_activity(constraint);
+        bias_type maxac = maximal_activity(constraint);
+
+        // Developer note: we can clean this up a bit once
+        // https://github.com/dwavesystems/dimod/issues/1330 is implemented.
+
+        // Test if we're trivially infeasible
+        if (constraint.sense() == dimod::Sense::LE || constraint.sense() == dimod::Sense::EQ) {
+            if (minac > constraint.rhs() + FEASIBILITY_TOLERANCE) {
+                // handle the special case of soft constraints
+                if (constraint.is_soft()) {
+                    constraint.clear();
+                    constraint.set_sense(dimod::Sense::EQ);
+                    constraint.set_rhs(0);
+                    return true;
+                }
+
+                model_.feasibility = Feasibility::Infeasible;
+                return false;
+            }
+        }
+        if (constraint.sense() == dimod::Sense::GE || constraint.sense() == dimod::Sense::EQ) {
+            if (maxac < constraint.rhs() - FEASIBILITY_TOLERANCE) {
+                // handle the special case of soft constraints
+                if (constraint.is_soft()) {
+                    constraint.clear();
+                    constraint.set_sense(dimod::Sense::EQ);
+                    constraint.set_rhs(0);
+                    return true;
+                }
+
+                model_.feasibility = Feasibility::Infeasible;
+                return false;
+            }
+        }
+
+        // Test if the constraint is always satisfied
+        switch (constraint.sense()) {
+            case dimod::Sense::LE:
+                if (maxac <= constraint.rhs() + FEASIBILITY_TOLERANCE) {
+                    constraint.clear();
+                    constraint.set_sense(dimod::Sense::EQ);
+                    constraint.set_rhs(0);
+                    return true;
+                }
+                break;
+            case dimod::Sense::GE:
+                if (minac >= constraint.rhs() - FEASIBILITY_TOLERANCE) {
+                    constraint.clear();
+                    constraint.set_sense(dimod::Sense::EQ);
+                    constraint.set_rhs(0);
+                    return true;
+                }
+                break;
+            case dimod::Sense::EQ:
+                if (minac == constraint.rhs() && maxac == constraint.rhs()) {
+                    constraint.clear();
+                    constraint.set_sense(dimod::Sense::EQ);
+                    constraint.set_rhs(0);
+                    return true;
+                }
+                break;
+        }
+
+        return false;
+    }
+
+    /// Tighten bounds based on constraints.
+    /// See Achterberg et al., section 3.2.
+    bool technique_domain_propagation(const constraint_type& constraint) {
+        // not currently implemented for quadratic constraints.
+        // todo: extend to quadratic
+        if (!constraint.is_linear()) {
+            return false;
+        }
+
+        // Cannot use soft constraints to strengthen bounds.
+        if (constraint.is_soft()) {
+            return false;
+        }
+
+        // In order to not fall into zeno's paradox here, we don't shink bounds when
+        // the reduction is small.
+        static constexpr double BOUND_CHANGE_MINIMUM = 1.0e-3 * FEASIBILITY_TOLERANCE;
+
+        // Developer note: I had an implementation that calculated the activites of the
+        // constraint as a whole, and then calculated the diff for each variable. The issue
+        // with that approach is that you can get a lot of numeric issues when you have
+        // unbounded variables. I then did an implementation that did switching behavior
+        // based on the activity, but that ended up requiring even more magic numbers as
+        // well as being a more complicated implementation. Therefore, I have reverted
+        // to just recalculating each time. If this becomes a performance issue we can
+        // revisit the more complicated implementation.
+
+        bool changes = false;
+
+        if (constraint.sense() == dimod::Sense::LE || constraint.sense() == dimod::Sense::EQ) {
+            // for each variable, test if we can change the bounds
+            for (const auto& v : constraint.variables()) {
+                const bias_type a = constraint.linear(v);
+
+                bias_type activity_excluding_v = constraint.offset();
+                for (const auto& u : constraint.variables()) {
+                    if (u != v) {
+                        activity_excluding_v += minimal_activity(constraint, u);
+                    }
+                    if (activity_excluding_v <= -INF) {
+                        break;
+                    }
+                }
+
+                // can't tighten the bounds in this case
+                if (activity_excluding_v <= -INF) {
+                    continue;
+                }
+
+                // get the new bound
+                const bias_type bound = (constraint.rhs() - activity_excluding_v) / a;
+
+                if (a > 0 && model_.upper_bound(v) - bound > BOUND_CHANGE_MINIMUM) {
+                    changes |= model_.set_upper_bound(v, bound);  // handles vartype and feasibility
+                } else if (a < 0 && bound - model_.lower_bound(v) > BOUND_CHANGE_MINIMUM) {
+                    changes |= model_.set_lower_bound(v, bound);  // handles vartype and feasibility
+                }
+            }
+        }
+
+        if (constraint.sense() == dimod::Sense::GE || constraint.sense() == dimod::Sense::EQ) {
+            // for each variable, test if we can change the bounds
+            for (const auto& v : constraint.variables()) {
+                const bias_type a = constraint.linear(v);
+
+                bias_type activity_excluding_v = constraint.offset();
+                for (const auto& u : constraint.variables()) {
+                    if (u != v) {
+                        activity_excluding_v += maximal_activity(constraint, u);
+                    }
+                    if (activity_excluding_v >= INF) {
+                        break;
+                    }
+                }
+
+                // can't tighten the bounds in this case
+                if (activity_excluding_v >= INF) {
+                    continue;
+                }
+
+                // get the new bound
+                const bias_type bound = (constraint.rhs() - activity_excluding_v) / a;
+
+                if (a < 0 && model_.upper_bound(v) - bound > BOUND_CHANGE_MINIMUM) {
+                    changes |= model_.set_upper_bound(v, bound);  // handles vartype and feasibility
+                } else if (a > 0 && bound - model_.lower_bound(v) > BOUND_CHANGE_MINIMUM) {
+                    changes |= model_.set_lower_bound(v, bound);  // handles vartype and feasibility
+                }
+            }
+        }
+
+        return changes;
+    }
+
+    /// Remove small biases from an expression.
+    /// See Achterberg et al., section 3.1.
+    static bool technique_remove_small_biases(expression_type& expression) {
+        bool changes = false;
+
+        // For general Expressions (as opposed to constraints) we remove
+        // biases that are smaller than 1e-10
+        static constexpr double UNCONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-10;
+
+        // We'll want to traverse the expression in index order, so let's
+        // work with its base class when doing so
+        expression_base_type& base = expression;
+
+        // We remove quadratic interactions with biases smaller than 1e-10
+        std::vector<std::pair<index_type, index_type>> interactions;
+        for (auto it = base.cbegin_quadratic(); it != base.cend_quadratic(); ++it) {
+            if (std::abs(it->bias) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT) {
+                interactions.emplace_back(expression.variables()[it->u],
+                                          expression.variables()[it->v]);
+            }
+        }
+        for (auto& uv : interactions) {
+            expression.remove_interaction(uv.first, uv.second);
+        }
+        changes |= interactions.size();
+
+        // We zero linear biases that are smaller than 1e-10 and we remove the
+        // variable from the expression if its linear bias is small and it
+        // has to quadratic interactions
+        std::vector<index_type> variables;
+        for (size_type vi = 0; vi < base.num_variables(); ++vi) {
+            if (std::abs(base.linear(vi)) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT) {
+                if (base.num_interactions(vi)) {
+                    // it has at least one quadratic interaction
+                    base.set_linear(vi, 0);
+                    changes = true;
+                } else {
+                    // it's linear-only, so we can just remove it
+                    variables.emplace_back(expression.variables()[vi]);
+                }
+            }
+        }
+        for (auto& v : variables) {
+            expression.remove_variable(v);
+        }
+        changes |= variables.size();
+
+        return changes;
+    }
+
+    /// Remove small biases from a constraint.
+    /// See Achterberg et al., section 3.1.
+    static bool technique_remove_small_biases(constraint_type& constraint) {
+        // First we do the unconditional removals (valid for objective and constraints)
+        bool changes = technique_remove_small_biases(static_cast<expression_type&>(constraint));
+
+        // For constraints, we can do conditional removals
+        static constexpr double CONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-3;
+        static constexpr double CONDITIONAL_REMOVAL_LIMIT = 1.0e-2 * FEASIBILITY_TOLERANCE;
+
+        // We'll want to traverse the expression in index order, so let's
+        // work with its base class when doing so
+        expression_base_type& base = constraint;
+
+        std::vector<index_type> variables;
+        for (size_type vi = 0; vi < base.num_variables(); ++vi) {
+            // skip the variables that have quadratic interactions
+            if (base.num_interactions(vi)) {
+                continue;
+            }
+
+            const bias_type a = base.linear(vi);
+            const bias_type lb = base.lower_bound(vi);
+            const bias_type ub = base.upper_bound(vi);
+
+            if (std::abs(a) < CONDITIONAL_REMOVAL_BIAS_LIMIT &&
+                std::abs(a) * (ub - lb) * base.num_variables() < CONDITIONAL_REMOVAL_LIMIT) {
+                variables.emplace_back(constraint.variables()[vi]);
+                constraint.set_rhs(constraint.rhs() - a * lb);
+            }
+        }
+        for (auto& v : variables) {
+            constraint.remove_variable(v);
+        }
+
+        // NB: Achterberg et al. does an additional step where they scan the row
+        // and remove coefficients as long as the sum stays below a certain value.
+        // However, we don't want to do that here because this method gets called
+        // multiple times.
+
+        return changes || variables.size();
+    }
+
+    /// The maximum number of rounds of presolving
+    int max_num_rounds = 100;
+
     TechniqueFlags techniques = TechniqueFlags::None;
 
  private:
-
     // We want to control access to the model in order to track changes,
     // so we create a rump version of the model.
     class ModelView : private model_type {
@@ -402,9 +754,56 @@ class PresolverImpl {
         using model_type::add_linear_constraint;
         using model_type::remove_constraint;
 
-        // The bound changes don't get tracked
-        using model_type::set_lower_bound;
-        using model_type::set_upper_bound;
+        // The bound changes don't get tracked, but we do want to maintain normalization
+        // and test for feasibility
+        bool set_lower_bound(index_type v, bias_type lb) {
+            // handle the discrete vartypes
+            switch (vartype(v)) {
+                case dimod::Vartype::BINARY:
+                case dimod::Vartype::SPIN:
+                case dimod::Vartype::INTEGER:
+                    lb = std::ceil(lb);
+                case dimod::Vartype::REAL:
+                    break;
+            }
+
+            if (lb > upper_bound(v)) {
+                // infeasible, set flag but don't set.
+                feasibility = Feasibility::Infeasible;
+                return false;
+            }
+
+            if (lb > lower_bound(v)) {
+                model_type::set_lower_bound(v, lb);
+                return true;
+            }
+
+            return false;
+        }
+        bool set_upper_bound(index_type v, bias_type ub) {
+            // handle the discrete vartypes
+            switch (vartype(v)) {
+                case dimod::Vartype::BINARY:
+                case dimod::Vartype::SPIN:
+                case dimod::Vartype::INTEGER:
+                    ub = std::floor(ub);
+                case dimod::Vartype::REAL:
+                    break;
+            }
+
+            if (lower_bound(v) > ub) {
+                // infeasible, set flag but don't set.
+                feasibility = Feasibility::Infeasible;
+                return false;
+            }
+
+            if (ub < upper_bound(v)) {
+                model_type::set_upper_bound(v, ub);
+                return true;
+            }
+
+            return false;
+        }
 
         // Expose the objective. Changes don't get tracked
         auto& objective() { return static_cast<model_type*>(this)->objective; }
@@ -445,13 +844,26 @@ class PresolverImpl {
             model_type::change_vartype(vartype, v);
         }
 
-        // Track when we remove a variable from the model by fixing it
-        void fix_variable(index_type v, assignment_type assignment) {
-            model_type::fix_variable(v, assignment);
+        // Track the variables that are fixed. We're a lot more picky about
+        // types than CQM::fix_variables() because we can be and we want to
+        // guarantee multipass
+        void fix_variables(typename std::vector<index_type>::iterator first,
+                           typename std::vector<index_type>::iterator last,
+                           typename std::vector<assignment_type>::iterator assignment) {
+            // track the changes as if we had applied them one-by-one 
+            auto vit = first;
+            auto ait = assignment;
+            int offset = 0;
+            for (; vit != last; ++vit, ++ait, ++offset) {
+                transforms_.emplace_back(TransformKind::FIX);
+                transforms_.back().v = (*vit) - offset;
+                transforms_.back().value = *ait;
+            }
 
-            transforms_.emplace_back(TransformKind::FIX);
-            transforms_.back().v = v;
-            transforms_.back().value = assignment;
+            /// fix the variables in-place.
+            using std::swap;  // ADL, though doubt it makes a difference
+            auto cqm = model_type::fix_variables(first, last, assignment);
+            swap(*this, cqm);
         }
 
         // Restore a sample by undoing all of the transforms
@@ -474,6 +886,8 @@ class PresolverImpl {
             }
             return sample;
         }
+
+        Feasibility feasibility = Feasibility::Unknown;
 
      private:
         // we want to track what changes were made
@@ -498,329 +912,6 @@ class PresolverImpl {
 
     bool detached_ = false;
     bool normalized_ = false;
-
-    Feasibility feasibility_ = Feasibility::Unknown;
-
-    //----- Trivial Techniques -----//
-
-    bool technique_remove_single_variable_constraints() {
-        bool ret = false;
-        size_type c = 0;
-        while (c < model_.num_constraints()) {
-            auto& constraint = model_.constraint_ref(c);
-
-            if (constraint.num_variables() == 0) {
-                if (!constraint.is_soft()) {
-                    // check feasibity
-                    switch (constraint.sense()) {
-                        case dimod::Sense::EQ:
-                            if (constraint.offset() != constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
-                            }
-                            break;
-                        case dimod::Sense::LE:
-                            if (constraint.offset() > constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
-                            }
-                            break;
-                        case dimod::Sense::GE:
-                            if (constraint.offset() < constraint.rhs()) {
-                                // need this exact message for Python
-                                throw std::logic_error("infeasible");
-                            }
-                            break;
-                    }
-                }
-
-                // we remove the constraint regardless of whether it's soft
-                // or not. We could use the opportunity to update the objective
-                // offset with the violation of the soft constraint, but
-                // presolve does not preserve the energy in general, so it's
-                // better to avoid side effects and just remove.
-                model_.remove_constraint(c);
-                ret = true;
-                continue;
-            } else if (constraint.num_variables() == 1 && !constraint.is_soft()) {
-                index_type v = constraint.variables()[0];
-
-                // ax ◯ c
-                bias_type a = constraint.linear(v);
-                assert(a);  // should have already been removed if 0
-
-                // offset should have already been removed but may as well be safe
-                bias_type rhs = (constraint.rhs() - constraint.offset()) / a;
-
-                // todo: test if negative
-
-                if (constraint.sense() == dimod::Sense::EQ) {
-                    model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
-                    model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
-                } else if ((constraint.sense() == dimod::Sense::LE) != (a < 0)) {
-                    model_.set_upper_bound(v, std::min(rhs, model_.upper_bound(v)));
-                } else {
-                    assert((constraint.sense() == dimod::Sense::GE) == (a >= 0));
-                    model_.set_lower_bound(v, std::max(rhs, model_.lower_bound(v)));
-                }
-
-                model_.remove_constraint(c);
-                ret = true;
-                continue;
-            }
-
-            ++c;
-        }
-        return ret;
-    }
-    bool technique_remove_zero_biases() {
-        bool ret = false;
-
-        ret |= remove_zero_biases(model_.objective());
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            ret |= remove_zero_biases(model_.constraint_ref(c));
-        }
-
-        return ret;
-    }
-    bool technique_remove_small_biases() {
-        bool ret = false;
-
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            ret |= remove_small_biases(model_.constraint_ref(c));
-        }
-
-        return ret;
-    }
-    bool technique_tighten_bounds() {
-        bool ret = false;
-        bias_type lb;
-        bias_type ub;
-        for (size_type v = 0; v < model_.num_variables(); ++v) {
-            switch (model_.vartype(v)) {
-                case dimod::Vartype::SPIN:
-                case dimod::Vartype::BINARY:
-                case dimod::Vartype::INTEGER:
-                    ub = model_.upper_bound(v);
-                    if (ub != std::floor(ub)) {
-                        model_.set_upper_bound(v, std::floor(ub));
-                        ret = true;
-                    }
-                    lb = model_.lower_bound(v);
-                    if (lb != std::ceil(lb)) {
-                        model_.set_lower_bound(v, std::ceil(lb));
-                        ret = true;
-                    }
-                    break;
-                case dimod::Vartype::REAL:
-                    break;
-            }
-        }
-        return ret;
-    }
-    bool technique_domain_propagation() {
-        bool ret = false;
-
-        for (size_type c = 0; c < model_.num_constraints(); ++c) {
-            ret |= domain_propagation(model_.constraint_ref(c));
-        }
-
-        return ret;
-    }
-    bool technique_remove_fixed_variables() {
-        bool ret = false;
-        size_type v = 0;
-        while (v < model_.num_variables()) {
-            if (model_.lower_bound(v) == model_.upper_bound(v)) {
-                model_.fix_variable(v, model_.lower_bound(v));
-                ret = true;
-            }
-            ++v;
-        }
-        return ret;
-    }
-    static bool remove_zero_biases(dimod::Expression<bias_type, index_type>& expression) {
-        // quadratic
-        std::vector<std::pair<index_type, index_type>> empty_interactions;
-        for (auto it = expression.cbegin_quadratic(); it != expression.cend_quadratic(); ++it) {
-            if (!(it->bias)) {
-                empty_interactions.emplace_back(it->u, it->v);
-            }
-        }
-        for (auto& uv : empty_interactions) {
-            expression.remove_interaction(uv.first, uv.second);
-        }
-
-        // linear
-        std::vector<index_type> empty_variables;
-        for (auto& v : expression.variables()) {
-            if (expression.linear(v)) continue;
-            if (expression.num_interactions(v)) continue;
-            empty_variables.emplace_back(v);
-        }
-        for (auto& v : empty_variables) {
-            expression.remove_variable(v);
-        }
-
-        return empty_interactions.size() || empty_variables.size();
-    }
-    static bool remove_small_biases(dimod::Constraint<bias_type, index_type>& expression) {
-        // todo : not yet defined for quadratic expressions
-        if (!expression.is_linear()) {
-            return false;
-        }
-
-        static constexpr double CONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-3;
-        static constexpr double CONDITIONAL_REMOVAL_LIMIT = 1.0e-2;
-        static constexpr double UNCONDITIONAL_REMOVAL_BIAS_LIMIT = 1.0e-10;
-        static constexpr double SUM_REDUCTION_LIMIT = 1.0e-1;
-        std::vector<index_type> small_biases;
-        std::vector<index_type> small_biases_temp;
-        bias_type reduction = 0;
-        bias_type reduction_magnitude = 0;
-        for (auto& v : expression.variables()) {
-            // ax ◯ c
-            bias_type a = expression.linear(v);
-            bias_type lb = expression.lower_bound(v);
-            bias_type ub = expression.upper_bound(v);
-            assert(ub >= lb);
-            bias_type v_range = ub - lb;
-            if (std::abs(a) < CONDITIONAL_REMOVAL_BIAS_LIMIT &&
-            std::abs(a) * v_range * expression.num_variables() <
-            CONDITIONAL_REMOVAL_LIMIT * FEASIBILITY_TOLERANCE) {
-                small_biases_temp.emplace_back(v);
-                reduction += a * lb;
-                reduction_magnitude += std::abs(a) * v_range;
-            }
-            if (std::abs(a) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT)
-                small_biases.emplace_back(v);
-        }
-        if (reduction_magnitude < SUM_REDUCTION_LIMIT * FEASIBILITY_TOLERANCE) {
-            expression.set_rhs(expression.rhs() - reduction);
-            for (auto& u : small_biases_temp) {
-                small_biases.emplace_back(u);
-            }
-        }
-
-        for (auto& v : small_biases) {
-            expression.remove_variable(v);
-        }
-        return small_biases.size();
-    }
-    static std::pair<bias_type, bias_type> get_min_max_activities(
-    dimod::Constraint<bias_type, index_type>& expression, int exclude_v) {
-        std::pair<bias_type, bias_type> result;
-        bias_type minac = 0;
-        bias_type maxac = 0;
-        for (auto& v : expression.variables()) {
-            if (v == exclude_v) continue;
-
-            bias_type a = expression.linear(v);
-            bias_type lb = expression.lower_bound(v);
-            bias_type ub = expression.upper_bound(v);
-            assert(ub >= lb);
-
-            if (a > 0) {
-                if (lb > - INF) minac += a * lb;
-                else minac = -INF;
-                if (ub < INF) maxac += a * ub;
-                else maxac = INF;
-            }
-            else {
-                if (ub < INF) minac += a * ub;
-                else minac = -INF;
-                if (lb > -INF) maxac += a * lb;
-                else maxac = INF;
-            }
-        }
-        result.first = minac;
-        result.second = maxac;
-        return result;
-    }
-    bool domain_propagation(dimod::Constraint<bias_type, index_type>& expression) {
-        // only defined for linear constraints
-        if (!expression.is_linear() || expression.is_soft()) {
-            return false;
-        }
-
-        static constexpr double NEW_BOUND_MAX = 1.0e8;
-        static constexpr double MIN_CHANGE_FOR_BOUND_UPDATE = 1.0e-3;
-        bool continue_domain_propagation = false;
-        // equality_constraints should be broken to two inequalities
-        bool equality_constraint = false;
-        if (expression.sense() == dimod::Sense::EQ) {
-            equality_constraint = true;
-        }
-
-        for (auto& v : expression.variables()) {
-            // domain propagation does not apply to binary variable
-            if (model_.vartype(v) == dimod::Vartype::BINARY) {
-                continue;
-            }
-
-            // todo: reduce the calls to 'get_min_max_activities' by calling
-            // todo: it once for each constraint and not each variable
-            std::pair<bias_type, bias_type> result = get_min_max_activities(expression, v);
-            auto& minac = result.first;
-            auto& maxac = result.second;
-
-            bias_type a = expression.linear(v);
-            bias_type lb = expression.lower_bound(v);
-            bias_type ub = expression.upper_bound(v);
-            assert(ub >= lb);
-
-            // calculate the potential new bounds
-            bias_type pnb1 = (expression.rhs() - minac)/a; // for LE and EQ constraints
-            bias_type pnb2 = (expression.rhs() - maxac)/a; // only for EQ constraints
-            if (std::abs(pnb1) > NEW_BOUND_MAX) {
-                continue;
-            }
-            if (equality_constraint && std::abs(pnb2) > NEW_BOUND_MAX) {
-                continue;
-            }
-
-            if (a > 0) {
-                if (minac > -INF && expression.rhs() < INF &&
-                    ub - pnb1 > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
-                    if (pnb1 > lb && pnb1 < ub) {
-                        model_.set_upper_bound(v, pnb1);
-                        continue_domain_propagation = true;
-                    } else if (pnb1 < lb)
-                        throw std::logic_error("infeasible");
-                }
-                if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
-                    pnb2 - lb > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
-                    if (pnb2 > lb && pnb2 < ub) {
-                        model_.set_lower_bound(v, pnb2);
-                        continue_domain_propagation = true;
-                    } else if (pnb2 > ub) {
-                        throw std::logic_error("infeasible");
-                    }
-                }
-            }
-            if (a < 0) {
-                if (minac > -INF && expression.rhs() < INF &&
-                    pnb1 - lb > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
-                    if (pnb1 > lb && pnb1 < ub) {
-                        model_.set_lower_bound(v, pnb1);
-                        continue_domain_propagation = true;
-                    } else if (pnb1 > ub) {
-                        throw std::logic_error("infeasible");
-                    }
-                }
-                if (equality_constraint && maxac < INF && expression.rhs() > -INF &&
-                    ub - pnb2 > MIN_CHANGE_FOR_BOUND_UPDATE * FEASIBILITY_TOLERANCE) {
-                    if (pnb2 > lb && pnb2 < ub) {
-                        model_.set_upper_bound(v, pnb2);
-                        continue_domain_propagation = true;
-                    } else if (pnb2 < lb) {
-                        throw std::logic_error("infeasible");
-                    }
-                }
-            }
-        }
-        return continue_domain_propagation;
-    }
 };
 }  // namespace presolve
 }  // namespace dwave

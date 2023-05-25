@@ -52,6 +52,8 @@ class Presolver {
     /// This clears the model from the presolver.
     model_type detach_model();
 
+    const Feasibility& feasibility() const;
+
     /// Load the default presolve techniques.
     void load_default_presolvers();
 

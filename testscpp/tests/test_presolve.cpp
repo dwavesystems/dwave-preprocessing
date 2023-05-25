@@ -324,9 +324,8 @@ SCENARIO("constrained quadratic models can be presolved") {
                 presolver.load_default_presolvers();
                 presolver.apply();
 
-                THEN("the constraint is still marked as discrete") {
-                    REQUIRE(presolver.model().num_constraints() == 1);
-                    CHECK(!presolver.model().constraint_ref(0).marked_discrete());
+                THEN("the constraint is removed") {
+                    REQUIRE(presolver.model().num_constraints() == 0);
                 }
             }
         }

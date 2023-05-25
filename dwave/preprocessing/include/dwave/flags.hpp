@@ -27,7 +27,17 @@ enum Feasibility {
 enum TechniqueFlags : std::uint64_t {
     None = 0,
 
-    // todo: individual technique flags
+    /// Remove redundant constraints.
+    /// See Achterberg et al., section 3.1.
+    RemoveRedundantConstraints = 1 << 0,
+
+    /// Remove small biases from the objective and constraints.
+    /// See Achterberg et al., section 3.1.
+    RemoveSmallBiases = 1 << 1,
+
+    /// Use constraints to tighten the bounds on variables.
+    /// See Achterberg et al., section 3.2.
+    DomainPropagation = 1 << 2,
 
     All = 0xffffffffffffffffu,
 
