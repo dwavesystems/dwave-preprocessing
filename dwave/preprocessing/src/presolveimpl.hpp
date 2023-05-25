@@ -850,6 +850,12 @@ class PresolverImpl {
         void fix_variables(typename std::vector<index_type>::iterator first,
                            typename std::vector<index_type>::iterator last,
                            typename std::vector<assignment_type>::iterator assignment) {
+            // short circuit in the case there's nothing to fix, thereby avoiding
+            // an expensive copy.
+            if (first == last) {
+                return;
+            }
+
             // track the changes as if we had applied them one-by-one 
             auto vit = first;
             auto ait = assignment;
