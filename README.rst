@@ -24,16 +24,9 @@ dwave-preprocessing
 `dwave-preprocessing` provides preprocessing tools for binary quadratic models
 (BQM) and presolve algorithms for constrained quadratic models (CQM).
 
-This illustrative example creates a very simple BQM and finds both a lower 
-bound on its energy (``-1.0``) and a minimizing assignment (``-1``) for the model's 
-single variable.
+.. code-block:: python
 
->>> import dimod
->>> from dwave.preprocessing.lower_bounds import roof_duality
-...
->>> bqm = dimod.BinaryQuadraticModel.from_ising({'a': 1.0}, {})
->>> roof_duality(bqm)
-(-1.0, {'a': -1})
+    import dwave.preprocessing
 
 This package contains several preprocessing composites that can aid in solving 
 BQMs and a presolver that can reduce a problem's redundant variables and 
