@@ -21,15 +21,17 @@ dwave-preprocessing
 
 .. index-start-marker
 
-`dwave-preprocessing` is a package of common preprocessing tools that can aid in
-solving binary quadratic models (BQM).
+`dwave-preprocessing` provides preprocessing tools for binary quadratic models
+(BQM) and presolve algorithms for constrained quadratic models (CQM).
 
 .. code-block:: python
 
     import dwave.preprocessing
 
-Currently, this package contains several preprocessing composites. For details on
-underlying algorithms and usage, see the package's
+This package contains several preprocessing composites that can aid in solving 
+BQMs and a presolver that can reduce a problem's redundant variables and 
+constraints to improve the accuracy of CQMs. For details on underlying 
+algorithms and usage, see the package's
 `Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/>`_.
 
 .. index-end-marker
