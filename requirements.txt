@@ -1,4 +1,4 @@
-dimod==0.12.5
+dimod==0.12.6
 Cython==0.29.28
 numpy==1.21.6
 

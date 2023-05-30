@@ -66,6 +66,6 @@ setup(
         ],
     install_requires=[
         'numpy>=1.20.0,<2.0.0',  # keep synced with circle-ci, pyproject.toml
-        'dimod>=0.12.5,<0.13.0'
+        'dimod>=0.12.6,<0.13.0'
         ],
 )
