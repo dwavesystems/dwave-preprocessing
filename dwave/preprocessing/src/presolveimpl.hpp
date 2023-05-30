@@ -404,21 +404,6 @@ class PresolverImpl {
         // These steps are not broken out into methods because we only want to do them here.
         // Otherwise we may reallocate vectors we don't want to reallocate.
 
-        // remove any constraints of the form 0==0, 0<=0, or 0>=0
-        {
-            size_type i = 0;
-            while (i < model_.num_constraints()) {
-                const constraint_type& constraint = model_.constraint_ref(i);
-                if (!constraint.num_variables() && !constraint.offset() && !constraint.rhs()) {
-                    // is a 0==0 or 0<=0 or 0>=0 constraint
-                    model_.remove_constraint(i);
-                    changes = true;
-                } else {
-                    ++i;
-                }
-            }
-        }
-
         /// Remove variables that are fixed by their bounds
         {
             std::vector<index_type> variables;
@@ -434,6 +419,24 @@ class PresolverImpl {
             model_.fix_variables(variables.begin(), variables.end(), values.begin());
 
             changes |= variables.size();
+
+            // we may have introduced offsets here, so let's fix them
+            changes |= normalization_remove_offsets();
+        }
+
+        // Remove any constraints without any variables, their contribution to
+        // infeasibility or whatever is baked in so no point carrying them around
+        {
+            size_type i = 0;
+            while (i < model_.num_constraints()) {
+                const constraint_type& constraint = model_.constraint_ref(i);
+                if (!constraint.num_variables()) {
+                    model_.remove_constraint(i);
+                    changes = true;
+                } else {
+                    ++i;
+                }
+            }
         }
 
         // There are a few normalization steps we want to re-run to clean up the model
@@ -457,14 +460,13 @@ class PresolverImpl {
     /// We don't actually remove them (yet) because we don't want to reallocate
     /// our constraint vector.
     bool technique_clear_redundant_constraint(constraint_type& constraint) {
-        // not currently implemented for quadratic constraints.
-        // todo: extend to quadratic
+        // This method is not (currently, todo) implemented for quadratic constraints
         if (!constraint.is_linear()) {
             return false;
         }
 
-        // skip the ones that have already been cleared
-        if (constraint.num_variables() == 0 && !constraint.offset() && !constraint.rhs()) {
+        // Skip the constraints that have already been cleared
+        if (!constraint.num_variables() && !constraint.offset() && !constraint.rhs()) {
             // the constraint is already empty, nothing to do
             return false;
         }
@@ -472,62 +474,47 @@ class PresolverImpl {
         bias_type minac = minimal_activity(constraint);
         bias_type maxac = maximal_activity(constraint);
 
-        // Developer note: we can clean this up a bit once
-        // https://github.com/dwavesystems/dimod/issues/1330 is implemented.
-
-        // Test if we're trivially infeasible
+        // Test if the constraint is trivially infeasible
         if (constraint.sense() == dimod::Sense::LE || constraint.sense() == dimod::Sense::EQ) {
             if (minac > constraint.rhs() + FEASIBILITY_TOLERANCE) {
-                // handle the special case of soft constraints
-                if (constraint.is_soft()) {
-                    constraint.clear();
-                    constraint.set_sense(dimod::Sense::EQ);
-                    constraint.set_rhs(0);
-                    return true;
+                // Soft constraints don't cause the model to be infeasible.
+                if (!constraint.is_soft()) {
+                    model_.feasibility = Feasibility::Infeasible;
                 }
 
-                model_.feasibility = Feasibility::Infeasible;
                 return false;
             }
         }
         if (constraint.sense() == dimod::Sense::GE || constraint.sense() == dimod::Sense::EQ) {
             if (maxac < constraint.rhs() - FEASIBILITY_TOLERANCE) {
-                // handle the special case of soft constraints
-                if (constraint.is_soft()) {
-                    constraint.clear();
-                    constraint.set_sense(dimod::Sense::EQ);
-                    constraint.set_rhs(0);
-                    return true;
+                // Soft constraints don't cause the model to be infeasible.
+                if (!constraint.is_soft()) {
+                    model_.feasibility = Feasibility::Infeasible;
                 }
 
-                model_.feasibility = Feasibility::Infeasible;
                 return false;
             }
         }
 
         // Test if the constraint is always satisfied
+        // If the constraint is soft, it can just be remove it because it will
+        // contribute 0 to the energy of the problem.
         switch (constraint.sense()) {
             case dimod::Sense::LE:
                 if (maxac <= constraint.rhs() + FEASIBILITY_TOLERANCE) {
                     constraint.clear();
-                    constraint.set_sense(dimod::Sense::EQ);
-                    constraint.set_rhs(0);
                     return true;
                 }
                 break;
             case dimod::Sense::GE:
                 if (minac >= constraint.rhs() - FEASIBILITY_TOLERANCE) {
                     constraint.clear();
-                    constraint.set_sense(dimod::Sense::EQ);
-                    constraint.set_rhs(0);
                     return true;
                 }
                 break;
             case dimod::Sense::EQ:
                 if (minac == constraint.rhs() && maxac == constraint.rhs()) {
                     constraint.clear();
-                    constraint.set_sense(dimod::Sense::EQ);
-                    constraint.set_rhs(0);
                     return true;
                 }
                 break;

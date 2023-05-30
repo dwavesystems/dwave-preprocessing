@@ -364,6 +364,56 @@ TEST_CASE("Test normalization_spin_to_binary", "[presolve][impl]") {
     }
 }
 
+TEST_CASE("Test technique_clear_redundant_constraint", "[presolve][impl]") {
+    GIVEN("A CQM with linear constraint that cannot be satisfied") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variables(dimod::Vartype::INTEGER, 3, 5, 100);
+        auto c = cqm.add_linear_constraint({0, 1, 2}, {1, 1, 1}, dimod::Sense::LE, 0);
+
+        WHEN("We remove redundant constraints") {
+            auto pre = PresolverImpl(cqm);
+            pre.techniques = presolve::TechniqueFlags::RemoveRedundantConstraints;
+            CHECK(!pre.normalize());
+            CHECK(!pre.presolve());
+
+            THEN("the model is infeasible and the constraint is not removed") {
+                CHECK(pre.feasibility() == presolve::Feasibility::Infeasible);
+
+                REQUIRE(pre.model().num_constraints() == 1);
+                REQUIRE(pre.model().constraint_ref(c).num_variables() == 3);
+                CHECK(pre.model().constraint_ref(c).linear(0) == 1.0);
+                CHECK(pre.model().constraint_ref(c).linear(0) == 1.0);
+                CHECK(pre.model().constraint_ref(c).linear(0) == 1.0);
+                CHECK(pre.model().constraint_ref(c).sense() == dimod::Sense::LE);
+                CHECK(pre.model().constraint_ref(c).rhs() == 0.0);
+            }
+        }
+
+        WHEN("We mark that constraint is soft") {
+            cqm.constraint_ref(c).set_weight(5);
+
+            AND_WHEN("We remove redundant constraints") {
+                auto pre = PresolverImpl(cqm);
+                pre.techniques = presolve::TechniqueFlags::RemoveRedundantConstraints;
+                CHECK(!pre.normalize());
+                CHECK(!pre.presolve());
+
+                THEN("the model is not infeasible and the soft constraint is still present") {
+                    CHECK(pre.feasibility() != presolve::Feasibility::Infeasible);
+
+                    REQUIRE(pre.model().num_constraints() == 1);
+                    REQUIRE(pre.model().constraint_ref(c).num_variables() == 3);
+                    CHECK(pre.model().constraint_ref(c).linear(0) == 1.0);
+                    CHECK(pre.model().constraint_ref(c).linear(0) == 1.0);
+                    CHECK(pre.model().constraint_ref(c).linear(0) == 1.0);
+                    CHECK(pre.model().constraint_ref(c).sense() == dimod::Sense::LE);
+                    CHECK(pre.model().constraint_ref(c).rhs() == 0.0);
+                }
+            }
+        }
+    }
+}
+
 TEST_CASE("Test technique_domain_propagation", "[presolve][impl]") {
     GIVEN("An empty constraint") {
         auto cqm = ConstrainedQuadraticModel();
