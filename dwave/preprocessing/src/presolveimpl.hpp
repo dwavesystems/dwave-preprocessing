@@ -70,7 +70,7 @@ class PresolverImpl {
 
     // Get the maximal activity constributed by variable v
     static bias_type maximal_activity(const constraint_type& constraint, index_type v) {
-        assert(constraint.is_linear());  // todo: support quadratic
+        assert(constraint.is_linear());  // O(n) check; todo: support quadratic
 
         bias_type a = constraint.linear(v);
         if (a > 0) {
@@ -82,7 +82,7 @@ class PresolverImpl {
 
     // Get the maximal activity of a constraint
     static bias_type maximal_activity(const constraint_type& constraint) {
-        assert(constraint.is_linear());  // todo: support quadratic
+        assert(constraint.is_linear());  // O(n) check; todo: support quadratic
 
         bias_type activity = constraint.offset();  // should be 0, but just in case
         for (const auto& v : constraint.variables()) {
@@ -93,7 +93,7 @@ class PresolverImpl {
 
     // Get the minimal activity constributed by variable v
     static bias_type minimal_activity(const constraint_type& constraint, index_type v) {
-        assert(constraint.is_linear());  // todo: support quadratic
+        assert(constraint.is_linear());  // O(n) check; todo: support quadratic
 
         bias_type a = constraint.linear(v);
         if (a > 0) {
@@ -105,7 +105,7 @@ class PresolverImpl {
 
     // Get the minimal activity of a constraint
     static bias_type minimal_activity(const constraint_type& constraint) {
-        assert(constraint.is_linear());  // todo: support quadratic
+        assert(constraint.is_linear());  // O(n) check; todo: support quadratic
 
         bias_type activity = constraint.offset();  // should be 0, but just in case
         for (const auto& v : constraint.variables()) {
@@ -145,6 +145,8 @@ class PresolverImpl {
             // tighten bounds based on the vartype
             switch (model_.vartype(v)) {
                 case dimod::Vartype::SPIN:
+                    // we could handle this case, but because normalization should
+                    // take care of it we just throw an error for simplicity
                     throw std::logic_error(
                             "normalization_fix_bounds() must be run after "
                             "normalization_spin_to_binary()");
@@ -164,6 +166,7 @@ class PresolverImpl {
                     changes |= model_.set_lower_bound(v, std::ceil(model_.lower_bound(v)));
                     break;
                 case dimod::Vartype::REAL:
+                    // For REAL variables there's nothing to do
                     break;
             }
 
@@ -537,7 +540,7 @@ class PresolverImpl {
             return false;
         }
 
-        // In order to not fall into zeno's paradox here, we don't shink bounds when
+        // In order to not fall into zeno's paradox here, we don't shrink bounds when
         // the reduction is small.
         static constexpr double BOUND_CHANGE_MINIMUM = 1.0e-3 * FEASIBILITY_TOLERANCE;
 
@@ -583,6 +586,7 @@ class PresolverImpl {
             }
         }
 
+        // We don't need to handle GE, but it makes testing easier so may as well
         if (constraint.sense() == dimod::Sense::GE || constraint.sense() == dimod::Sense::EQ) {
             // for each variable, test if we can change the bounds
             for (const auto& v : constraint.variables()) {
@@ -645,7 +649,7 @@ class PresolverImpl {
 
         // We zero linear biases that are smaller than 1e-10 and we remove the
         // variable from the expression if its linear bias is small and it
-        // has to quadratic interactions
+        // has no quadratic interactions
         std::vector<index_type> variables;
         for (size_type vi = 0; vi < base.num_variables(); ++vi) {
             if (std::abs(base.linear(vi)) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT) {
