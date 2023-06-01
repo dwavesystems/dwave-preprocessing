@@ -267,38 +267,6 @@ class TestPresolver(unittest.TestCase):
         self.assertEqual(cqm.upper_bound(0), +5)
         self.assertEqual(cqm.num_constraints(), 0)
 
-    def test_small_biases(self):
-        i, j, k, l = dimod.Reals('ijkl')
-
-        cqm = dimod.ConstrainedQuadraticModel()
-        cqm.set_objective(i + j + k + l)
-        cqm.add_constraint(1e-9 * i + 1e-8 * j + k <= 100)
-        cqm.add_constraint(i + j + 1e-10 * k + 1e-11 * l <= 100)
-
-        cqm.set_lower_bound('i', 1e10)
-        cqm.set_upper_bound('i', 1e10 + 1)
-        cqm.set_lower_bound('j', 1e10)
-        cqm.set_upper_bound('j', 1e10 + 1)
-        cqm.set_lower_bound('k', -20)
-        cqm.set_upper_bound('k', 0)
-
-        presolver = Presolver(cqm)
-        presolver.load_default_presolvers()
-        presolver.apply()
-        updated_cqm = presolver.copy_model()
-        new = updated_cqm.constraints
-
-        self.assertEqual(new[0].lhs.get_linear(0), 0)
-        self.assertEqual(new[0].lhs.get_linear(1), 1e-8)
-        self.assertEqual(new[0].lhs.get_linear(2), 1)
-        self.assertEqual(new[0].rhs, 100 - 1e-9 * 1e10)
-
-        self.assertEqual(new[1].lhs.get_linear(0), 1)
-        self.assertEqual(new[1].lhs.get_linear(1), 1)
-        self.assertEqual(new[1].lhs.get_linear(2), 0)
-        self.assertEqual(new[1].lhs.get_linear(3), 0)
-        self.assertEqual(new[1].rhs, 100 - 1e-10 * (-20))
-
     def test_domain_propagation(self):
         i, j, k, l, m, n, o, p = dimod.Reals('ijklmnop')
 

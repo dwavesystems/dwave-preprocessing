@@ -22,7 +22,10 @@ cdef extern from "dwave/exceptions.hpp" namespace "dwave::presolve" nogil:
     pass
 
 cdef extern from "dwave/flags.hpp" namespace "dwave::presolve" nogil:
-    pass
+    enum Feasibility:
+        Unknown,
+        Infeasible,
+        Feasible
 
 cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
     cdef cppclass Presolver[bias_type, index_type, assignment_type]:
@@ -32,6 +35,7 @@ cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
         Presolver(model_type)
         void apply() except+
         model_type detach_model()
+        const Feasibility& feasibility() const
         void load_default_presolvers()
         model_type& model()
         vector[assignment_type] restore(vector[assignment_type])

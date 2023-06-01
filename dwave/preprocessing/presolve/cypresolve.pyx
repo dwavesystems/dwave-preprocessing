@@ -27,6 +27,8 @@ from dimod.libcpp cimport ConstrainedQuadraticModel as cppConstrainedQuadraticMo
 from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel, make_cqm
 from dimod.cyutilities cimport ConstNumeric
 
+from dwave.preprocessing.libcpp cimport Feasibility as cppFeasibility
+
 # We want to establish a relationship between presolveimpl.hpp and this file, so that
 # changes to presolveimpl.hpp will trigger a rebuild.
 cdef extern from "../src/presolveimpl.hpp" namespace "dwave::presolve" nogil:
@@ -60,6 +62,9 @@ cdef class cyPresolver:
         """Apply any loaded presolve techniques to the held constrained quadratic model."""
         self.cpppresolver.apply()
         self._model_num_variables = self.cpppresolver.model().num_variables()
+
+        if self.cpppresolver.feasibility() == cppFeasibility.Infeasible:
+            raise RuntimeError("infeasible")
 
     def clear_model(self):
         """Clear the held constrained quadratic model. This is useful to save memory."""
