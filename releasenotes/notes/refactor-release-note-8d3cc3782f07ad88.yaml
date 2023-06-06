@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Implement the techniques outlined in sections 3.1 and 3.2 of
+    Achterberg et al., "Presolve Reductions in Mixed Integer Programming".
