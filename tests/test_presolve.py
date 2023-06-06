@@ -18,8 +18,7 @@ import unittest
 import dimod
 import numpy as np
 
-from dwave.preprocessing import Presolver
-from dwave.preprocessing import InvalidModelError, InfeasibleModelError
+from dwave.preprocessing import Presolver, Feasibility, InvalidModelError
 
 
 class TestPresolver(unittest.TestCase):
@@ -201,8 +200,8 @@ class TestPresolver(unittest.TestCase):
 
             presolver = Presolver(cqm)
             presolver.load_default_presolvers()
-            with self.assertRaises(InfeasibleModelError):
-                presolver.apply()
+            presolver.apply()
+            self.assertIs(presolver.feasibility(), Feasibility.Infeasible)
 
         with self.subTest("infeas =="):
             cqm = dimod.ConstrainedQuadraticModel()
@@ -212,8 +211,8 @@ class TestPresolver(unittest.TestCase):
 
             presolver = Presolver(cqm)
             presolver.load_default_presolvers()
-            with self.assertRaises(InfeasibleModelError):
-                presolver.apply()
+            presolver.apply()
+            self.assertIs(presolver.feasibility(), Feasibility.Infeasible)
 
         with self.subTest("infeas >="):
             cqm = dimod.ConstrainedQuadraticModel()
@@ -223,8 +222,8 @@ class TestPresolver(unittest.TestCase):
 
             presolver = Presolver(cqm)
             presolver.load_default_presolvers()
-            with self.assertRaises(InfeasibleModelError):
-                presolver.apply()
+            presolver.apply()
+            self.assertIs(presolver.feasibility(), Feasibility.Infeasible)
 
     def test_self_loop(self):
         i = dimod.Integer("i")

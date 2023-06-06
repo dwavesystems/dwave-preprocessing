@@ -12,8 +12,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import enum
+
 import dimod
 import numpy as np
+
+
+class Feasibility(enum.Enum):
+    Infeasible = 0
+    Feasible = 1
+    Unknown = 2
 
 
 class cyPresolver:
@@ -24,5 +32,6 @@ class cyPresolver:
     def clear_model(self) -> None: ...
     def copy_model(self) -> dimod.ConstrainedQuadraticModel: ...
     def detach_model(self) -> dimod.ConstrainedQuadraticModel: ...
+    def feasibility(self) -> Feasibility: ...
     def load_default_presolvers(self) -> None: ...
     def restore_samples(self, samples_like: dimod.typing.SamplesLike) -> np.ndarray: ...

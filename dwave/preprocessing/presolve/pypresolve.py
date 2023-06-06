@@ -88,9 +88,9 @@ You can also create the sample set for the original CQM:
 
 import dimod
 
-from dwave.preprocessing.presolve.cypresolve import cyPresolver
+from dwave.preprocessing.presolve.cypresolve import cyPresolver, Feasibility
 
-__all__ = ['Presolver']
+__all__ = ["Feasibility", "Presolver"]
 
 
 class Presolver(cyPresolver):

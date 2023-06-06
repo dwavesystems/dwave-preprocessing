@@ -19,9 +19,9 @@
 namespace dwave::presolve {
 
 enum Feasibility {
-    Unknown,     //< It is not known if the model is feasible or not
     Infeasible,  //< The model is known to be infeasible
     Feasible,    //< The model is known to be feasible
+    Unknown,     //< It is not known if the model is feasible or not
 };
 
 enum TechniqueFlags : std::uint64_t {

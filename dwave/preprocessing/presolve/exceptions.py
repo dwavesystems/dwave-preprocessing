@@ -13,10 +13,6 @@
 #    limitations under the License.
 
 
-class InfeasibleModelError(ValueError):
-    pass
-
-
 class InvalidModelError(ValueError):
     """Error for models that are ill-constructed or otherwise not valid.
 

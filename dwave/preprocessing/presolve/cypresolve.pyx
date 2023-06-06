@@ -14,6 +14,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import enum as pyenum
+
 cimport cython
 
 from libcpp.vector cimport vector
@@ -28,12 +30,27 @@ from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel, make_c
 from dimod.cyutilities cimport ConstNumeric
 
 from dwave.preprocessing.libcpp cimport Feasibility as cppFeasibility
-from dwave.preprocessing.presolve.exceptions import InvalidModelError, InfeasibleModelError
+from dwave.preprocessing.presolve.exceptions import InvalidModelError
 
 # We want to establish a relationship between presolveimpl.hpp and this file, so that
 # changes to presolveimpl.hpp will trigger a rebuild.
 cdef extern from "../src/presolveimpl.hpp" namespace "dwave::presolve" nogil:
     pass
+
+
+# In Cython3 we'll be able to import this from C++ directly, but for now we duplicate
+class Feasibility(pyenum.Enum):
+    """An :py:class:`~enum.Enum` to signal whether a model is feasible or not.
+
+    Attributes:
+        Infeasible: The model is known to be infeasible
+        Feasible: The model is known to be feasible
+        Unknown: It is not known if the model is feasible or not
+
+    """
+    Infeasible = 0
+    Feasible = 1
+    Unknown = 2
 
 
 cdef class cyPresolver:
@@ -75,9 +92,6 @@ cdef class cyPresolver:
         # Save the new size for later use in restore_samples
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
-        if self.cpppresolver.feasibility() == cppFeasibility.Infeasible:
-            raise InfeasibleModelError("given CQM is infeasible")
-
     def clear_model(self):
         """Clear the held constrained quadratic model. This is useful to save memory."""
         self.cpppresolver.detach_model()
@@ -93,6 +107,21 @@ cdef class cyPresolver:
         Subsequent attempts to access the held model raise a :exc:`RuntimeError`.
         """
         return make_cqm(cppmove(self.cpppresolver.detach_model()))
+
+    def feasibility(self):
+        """Return the feasibility of the model."""
+        # Cython3 will support this automatically but for now we just do the
+        # explicit check
+
+        if self.cpppresolver.feasibility() == cppFeasibility.Infeasible:
+            return Feasibility.Infeasible
+        elif self.cpppresolver.feasibility() == cppFeasibility.Unknown:
+            return Feasibility.Unknown
+        elif self.cpppresolver.feasibility() == cppFeasibility.Feasible:
+            return Feasibility.Feasible
+        else:
+            # sanity check
+            raise RuntimeError("unexpected Feasibility")
 
     def load_default_presolvers(self):
         """Load the default presolvers."""
