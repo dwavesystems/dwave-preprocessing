@@ -140,12 +140,56 @@ TEST_CASE("Test normalization_fix_bounds", "[presolve][impl]") {
 }
 
 TEST_CASE("Test normalization_check_nan", "[presolve][impl]") {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
     SECTION("Linear objective with NaNs") {
         auto cqm = ConstrainedQuadraticModel();
         cqm.add_variable(dimod::BINARY);
-        cqm.objective.set_linear(0, std::numeric_limits<double>::quiet_NaN());
+        cqm.objective.set_linear(0, nan);
         CHECK_THROWS_AS(PresolverImpl::normalization_check_nan(cqm.objective),
                         presolve::InvalidModelError);
+    }
+
+    SECTION("Linear constraint with NaNs") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::BINARY);
+        cqm.add_linear_constraint({0}, {nan}, dimod::Sense::EQ, 0);
+        CHECK_THROWS_AS(PresolverImpl::normalization_check_nan(cqm.constraint_ref(0)),
+                        presolve::InvalidModelError);
+    }
+
+    SECTION("Quadratic constraint with NaNs") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variables(dimod::BINARY, 2);
+        auto c = cqm.add_linear_constraint({0, 1}, {1, 1}, dimod::Sense::EQ, 0);
+        cqm.constraint_ref(c).add_quadratic(0, 1, nan);
+        CHECK_THROWS_AS(PresolverImpl::normalization_check_nan(cqm.constraint_ref(0)),
+                        presolve::InvalidModelError);
+    }
+
+    SECTION("Constraint with NaN rhs") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::BINARY);
+        cqm.add_linear_constraint({0}, {1}, dimod::Sense::EQ, nan);
+        CHECK_THROWS_AS(PresolverImpl::normalization_check_nan(cqm.constraint_ref(0)),
+                        presolve::InvalidModelError);
+    }
+
+    SECTION("Constraint with NaN weight") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::BINARY);
+        auto c = cqm.add_linear_constraint({0}, {1}, dimod::Sense::EQ, 0);
+        cqm.constraint_ref(c).set_weight(nan);
+        CHECK_THROWS_AS(PresolverImpl::normalization_check_nan(cqm.constraint_ref(0)),
+                        presolve::InvalidModelError);
+    }
+
+    SECTION("Variables with NaN bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::INTEGER);
+        cqm.set_lower_bound(v, nan);
+        auto pre = PresolverImpl(cqm);
+        CHECK_THROWS_AS(pre.normalization_check_nan(), presolve::InvalidModelError);
     }
 }
 
