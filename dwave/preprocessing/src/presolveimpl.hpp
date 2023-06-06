@@ -185,14 +185,37 @@ class PresolverImpl {
         for (auto& constraint : model_.constraints()) {
             changes |= normalization_check_nan(constraint);
         }
+
+        // test the bounds
+        for (size_type v = 0, last = model_.num_variables(); v < last; ++v) {
+            if (std::isnan(model_.lower_bound(v)) || std::isnan(model_.upper_bound(v))) {
+                throw InvalidModelError("bounds cannot be NAN");
+            }
+        }
+
         return changes;
     }
 
-    static bool normalization_check_nan(const dimod::Expression<bias_type, index_type>& expression) {
+    static bool normalization_check_nan(const constraint_type& constraint) {
+        // test the rhs
+        if (std::isnan(constraint.rhs())) {
+            throw InvalidModelError("constraint rhs cannot be NAN");
+        }
+
+        // test the weight
+        if (std::isnan(constraint.weight())) {
+            throw InvalidModelError("constraint weight cannot be NAN");
+        }
+
+        // test the biases and offset
+        return normalization_check_nan(static_cast<const expression_type&>(constraint));
+    }
+
+    static bool normalization_check_nan(const expression_type& expression) {
         // We only care about the biases, so let's just cast to the base type for speed
         const dimod::abc::QuadraticModelBase<bias_type, index_type>& base = expression;
 
-        for (auto it = base.cbegin_quadratic(); it != base.cend_quadratic(); ++it) {
+        for (auto it = base.cbegin_quadratic(), end = base.cend_quadratic(); it != end; ++it) {
             if (std::isnan(it->bias)) throw InvalidModelError("biases cannot be NAN");
         }
 
@@ -201,10 +224,10 @@ class PresolverImpl {
         }
 
         if (std::isnan(base.offset())) {
-            throw InvalidModelError("biases cannot be NAN");
+            throw InvalidModelError("offset cannot be NAN");
         }
 
-        return false; // no changes made
+        return false;  // no changes made
     }
 
     /// Convert any >= constraints into <=.

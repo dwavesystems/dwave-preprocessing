@@ -1,0 +1,4 @@
+---
+features:
+  - Raise an ``InvalidModelError`` from ``Presolver`` when given a model with ``float("nan")`` bounds.
+  - Raise an ``InvalidModelError`` from ``Presolver`` when given a model that has a constraint with ``float("nan")`` weight or rhs.
