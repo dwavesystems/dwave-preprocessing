@@ -36,8 +36,8 @@ Presolver<Bias, Index, Assignment>::Presolver(dimod::ConstrainedQuadraticModel<B
         : impl_(std::make_unique<PresolverImpl_>(std::move(model))) {}
 
 template <class Bias, class Index, class Assignment>
-void Presolver<Bias, Index, Assignment>::apply() {
-    impl_->apply();
+bool Presolver<Bias, Index, Assignment>::apply() {
+    return impl_->apply();
 }
 
 template <class Bias, class Index, class Assignment>
@@ -59,6 +59,16 @@ template <class Bias, class Index, class Assignment>
 const dimod::ConstrainedQuadraticModel<Bias, Index>& Presolver<Bias, Index, Assignment>::model()
         const {
     return impl_->model();
+}
+
+template <class Bias, class Index, class Assignment>
+bool Presolver<Bias, Index, Assignment>::normalize() {
+    return impl_->normalize();
+}
+
+template <class Bias, class Index, class Assignment>
+bool Presolver<Bias, Index, Assignment>::presolve() {
+    return impl_->presolve();
 }
 
 template <class Bias, class Index, class Assignment>

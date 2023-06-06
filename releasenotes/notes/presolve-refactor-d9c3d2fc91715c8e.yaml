@@ -1,0 +1,7 @@
+---
+features:
+  - Add ``dwave::presolve::Presolve::normalize()`` C++ method.
+  - Add ``dwave::presolve::Presolve::presolve()`` C++ method.
+  - Raise an ``InvalidModelError`` from ``Presolver`` when given a model with ``float("nan")`` biases.
+upgrade:
+  - Raise an ``InvalidModelError`` rather than a ``RuntimeError`` when presolving a detached model.

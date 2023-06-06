@@ -28,6 +28,7 @@ from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel, make_c
 from dimod.cyutilities cimport ConstNumeric
 
 from dwave.preprocessing.libcpp cimport Feasibility as cppFeasibility
+from dwave.preprocessing.presolve.exceptions import InvalidModelError, InfeasibleModelError
 
 # We want to establish a relationship between presolveimpl.hpp and this file, so that
 # changes to presolveimpl.hpp will trigger a rebuild.
@@ -60,11 +61,22 @@ cdef class cyPresolver:
 
     def apply(self):
         """Apply any loaded presolve techniques to the held constrained quadratic model."""
-        self.cpppresolver.apply()
+        try:
+            self.cpppresolver.normalize()
+        except RuntimeError as err:
+            # The C++ InvalidModelError is interpreted by Cython as a RuntimeError
+            # We could put in a bunch of code to reinterpret it, but because this
+            # is the only error type that should be raised by normalize() we just
+            # do it naively. 
+            raise InvalidModelError(err)
+
+        self.cpppresolver.presolve()
+
+        # Save the new size for later use in restore_samples
         self._model_num_variables = self.cpppresolver.model().num_variables()
 
         if self.cpppresolver.feasibility() == cppFeasibility.Infeasible:
-            raise RuntimeError("infeasible")
+            raise InfeasibleModelError("given CQM is infeasible")
 
     def clear_model(self):
         """Clear the held constrained quadratic model. This is useful to save memory."""

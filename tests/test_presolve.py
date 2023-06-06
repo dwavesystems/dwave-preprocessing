@@ -18,7 +18,8 @@ import unittest
 import dimod
 import numpy as np
 
-from dwave.preprocessing import Presolver, InfeasibleModelError
+from dwave.preprocessing import Presolver
+from dwave.preprocessing import InvalidModelError, InfeasibleModelError
 
 
 class TestPresolver(unittest.TestCase):
@@ -142,7 +143,17 @@ class TestPresolver(unittest.TestCase):
         model = presolver.detach_model()
         self.assertEqual(len(model.variables), 1)
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(InvalidModelError):
+            presolver.apply()
+
+    def test_invalid_model(self):
+        cqm = dimod.CQM()
+        i = cqm.add_variable("INTEGER")
+        cqm.objective.set_linear(i, float("nan"))
+
+        presolver = Presolver(cqm)
+
+        with self.assertRaises(InvalidModelError):
             presolver.apply()
 
     def test_move(self):

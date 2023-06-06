@@ -33,9 +33,11 @@ cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
 
         Presolver()
         Presolver(model_type)
-        void apply() except+
+        bint apply() except+
         model_type detach_model()
         const Feasibility& feasibility() const
         void load_default_presolvers()
         model_type& model()
+        bint normalize() except+
+        bint presolve() except+
         vector[assignment_type] restore(vector[assignment_type])
