@@ -88,13 +88,9 @@ You can also create the sample set for the original CQM:
 
 import dimod
 
-from dwave.preprocessing.presolve.cypresolve import cyPresolver
+from dwave.preprocessing.presolve.cypresolve import cyPresolver, Feasibility
 
-__all__ = ['Presolver', 'InfeasibleModelError']
-
-
-class InfeasibleModelError(ValueError):
-    pass
+__all__ = ["Feasibility", "Presolver"]
 
 
 class Presolver(cyPresolver):
@@ -144,13 +140,3 @@ class Presolver(cyPresolver):
     # include this for the function signature
     def __init__(self, cqm: dimod.ConstrainedQuadraticModel, *, move: bool = False):
         super().__init__(cqm, move=move)
-
-    def apply(self):
-        try:
-            super().apply()
-        except RuntimeError as err:
-            if str(err) == 'infeasible':
-                # checking based on the string is not ideal, but Cython is
-                # not-so-good at custom exceptions
-                raise InfeasibleModelError("given CQM is infeasible") from err
-            raise err

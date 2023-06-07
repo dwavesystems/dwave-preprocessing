@@ -46,7 +46,7 @@ class Presolver {
     explicit Presolver(model_type model);
 
     /// Apply any loaded presolve techniques. Acts on the model() in-place.
-    void apply();
+    bool apply();
 
     /// Detach the constrained quadratic model and return it.
     /// This clears the model from the presolver.
@@ -59,6 +59,12 @@ class Presolver {
 
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const;
+
+    /// Normalize the model.
+    bool normalize();
+
+    /// Presolve a normalized model.
+    bool presolve();
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
     std::vector<assignment_type> restore(std::vector<assignment_type> reduced) const;

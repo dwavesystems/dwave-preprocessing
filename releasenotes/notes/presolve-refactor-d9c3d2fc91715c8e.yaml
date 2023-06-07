@@ -1,0 +1,12 @@
+---
+features:
+  - Add ``dwave::presolve::Presolve::normalize()`` C++ method.
+  - Add ``dwave::presolve::Presolve::presolve()`` C++ method.
+  - Raise an ``InvalidModelError`` from ``Presolver`` when given a model with ``float("nan")`` biases.
+  - |
+    Add ``Presolver.feasibility()`` method to return a ``Feasibility`` enum. This can be used to test
+    the feasibility of presolved models.
+upgrade:
+  - Raise an ``InvalidModelError`` rather than a ``RuntimeError`` when presolving a detached model.
+  - Change ``Presolver`` to no longer raise an ``InfeasibleModelError`` error for infeasible models.
+  - Remove the ``InfeasibleModelError``.
