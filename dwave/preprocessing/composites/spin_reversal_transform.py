@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from random import random
+import typing
 
-from dimod.core.composite import Composite
-from dimod.core.sampler import Sampler
-from dimod.sampleset import SampleSet, concatenate
-from dimod.vartypes import Vartype
+import dimod
+import numpy as np
+
+from dimod import Vartype
 
 __all__ = ['SpinReversalTransformComposite']
 
-class SpinReversalTransformComposite(Sampler, Composite):
+
+class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
     """Composite for applying spin reversal transform preprocessing.
 
     Spin reversal transforms (or "gauge transformations") are applied
@@ -52,31 +53,72 @@ class SpinReversalTransformComposite(Sampler, Composite):
         2014.
 
     """
-    children = None
-    parameters = None
-    properties = None
+    _children: typing.List[dimod.core.Sampler]
+    _parameters: typing.Dict[str, typing.Sequence[str]]
+    _properties: typing.Dict[str, typing.Any]
 
-    def __init__(self, child):
-        self.children = [child]
+    def __init__(self, child: dimod.core.Sampler, *, seed=None):
+        self._child = child
+        self.rng = np.random.default_rng(seed)
 
-        self.parameters = parameters = {'spin_reversal_variables': []}
-        parameters.update(child.parameters)
+    @property
+    def children(self) -> typing.List[dimod.core.Sampler]:
+        try:
+            return self._children
+        except AttributeError:
+            pass
 
-        self.properties = {'child_properties': child.properties}
+        self._children = children = [self._child]
+        return children
 
-    def sample(self, bqm, *, num_spin_reversal_transforms=1, **kwargs):
+    @property
+    def parameters(self) -> typing.Dict[str, typing.Sequence[str]]:
+        try:
+            return self._parameters
+        except AttributeError:
+            pass
+
+        self._parameters = parameters = dict(spin_reversal_variables=tuple())
+        parameters.update(self._child.parameters)
+        return parameters
+
+    @property
+    def properties(self) -> typing.Dict[str, typing.Any]:
+        try:
+            return self._properties
+        except AttributeError:
+            pass
+
+        self._properties = dict(child_properties=self._child.properties)
+        return self._properties
+
+    class _SampleSets:
+        def __init__(self, samplesets: typing.List[dimod.SampleSet]):
+            self.samplesets = samplesets
+
+        def done(self) -> bool:
+            return all(ss.done() for ss in self.samplesets)
+
+    @dimod.decorators.nonblocking_sample_method
+    def sample(self, bqm: dimod.BinaryQuadraticModel, *,
+               num_spin_reversal_transforms: int = 1,
+               **kwargs,
+               ):
         """Sample from the binary quadratic model.
 
         Args:
-            bqm (:class:`~dimod.BinaryQuadraticModel`):
-                Binary quadratic model to be sampled from.
+            bqm: Binary quadratic model to be sampled from.
 
-            num_spin_reversal_transforms (integer, optional, default=1):
+            num_spin_reversal_transforms:
                 Number of spin reversal transform runs.
+                A value of ``0`` will not transform the problem.
+                If you specify a nonzero value, each spin reversal transform
+                will result in an independent run of the child sampler.
 
         Returns:
-            :class:`.SampleSet`
-        
+            A sample set. Note that for a sampler that returns ``num_reads`` samples,
+            the sample set will contain ``num_reads*num_spin_reversal_transforms`` samples.
+
         Examples:
             This example runs 100 spin reversals applied to one variable of a QUBO problem.
 
@@ -91,38 +133,52 @@ class SpinReversalTransformComposite(Sampler, Composite):
             >>> len(response)
             400
         """
-        if not bqm.num_variables:
-            return self.child.sample(bqm, **kwargs)
+        sampler = self._child
 
-        # make a main response
-        responses = []
+        # No SRTs, so just pass the problem through
+        if not num_spin_reversal_transforms or not bqm.num_variables:
+            sampleset = sampler.sample(bqm, **kwargs)
+            # yield twice because we're using the @nonblocking_sample_method
+            yield sampleset  # this one signals done()-ness
+            yield sampleset  # this is the one actually used by the user
+            return
 
-        flipped_bqm = bqm.copy()
-        transform = {v: False for v in bqm.variables}
-        
-        for ii in range(num_spin_reversal_transforms):
-            # flip each variable with a 50% chance
-            for v in bqm.variables:
-                if random() > .5:
-                    transform[v] = not transform[v]
-                    flipped_bqm.flip_variable(v)
+        # we'll be modifying the BQM, so make a copy
+        bqm = bqm.copy()
 
-            flipped_response = self.child.sample(flipped_bqm, **kwargs)
+        # We maintain the Leap behavior that num_spin_reversal_transforms == 1
+        # corresponds to a single problem with randomly flipped variables.
 
-            tf_idxs = [flipped_response.variables.index(v)
-                       for v, flip in transform.items() if flip]
+        # Get the SRT matrix
+        SRT = self.rng.random((num_spin_reversal_transforms, bqm.num_variables)) > .5
 
-            if bqm.vartype is Vartype.SPIN:
-                flipped_response.record.sample[:, tf_idxs] = -1 * flipped_response.record.sample[:, tf_idxs]
-            else:
-                flipped_response.record.sample[:, tf_idxs] = 1 - flipped_response.record.sample[:, tf_idxs]
+        # Submit the problems
+        samplesets: typing.List[dimod.SampleSet] = []
+        flipped = np.zeros(bqm.num_variables, dtype=bool)  # what variables are currently flipped
+        for i in range(num_spin_reversal_transforms):
+            # determine what needs to be flipped
+            transform = flipped != SRT[i, :]
 
-            if num_spin_reversal_transforms == 1:
-                #Case of a single sampleset call, avoid
-                #stripping of info field and other
-                #information. 
-                return(flipped_response)
-            else:
-                responses.append(flipped_response)
+            # apply the transform
+            for v, flip in zip(bqm.variables, transform):
+                if flip:
+                    bqm.flip_variable(v)
+            flipped[transform] = ~flipped[transform]
 
-        return concatenate(responses)
+            samplesets.append(sampler.sample(bqm, **kwargs))
+
+        # Yield a view of the samplesets that reports done()-ness
+        yield self._SampleSets(samplesets)
+
+        # Undo the SRTs according to vartype
+        if bqm.vartype is Vartype.BINARY:
+            for i, sampleset in enumerate(samplesets):
+                sampleset.record.sample[:, SRT[i, :]] = 1 - sampleset.record.sample[:, SRT[i, :]]
+        elif bqm.vartype is Vartype.SPIN:
+            for i, sampleset in enumerate(samplesets):
+                sampleset.record.sample[:, SRT[i, :]] *= -1
+        else:
+            raise RuntimeError("unexpected vartype")
+
+        # finally combine all samplesets together
+        yield dimod.concatenate(samplesets)
