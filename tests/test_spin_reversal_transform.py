@@ -127,10 +127,8 @@ class TestSpinTransformComposite(unittest.TestCase):
         self.assertTrue(sampleset.done())
 
         # Resolving raises the exception
-        with self.assertRaises(Exception) as cm:
+        with self.assertRaisesRegex(Exception, "boom"):
             sampleset.resolve()
-
-        self.assertEqual(str(cm.exception), "boom")
 
     def test_seed(self):
         bqm = dimod.BQM(1000, "SPIN")
