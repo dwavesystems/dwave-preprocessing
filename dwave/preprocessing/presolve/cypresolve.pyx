@@ -76,21 +76,18 @@ cdef class cyPresolver:
             del self.cpppresolver
             self.cpppresolver = NULL
 
-    def apply(self):
-        """Apply any loaded presolve techniques to the held constrained quadratic model."""
-        try:
-            self.cpppresolver.normalize()
-        except RuntimeError as err:
-            # The C++ InvalidModelError is interpreted by Cython as a RuntimeError
-            # We could put in a bunch of code to reinterpret it, but because this
-            # is the only error type that should be raised by normalize() we just
-            # do it naively. 
-            raise InvalidModelError(err)
+    cpdef bint apply(self) except*:
+        """Normalize and presolve the held constraint quadratic model.
 
-        self.cpppresolver.presolve()
+        Returns:
+            A boolean indicating whether the model was modified by presolve.
 
-        # Save the new size for later use in restore_samples
-        self._model_num_variables = self.cpppresolver.model().num_variables()
+        Raises:
+            :exc:`InvalidModelError`: If the model is ill-constructed or otherwise
+                not valid. This is disctinct from infeasibility.
+        """
+        # Use | to avoid short-circuiting
+        return self.normalize() | self.presolve()
 
     def clear_model(self):
         """Clear the held constrained quadratic model. This is useful to save memory."""
@@ -126,6 +123,57 @@ cdef class cyPresolver:
     def load_default_presolvers(self):
         """Load the default presolvers."""
         self.cpppresolver.load_default_presolvers()
+
+    cpdef bint normalize(self) except*:
+        """Apply any loaded presolve techniques to the held constrained quadratic model.
+
+        Returns:
+            A boolean indicating whether the model was modified by presolve.
+
+        Raises:
+            :exc:`InvalidModelError`: If the model is ill-constructed or otherwise
+                not valid. This is disctinct from infeasibility.
+        """
+        cdef bint changes = False
+
+        try:
+            changes = self.cpppresolver.normalize()
+        except RuntimeError as err:
+            # The C++ InvalidModelError is interpreted by Cython as a RuntimeError
+            # We could put in a bunch of code to reinterpret it, but because this
+            # is the only error type that should be raised by normalize() we just
+            # do it naively. 
+            raise InvalidModelError(err)
+
+        # Save the new size for later use in restore_samples
+        self._model_num_variables = self.cpppresolver.model().num_variables()
+
+        return changes
+
+    cpdef bint presolve(self) except*:
+        """Apply any loaded presolve techniques to the held constrained quadratic model.
+
+        Must be called after :meth:`normalize`.
+
+        Returns:
+            A boolean indicating whether the model was modified by presolve.
+
+        Raises:
+            TypeError: If called before :class:`normalize()`.
+        """
+        cdef bint changes = False
+
+        try:
+            changes = self.cpppresolver.presolve()
+        except RuntimeError as err:
+            # The C++ logic_error is interpreted by Cython as a RuntimeError.
+            # The only errors here should be for a model that's not normalized.
+            raise TypeError(err)
+
+        # Save the new size for later use in restore_samples
+        self._model_num_variables = self.cpppresolver.model().num_variables()
+
+        return changes
 
     @cython.boundscheck(False)
     @cython.wraparound(False)

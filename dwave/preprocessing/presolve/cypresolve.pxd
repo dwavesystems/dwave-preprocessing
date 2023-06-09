@@ -28,3 +28,7 @@ cdef class cyPresolver:
     
     cdef cyVariables _original_variables
     cdef Py_ssize_t _model_num_variables
+
+    cpdef bint apply(self) except*
+    cpdef bint normalize(self) except*
+    cpdef bint presolve(self) except*

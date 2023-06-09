@@ -21,6 +21,84 @@ import numpy as np
 from dwave.preprocessing import Presolver, Feasibility, InvalidModelError
 
 
+class TestApply(unittest.TestCase):
+    # Developer note: most of the testing for normalization/presolve is done at the C++
+    # level. These tests are mostly testing the Cython/Python interface.
+
+    def test_invalid_model(self):
+        cqm = dimod.CQM()
+        i = cqm.add_variable("INTEGER")
+        cqm.objective.set_linear(i, float("nan"))
+
+        presolver = Presolver(cqm)
+
+        with self.assertRaises(InvalidModelError):
+            presolver.apply()
+
+
+class TestNormalization(unittest.TestCase):
+    # Developer note: most of the testing for normalization is done at the C++
+    # level. These tests are mostly testing the Cython/Python interface.
+
+    def test_empty(self):
+        presolver = Presolver(dimod.ConstrainedQuadraticModel())
+
+        self.assertFalse(presolver.normalize())  # no changes made
+
+    def test_ge(self):
+        cqm = dimod.ConstrainedQuadraticModel()
+        i, j = dimod.Integers("ij")
+        c = cqm.add_constraint(i + j >= 5)
+
+        presolver = Presolver(cqm)
+
+        self.assertTrue(presolver.normalize())  # constraint will be flipped
+        self.assertFalse(presolver.normalize())  # no changes, already normalized
+
+    def test_invalid_model(self):
+        cqm = dimod.CQM()
+        i = cqm.add_variable("INTEGER")
+        cqm.objective.set_linear(i, float("nan"))
+
+        presolver = Presolver(cqm)
+
+        with self.assertRaises(InvalidModelError):
+            presolver.normalize()
+
+
+class TestPresolve(unittest.TestCase):
+    # Developer note: most of the testing for presolve is done at the C++
+    # level. These tests are mostly testing the Cython/Python interface.
+
+    def test_empty(self):
+        presolver = Presolver(dimod.ConstrainedQuadraticModel())
+
+        self.assertFalse(presolver.normalize())  # no changes made
+        self.assertFalse(presolver.presolve())  # no changes made
+
+    def test_normalized(self):
+        cqm = dimod.ConstrainedQuadraticModel()
+        i, j = dimod.Integers("ij")
+        c = cqm.add_constraint(i + j >= 100)
+
+        presolver = Presolver(cqm)
+
+        self.assertTrue(presolver.normalize())  # constraint will be flipped
+        self.assertFalse(presolver.presolve())  # no changes made
+
+    def test_not_normalized(self):
+        cqm = dimod.ConstrainedQuadraticModel()
+        i, j = dimod.Integers("ij")
+        c = cqm.add_constraint(i + j >= 100)
+
+        presolver = Presolver(cqm)
+
+        with self.assertRaises(TypeError):
+            self.assertFalse(presolver.presolve())
+
+
+# Todo: reorganize these tests into individual classes for specific methods
+# like the above
 class TestPresolver(unittest.TestCase):
     def test_bug0(self):
         random = np.random.RandomState(0)
@@ -141,16 +219,6 @@ class TestPresolver(unittest.TestCase):
 
         model = presolver.detach_model()
         self.assertEqual(len(model.variables), 1)
-
-        with self.assertRaises(InvalidModelError):
-            presolver.apply()
-
-    def test_invalid_model(self):
-        cqm = dimod.CQM()
-        i = cqm.add_variable("INTEGER")
-        cqm.objective.set_linear(i, float("nan"))
-
-        presolver = Presolver(cqm)
 
         with self.assertRaises(InvalidModelError):
             presolver.apply()
