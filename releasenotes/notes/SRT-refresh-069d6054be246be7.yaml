@@ -1,0 +1,4 @@
+---
+features:
+  - Make ``SpinReversalTransformComposite`` nonblocking.
+  - Add a ``seed`` parameter to the constructor of ``SpinReversalTransformComposite``.
