@@ -192,10 +192,10 @@ cdef class cyPresolver:
 
             original = self.cpppresolver.restore(reduced)
 
-            if original.size() != original_samples.shape[1]:
+            if <Py_ssize_t>original.size() != original_samples.shape[1]:
                 raise RuntimeError("unexpected reduced variables size")
 
-            for vi in range(original.size()):
+            for vi in range(<Py_ssize_t>original.size()):
                 original_samples[i, vi] = original[vi]
 
         return original_samples
