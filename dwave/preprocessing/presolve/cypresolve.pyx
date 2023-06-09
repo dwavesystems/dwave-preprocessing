@@ -125,7 +125,7 @@ cdef class cyPresolver:
         self.cpppresolver.load_default_presolvers()
 
     cpdef bint normalize(self) except*:
-        """Apply any loaded presolve techniques to the held constrained quadratic model.
+        """Normalize the held constrained quadratic model.
 
         Returns:
             A boolean indicating whether the model was modified by presolve.
