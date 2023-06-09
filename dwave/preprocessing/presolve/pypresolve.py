@@ -52,6 +52,7 @@ on your CQM and apply a supported presolve (default is used here).
 >>> presolve = Presolver(cqm)
 >>> presolve.load_default_presolvers()
 >>> presolve.apply()
+True
 
 You now have a preprocessed CQM you can submit to a CQM solver such as a Leap CQM solver.
 
@@ -127,6 +128,7 @@ class Presolver(cyPresolver):
         >>> presolver = Presolver(cqm)
         >>> presolver.load_default_presolvers()
         >>> presolver.apply()
+        True
 
         The model is reduced.
 

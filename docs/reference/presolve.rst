@@ -24,8 +24,16 @@ Methods
    ~Presolver.clear_model
    ~Presolver.copy_model
    ~Presolver.detach_model
+   ~Presolver.feasibility
    ~Presolver.load_default_presolvers
+   ~Presolver.normalize
+   ~Presolver.presolve
    ~Presolver.restore_samples
+
+Feasibility
+-----------
+
+.. autoclass:: Feasibility
 
 C++ API
 -------
