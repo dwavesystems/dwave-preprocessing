@@ -72,6 +72,11 @@ bool Presolver<Bias, Index, Assignment>::presolve() {
 }
 
 template <class Bias, class Index, class Assignment>
+bool Presolver<Bias, Index, Assignment>::presolve(std::chrono::duration<double> time_limit) {
+    return impl_->presolve(time_limit);
+}
+
+template <class Bias, class Index, class Assignment>
 std::vector<Assignment> Presolver<Bias, Index, Assignment>::restore(
         std::vector<Assignment> reduced) const {
     return impl_->restore(reduced);

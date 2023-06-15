@@ -15,7 +15,9 @@
 #pragma once
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <unordered_map>
 #include <utility>
@@ -382,7 +384,8 @@ class PresolverImpl {
         return changes;
     }
 
-    bool presolve() {
+    bool presolve(std::chrono::duration<double> time_limit =
+                          std::chrono::duration<double>(std::numeric_limits<double>::infinity())) {
         if (detached_) {
             throw std::logic_error(
                     "model has been detached, so there is no model to apply presolve() to");
@@ -398,11 +401,18 @@ class PresolverImpl {
 
         bool changes = false;
 
-        bool loop_changes = true;
-        for (index_type num_rounds = 0;
-             num_rounds < max_num_rounds && loop_changes && feasibility() != Feasibility::Infeasible;
-             ++num_rounds) {
-            loop_changes = false;
+        // We have many exit criteria. We could put them all in the for-loop
+        // declaration but that makes it heard to read so we put them into
+        // separate if/break statements.
+        const auto start_time = std::chrono::steady_clock::now();
+        for (index_type num_rounds = 0; num_rounds < max_num_rounds; ++num_rounds) {
+            // No point doing presolve if we're infeasible
+            if (feasibility() == Feasibility::Infeasible) break;
+
+            // If we've exceeded the time_limit then don't proceed
+            if (std::chrono::steady_clock::now() - start_time >= time_limit) break;
+
+            bool loop_changes = false;
 
             if (techniques & TechniqueFlags::RemoveSmallBiases) {
                 loop_changes |= technique_remove_small_biases(model_.objective());
@@ -422,6 +432,10 @@ class PresolverImpl {
                     changes |= technique_clear_redundant_constraint(constraint);
                 }
             }
+
+            // If we didn't make any changes, then doing more loops won't help
+            // so we exit out
+            if (!loop_changes) break;
 
             changes |= loop_changes;
         }

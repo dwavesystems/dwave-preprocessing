@@ -162,6 +162,23 @@ class TestPresolve(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.assertFalse(presolver.presolve())
 
+    def test_time_limit(self):
+        # Given a presolveable CQM
+        cqm = dimod.CQM()
+        i, j = dimod.Integers('ij')
+        cqm.add_variables('INTEGER', 'ij')
+        cqm.add_constraint(i <= 5)
+        cqm.add_constraint(i >= -5)
+        cqm.add_constraint(j == 105)
+
+        #  use the default presolvers
+        presolver = Presolver(cqm)
+        presolver.normalize()
+
+        self.assertFalse(presolver.presolve(-1))  # negative time_limit does nothing
+        self.assertFalse(presolver.presolve(0))  # 0 time_limit does nothing
+        self.assertTrue(presolver.presolve(100))  # finally it can do work
+
 
 class TestTechniques(unittest.TestCase):
     def test_add_techniques(self):

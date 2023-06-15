@@ -19,6 +19,7 @@
 #include <experimental/propagate_const>
 #endif
 
+#include <chrono>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -65,6 +66,7 @@ class Presolver {
 
     /// Presolve a normalized model.
     bool presolve();
+    bool presolve(std::chrono::duration<double> time_limit);
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
     std::vector<assignment_type> restore(std::vector<assignment_type> reduced) const;

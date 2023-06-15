@@ -31,6 +31,7 @@ from dimod.cyutilities cimport ConstNumeric
 
 from dwave.preprocessing.libcpp cimport Feasibility as cppFeasibility
 from dwave.preprocessing.libcpp cimport TechniqueFlags as cppTechniqueFlags
+from dwave.preprocessing.libcpp cimport duration
 from dwave.preprocessing.presolve.exceptions import InvalidModelError
 
 # We want to establish a relationship between presolveimpl.hpp and this file, so that
@@ -196,10 +197,16 @@ cdef class cyPresolver:
 
         return changes
 
-    cpdef bint presolve(self) except*:
+    cpdef bint presolve(self, double time_limit = float("inf")) except*:
         """Apply any loaded presolve techniques to the held constrained quadratic model.
 
         Must be called after :meth:`normalize`.
+
+        Args:
+            time_limit:
+                A time limit in seconds.
+                The presolve rounds will terminate after the time limit is exceeded.
+                Defaults to ``float("inf")``.
 
         Returns:
             A boolean indicating whether the model was modified by presolve.
@@ -212,7 +219,7 @@ cdef class cyPresolver:
         try:
             with nogil:
                 self.mutex.lock()  # do this once the gil has been released to avoid deadlocks
-                changes = self.cpppresolver.presolve()
+                changes = self.cpppresolver.presolve(duration[double](time_limit))
         except RuntimeError as err:
             # The C++ logic_error is interpreted by Cython as a RuntimeError.
             # The only errors here should be for a model that's not normalized.

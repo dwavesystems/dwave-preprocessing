@@ -18,6 +18,11 @@ from libcpp.vector cimport vector
 
 from dimod.libcpp cimport ConstrainedQuadraticModel
 
+# Cython doesn't expose std::chrono
+cdef extern from "<chrono>" namespace "std::chrono" nogil:
+    cdef cppclass duration[Rep]:
+        duration(Rep)
+
 cdef extern from "dwave/exceptions.hpp" namespace "dwave::presolve" nogil:
     pass
 
@@ -48,6 +53,7 @@ cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
         model_type& model()
         bint normalize() except+
         bint presolve() except+
+        bint presolve(duration[double]) except+
         vector[assignment_type] restore(vector[assignment_type])
         TechniqueFlags set_techniques(TechniqueFlags)
         TechniqueFlags techniques()
