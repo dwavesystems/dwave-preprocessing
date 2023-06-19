@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -552,93 +553,15 @@ class PresolverImpl {
     /// Tighten bounds based on constraints.
     /// See Achterberg et al., section 3.2.
     bool technique_domain_propagation(const constraint_type& constraint) {
-        // not currently implemented for quadratic constraints.
-        // todo: extend to quadratic
-        if (!constraint.is_linear()) {
-            return false;
-        }
-
-        // Cannot use soft constraints to strengthen bounds.
-        if (constraint.is_soft()) {
-            return false;
-        }
-
-        // In order to not fall into zeno's paradox here, we don't shrink bounds when
-        // the reduction is small.
-        static constexpr double BOUND_CHANGE_MINIMUM = 1.0e-3 * FEASIBILITY_TOLERANCE;
-
-        // Developer note: I had an implementation that calculated the activites of the
-        // constraint as a whole, and then calculated the diff for each variable. The issue
-        // with that approach is that you can get a lot of numeric issues when you have
-        // unbounded variables. I then did an implementation that did switching behavior
-        // based on the activity, but that ended up requiring even more magic numbers as
-        // well as being a more complicated implementation. Therefore, I have reverted
-        // to just recalculating each time. If this becomes a performance issue we can
-        // revisit the more complicated implementation.
-
         bool changes = false;
 
         if (constraint.sense() == dimod::Sense::LE || constraint.sense() == dimod::Sense::EQ) {
-            // for each variable, test if we can change the bounds
-            for (const auto& v : constraint.variables()) {
-                const bias_type a = constraint.linear(v);
-
-                bias_type activity_excluding_v = constraint.offset();
-                for (const auto& u : constraint.variables()) {
-                    if (u != v) {
-                        activity_excluding_v += minimal_activity(constraint, u);
-                    }
-                    if (activity_excluding_v <= -INF) {
-                        break;
-                    }
-                }
-
-                // can't tighten the bounds in this case
-                if (activity_excluding_v <= -INF) {
-                    continue;
-                }
-
-                // get the new bound
-                const bias_type bound = (constraint.rhs() - activity_excluding_v) / a;
-
-                if (a > 0 && model_.upper_bound(v) - bound > BOUND_CHANGE_MINIMUM) {
-                    changes |= model_.set_upper_bound(v, bound);  // handles vartype and feasibility
-                } else if (a < 0 && bound - model_.lower_bound(v) > BOUND_CHANGE_MINIMUM) {
-                    changes |= model_.set_lower_bound(v, bound);  // handles vartype and feasibility
-                }
-            }
+            changes |= technique_domain_propagation<dimod::Sense::LE>(constraint);
         }
 
         // We don't need to handle GE, but it makes testing easier so may as well
         if (constraint.sense() == dimod::Sense::GE || constraint.sense() == dimod::Sense::EQ) {
-            // for each variable, test if we can change the bounds
-            for (const auto& v : constraint.variables()) {
-                const bias_type a = constraint.linear(v);
-
-                bias_type activity_excluding_v = constraint.offset();
-                for (const auto& u : constraint.variables()) {
-                    if (u != v) {
-                        activity_excluding_v += maximal_activity(constraint, u);
-                    }
-                    if (activity_excluding_v >= INF) {
-                        break;
-                    }
-                }
-
-                // can't tighten the bounds in this case
-                if (activity_excluding_v >= INF) {
-                    continue;
-                }
-
-                // get the new bound
-                const bias_type bound = (constraint.rhs() - activity_excluding_v) / a;
-
-                if (a < 0 && model_.upper_bound(v) - bound > BOUND_CHANGE_MINIMUM) {
-                    changes |= model_.set_upper_bound(v, bound);  // handles vartype and feasibility
-                } else if (a > 0 && bound - model_.lower_bound(v) > BOUND_CHANGE_MINIMUM) {
-                    changes |= model_.set_lower_bound(v, bound);  // handles vartype and feasibility
-                }
-            }
+            changes |= technique_domain_propagation<dimod::Sense::GE>(constraint);
         }
 
         return changes;
@@ -927,6 +850,123 @@ class PresolverImpl {
 
         std::vector<Transform> transforms_;
     };
+
+    template <dimod::Sense Sense>
+    bool technique_domain_propagation(const constraint_type& constraint) {
+        // Dev note: if-branche(s) below rely on this static assert
+        static_assert(Sense == dimod::Sense::GE || Sense == dimod::Sense::LE,
+                      "Sense must be <= or >=; equality constraints should call both");
+
+        assert(constraint.sense() == dimod::Sense::EQ || constraint.sense() == Sense);
+
+        // todo: extend to quadratic
+        if (!constraint.is_linear()) {
+            return false;  // no changes
+        }
+
+        // Cannot use soft constraints to strengthen bounds.
+        if (constraint.is_soft()) {
+            return false;  // no changes
+        }
+
+        // In order to not fall into zeno's paradox here, we don't shrink bounds when
+        // the reduction is small.
+        static constexpr double BOUND_CHANGE_MINIMUM = 1.0e-3 * FEASIBILITY_TOLERANCE;
+
+        // Very large activities will create numeric issues. So we don't do domain
+        // propagation on those
+        static constexpr double MAX_ACTIVITY = 1.0e10;
+
+        // In the following code there are three cases we want to account for:
+        // - No large activities: we can do domain propagation on all of the variables
+        // - Exactly one large activity: we can do domain propagation on the one variable with
+        //   large activity
+        // - 2+ large activities: we can't do domain propagation
+
+        // Precalculate the activities of each of the variables
+        std::vector<bias_type> activities;
+        std::vector<index_type> large_activities;
+        for (const auto& v : constraint.variables()) {
+            if constexpr (Sense == dimod::Sense::LE) {
+                activities.emplace_back(minimal_activity(constraint, v));
+            } else {  // Sense == dimod::Sense::GE, enforced by static_assert above
+                activities.emplace_back(maximal_activity(constraint, v));
+            }
+
+            if (std::abs(activities.back()) > MAX_ACTIVITY) {
+                large_activities.emplace_back(v);
+
+                // Early exit test: in the case that we have more than one large
+                // activity, we cannot do domain propagation at all
+                // Everything will work without this test, but it can save some time
+                if (large_activities.size() > 1) {
+                    return false;  // no changes
+                }
+
+                // Since we've marked it as large, let's zero it out to make
+                // some of the sums later a bit safer
+                activities.back() = 0;
+            }
+        }
+
+        // Get the total activity of everything (except the large activity variables)
+        const bias_type activity =
+                std::reduce(activities.begin(), activities.end()) + constraint.offset();
+
+        // If, even excluding large activities, we get a large activity we can't do anything
+        if (std::abs(activity) > INF) {
+            return false;  // no changes
+        }
+
+        // Create a function to do domain propagation given the activity of the rest
+        // of the constraint for a single variable
+        auto propagate = [&](index_type v, bias_type activity_excluding_v) {
+            bias_type a = constraint.linear(v);
+
+            // get the new bound
+            const bias_type bound = (constraint.rhs() - activity_excluding_v) / a;
+
+            // For >=, we need to flip the sign of a to determine which bound we affect
+            if constexpr (Sense == dimod::Sense::GE) {
+                a *= -1;
+            }
+
+            bool changes = false;
+            if (a > 0 && model_.upper_bound(v) - bound > BOUND_CHANGE_MINIMUM) {
+                changes |= model_.set_upper_bound(v, bound);  // handles vartype and feasibility
+            } else if (a < 0 && bound - model_.lower_bound(v) > BOUND_CHANGE_MINIMUM) {
+                changes |= model_.set_lower_bound(v, bound);  // handles vartype and feasibility
+            }
+            return changes;
+        };
+
+        // Alright, we're finally able to actually do domain propagation
+
+        bool changes = false;
+
+        if (large_activities.size() == 0) {
+            // we can do domain propagation on every variable
+            auto it = activities.begin();
+            for (const auto& v : constraint.variables()) {
+                // Just subtract out the activity of v
+                const bias_type activity_excluding_v = activity - *it;
+
+                changes |= propagate(v, activity_excluding_v);
+                ++it;
+            }
+        } else if (large_activities.size() == 1) {
+            // We can only do domain propagation on the variable with large bias
+            const auto& v = large_activities.back();
+
+            // we already zeroed out the activity associated with v, so this
+            // is just the "activity"
+            const bias_type activity_excluding_v = activity;
+
+            changes |= propagate(v, activity_excluding_v);
+        }  // else large_activities.size() > 1, do nothing. Also we should have already exited early
+
+        return changes;
+    }
 
     ModelView model_;
 
