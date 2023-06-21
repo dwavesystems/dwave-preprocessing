@@ -137,7 +137,8 @@ cdef class cyPresolver:
         cdef bint changes = False
 
         try:
-            changes = self.cpppresolver.normalize()
+            with nogil:
+                changes = self.cpppresolver.normalize()
         except RuntimeError as err:
             # The C++ InvalidModelError is interpreted by Cython as a RuntimeError
             # We could put in a bunch of code to reinterpret it, but because this
@@ -164,7 +165,8 @@ cdef class cyPresolver:
         cdef bint changes = False
 
         try:
-            changes = self.cpppresolver.presolve()
+            with nogil:
+                changes = self.cpppresolver.presolve()
         except RuntimeError as err:
             # The C++ logic_error is interpreted by Cython as a RuntimeError.
             # The only errors here should be for a model that's not normalized.

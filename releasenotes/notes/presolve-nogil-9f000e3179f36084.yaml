@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Update ``Presolver.apply()``, ``Presolver.normalize()``, and ``Presolver.presolve()``
+    to release Python's global interpreter lock (GIL).
