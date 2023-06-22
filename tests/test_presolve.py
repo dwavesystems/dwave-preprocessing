@@ -21,6 +21,12 @@ import numpy as np
 
 from dwave.preprocessing import Presolver, Feasibility, InvalidModelError
 
+try:
+    NUM_CPUS = len(os.sched_getaffinity(0))
+except AttributeError:
+    # windows
+    NUM_CPUS = os.cpu_count()
+
 
 class TestApply(unittest.TestCase):
     # Developer note: most of the testing for normalization/presolve is done at the C++
@@ -41,6 +47,7 @@ class TestNormalization(unittest.TestCase):
     # Developer note: most of the testing for normalization is done at the C++
     # level. These tests are mostly testing the Cython/Python interface.
 
+    @unittest.skipIf(NUM_CPUS < 4, "insufficient CPUs available")
     def test_concurrency(self):
         # obviously this is difficult to test fully, but we can at least run some
         # smoke tests to try to detect deadlocks and corrupted models
@@ -101,6 +108,7 @@ class TestPresolve(unittest.TestCase):
     # Developer note: most of the testing for presolve is done at the C++
     # level. These tests are mostly testing the Cython/Python interface.
 
+    @unittest.skipIf(NUM_CPUS < 4, "insufficient CPUs available")
     def test_concurrency(self):
         # obviously this is difficult to test fully, but we can at least run some
         # smoke tests to try to detect deadlocks and corrupted models
