@@ -23,8 +23,19 @@ from dwave.preprocessing.libcpp cimport Presolver as cppPresolver
 __all__ = ['cyPresolver']
 
 
+cdef extern from "<mutex>" namespace "std" nogil:
+    cppclass mutex:
+        void lock()
+        void unlock()
+
+    cppclass lock_guard "std::lock_guard<std::mutex>":
+        lock_guard(mutex&)
+
+
 cdef class cyPresolver:
     cdef cppPresolver[bias_type, index_type, double]* cpppresolver  # dev note: terrible name...
+
+    cdef mutex mutex
     
     cdef cyVariables _original_variables
     cdef Py_ssize_t _model_num_variables

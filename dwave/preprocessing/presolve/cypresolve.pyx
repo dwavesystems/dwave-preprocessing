@@ -18,6 +18,8 @@ import enum as pyenum
 
 cimport cython
 
+from libc.stdlib cimport free
+from libcpp.memory cimport unique_ptr, make_unique
 from libcpp.vector cimport vector
 from libcpp.utility cimport move as cppmove
 
@@ -138,6 +140,7 @@ cdef class cyPresolver:
 
         try:
             with nogil:
+                self.mutex.lock()  # do this once the gil has been released to avoid deadlocks
                 changes = self.cpppresolver.normalize()
         except RuntimeError as err:
             # The C++ InvalidModelError is interpreted by Cython as a RuntimeError
@@ -145,6 +148,8 @@ cdef class cyPresolver:
             # is the only error type that should be raised by normalize() we just
             # do it naively. 
             raise InvalidModelError(err)
+        finally:
+            self.mutex.unlock()
 
         # Save the new size for later use in restore_samples
         self._model_num_variables = self.cpppresolver.model().num_variables()
@@ -166,11 +171,14 @@ cdef class cyPresolver:
 
         try:
             with nogil:
+                self.mutex.lock()  # do this once the gil has been released to avoid deadlocks
                 changes = self.cpppresolver.presolve()
         except RuntimeError as err:
             # The C++ logic_error is interpreted by Cython as a RuntimeError.
             # The only errors here should be for a model that's not normalized.
             raise TypeError(err)
+        finally:
+            self.mutex.unlock()  # it's ok to do this inside the GIL
 
         # Save the new size for later use in restore_samples
         self._model_num_variables = self.cpppresolver.model().num_variables()
