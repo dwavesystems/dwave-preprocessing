@@ -137,13 +137,17 @@ cdef class cyPresolver:
         cdef bint changes = False
 
         try:
-            changes = self.cpppresolver.normalize()
+            with nogil:
+                self.mutex.lock()  # do this once the gil has been released to avoid deadlocks
+                changes = self.cpppresolver.normalize()
         except RuntimeError as err:
             # The C++ InvalidModelError is interpreted by Cython as a RuntimeError
             # We could put in a bunch of code to reinterpret it, but because this
             # is the only error type that should be raised by normalize() we just
             # do it naively. 
             raise InvalidModelError(err)
+        finally:
+            self.mutex.unlock()
 
         # Save the new size for later use in restore_samples
         self._model_num_variables = self.cpppresolver.model().num_variables()
@@ -164,11 +168,15 @@ cdef class cyPresolver:
         cdef bint changes = False
 
         try:
-            changes = self.cpppresolver.presolve()
+            with nogil:
+                self.mutex.lock()  # do this once the gil has been released to avoid deadlocks
+                changes = self.cpppresolver.presolve()
         except RuntimeError as err:
             # The C++ logic_error is interpreted by Cython as a RuntimeError.
             # The only errors here should be for a model that's not normalized.
             raise TypeError(err)
+        finally:
+            self.mutex.unlock()  # it's ok to do this inside the GIL
 
         # Save the new size for later use in restore_samples
         self._model_num_variables = self.cpppresolver.model().num_variables()

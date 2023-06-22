@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import concurrent.futures
 import os.path
 import unittest
 
@@ -19,6 +20,12 @@ import dimod
 import numpy as np
 
 from dwave.preprocessing import Presolver, Feasibility, InvalidModelError
+
+try:
+    NUM_CPUS = len(os.sched_getaffinity(0))
+except AttributeError:
+    # windows
+    NUM_CPUS = os.cpu_count()
 
 
 class TestApply(unittest.TestCase):
@@ -39,6 +46,37 @@ class TestApply(unittest.TestCase):
 class TestNormalization(unittest.TestCase):
     # Developer note: most of the testing for normalization is done at the C++
     # level. These tests are mostly testing the Cython/Python interface.
+
+    @unittest.skipIf(NUM_CPUS < 4, "insufficient CPUs available")
+    def test_concurrency(self):
+        # obviously this is difficult to test fully, but we can at least run some
+        # smoke tests to try to detect deadlocks and corrupted models
+
+        cqm = dimod.ConstrainedQuadraticModel()
+        cqm.add_variables("BINARY", 1000)
+        for _ in range(1000):
+            # these will be flipped, so if we're modifying the same model in
+            # several threads at the same time we should see some issues
+            cqm.add_constraint(((v, 1) for v in range(1000)), '>=', 1)
+
+        presolver = Presolver(cqm)
+
+        num_threads = 4
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            concurrent.futures.wait(
+                [executor.submit(presolver.normalize) for i in range(num_threads)])
+
+        cqm = presolver.detach_model()
+
+        self.assertEqual(cqm.num_variables(), 1000)
+        self.assertEqual(cqm.num_constraints(), 1000)
+
+        linear = {v: -1 for v in range(1000)}
+        for comp in cqm.constraints.values():
+            self.assertEqual(comp.rhs, -1)
+            self.assertEqual(comp.sense, dimod.sym.Sense.Le)
+            self.assertEqual(comp.lhs.linear, linear)
 
     def test_empty(self):
         presolver = Presolver(dimod.ConstrainedQuadraticModel())
@@ -69,6 +107,35 @@ class TestNormalization(unittest.TestCase):
 class TestPresolve(unittest.TestCase):
     # Developer note: most of the testing for presolve is done at the C++
     # level. These tests are mostly testing the Cython/Python interface.
+
+    @unittest.skipIf(NUM_CPUS < 4, "insufficient CPUs available")
+    def test_concurrency(self):
+        # obviously this is difficult to test fully, but we can at least run some
+        # smoke tests to try to detect deadlocks and corrupted models
+
+        cqm = dimod.ConstrainedQuadraticModel()
+        cqm.add_variables("INTEGER", 100)
+        for i in range(100):
+            # these will be presolved, so if we're modifying the same model in
+            # several threads at the same time we should see some issues
+            cqm.add_constraint(((v, 1) for v in range(i, 100)), '==', 1)
+
+        presolver = Presolver(cqm)
+        presolver.load_default_presolvers()
+        presolver.normalize()
+
+        num_threads = 4
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            jobs = [executor.submit(presolver.presolve) for i in range(num_threads)]
+
+        # presolve should only make any changes once
+        self.assertEqual(sum(future.result() for future in jobs), 1)
+
+        cqm = presolver.detach_model()
+
+        self.assertEqual(cqm.num_variables(), 0)
+        self.assertEqual(cqm.num_constraints(), 0)
 
     def test_empty(self):
         presolver = Presolver(dimod.ConstrainedQuadraticModel())
