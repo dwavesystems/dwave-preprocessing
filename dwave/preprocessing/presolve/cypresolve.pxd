@@ -28,9 +28,6 @@ cdef extern from "<mutex>" namespace "std" nogil:
         void lock()
         void unlock()
 
-    cppclass lock_guard "std::lock_guard<std::mutex>":
-        lock_guard(mutex&)
-
 
 cdef class cyPresolver:
     cdef cppPresolver[bias_type, index_type, double]* cpppresolver  # dev note: terrible name...

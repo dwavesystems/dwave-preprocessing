@@ -18,8 +18,6 @@ import enum as pyenum
 
 cimport cython
 
-from libc.stdlib cimport free
-from libcpp.memory cimport unique_ptr, make_unique
 from libcpp.vector cimport vector
 from libcpp.utility cimport move as cppmove
 
