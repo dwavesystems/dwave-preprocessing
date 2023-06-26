@@ -30,6 +30,7 @@ from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel, make_c
 from dimod.cyutilities cimport ConstNumeric
 
 from dwave.preprocessing.libcpp cimport Feasibility as cppFeasibility
+from dwave.preprocessing.libcpp cimport TechniqueFlags as cppTechniqueFlags
 from dwave.preprocessing.presolve.exceptions import InvalidModelError
 
 # We want to establish a relationship between presolveimpl.hpp and this file, so that
@@ -39,6 +40,7 @@ cdef extern from "../src/presolveimpl.hpp" namespace "dwave::presolve" nogil:
 
 
 # In Cython3 we'll be able to import this from C++ directly, but for now we duplicate
+# Dev note: must be kept synced with cypresolve.pyi and with the C++ version
 class Feasibility(pyenum.Enum):
     """An :py:class:`~enum.Enum` to signal whether a model is feasible or not.
 
@@ -51,6 +53,47 @@ class Feasibility(pyenum.Enum):
     Infeasible = 0
     Feasible = 1
     Unknown = 2
+
+
+# In Cython3 we'll be able to import this from C++ directly, but for now we duplicate
+# Dev note: must be kept synced with cypresolve.pyi and with the C++ version
+class TechniqueFlags(pyenum.IntFlag):
+    """An :py:class:`~enum.IntFlag` to define which presolve techniques will be
+    used by the presolver.
+
+    Attributes:
+        None_: No techniques.
+
+        RemoveRedundantConstraints:
+            Remove redundant constraints.
+            See Achterberg et al., section 3.1.
+
+        RemoveSmallBiases:
+            Remove small biases from the objective and constraints.
+            See Achterberg et al., section 3.1.
+
+        DomainPropagation:
+            Use constraints to tighten the bounds on variables.
+            See Achterberg et al., section 3.2.
+
+        All:
+            All techniques.
+
+        Default:
+            Currently equivalent to ``All``, though this may change in the future.
+
+    """
+    None_ = 0
+
+    RemoveRedundantConstraints = 1 << 0
+
+    RemoveSmallBiases = 1 << 1
+
+    DomainPropagation = 1 << 2
+
+    All = 0xffffffffffffffff
+
+    Default = All
 
 
 cdef class cyPresolver:
@@ -75,6 +118,9 @@ cdef class cyPresolver:
         if self.cpppresolver is not NULL:
             del self.cpppresolver
             self.cpppresolver = NULL
+
+    # add_techniques is implemeted at the Python level because it doesn't need access
+    # to the underlying C++ objects
 
     cpdef bint apply(self) except*:
         """Normalize and presolve the held constraint quadratic model.
@@ -119,10 +165,6 @@ cdef class cyPresolver:
         else:
             # sanity check
             raise RuntimeError("unexpected Feasibility")
-
-    def load_default_presolvers(self):
-        """Load the default presolvers."""
-        self.cpppresolver.load_default_presolvers()
 
     cpdef bint normalize(self) except*:
         """Normalize the held constrained quadratic model.
@@ -240,3 +282,30 @@ cdef class cyPresolver:
         restored = self._restore_samples(samples)
 
         return np.asarray(restored), self._original_variables
+
+    def set_techniques(self, techniques):
+        """Set the presolve techniques to be used by the presolver.
+
+        Args:
+            techniques (:class:`TechniqueFlags`):
+                The techniques to be used.
+
+        Returns:
+            :class:`TechniqueFlags`: The currently loaded presolve techniques.
+
+        """
+        if not 0 <= techniques.value < (1 << 64):
+            raise ValueError("techniques.value must be castable to uint64")
+
+        self.cpppresolver.set_techniques(<cppTechniqueFlags>(techniques.value))
+        return self.techniques()
+
+    def techniques(self):
+        """Report the presolve techniques to be used by the presolver.
+
+        Returns:
+            :class:`TechniqueFlags`: The currently loaded presolve techniques.
+
+        """
+        # Convert from C++ to Python
+        return TechniqueFlags(self.cpppresolver.techniques())

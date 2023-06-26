@@ -39,10 +39,25 @@ enum TechniqueFlags : std::uint64_t {
     /// See Achterberg et al., section 3.2.
     DomainPropagation = 1 << 2,
 
+    /// All techniques.
     All = 0xffffffffffffffffu,
 
-    // For now, we default to all techniques, but that could change in the future.
+    /// Currently equivalent to All, though this may change in the future.
     Default = All,
 };
+
+// Developer note: There are other ways to make Flag classes using bitsets etc.
+// However, this way is simple, gives us enough techniques for the foreseeable future,
+// and is easy to mirror in Cython/Python (using Python's enum.IntFlag).
+
+inline TechniqueFlags operator|(TechniqueFlags lhs, TechniqueFlags rhs) {
+    return static_cast<TechniqueFlags>(static_cast<std::underlying_type_t<TechniqueFlags>>(lhs) |
+                                       static_cast<std::underlying_type_t<TechniqueFlags>>(rhs));
+}
+
+inline TechniqueFlags operator&(TechniqueFlags lhs, TechniqueFlags rhs) {
+    return static_cast<TechniqueFlags>(static_cast<std::underlying_type_t<TechniqueFlags>>(lhs) &
+                                       static_cast<std::underlying_type_t<TechniqueFlags>>(rhs));
+}
 
 }  // namespace dwave::presolve

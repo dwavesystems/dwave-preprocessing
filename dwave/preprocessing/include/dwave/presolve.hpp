@@ -45,6 +45,9 @@ class Presolver {
     /// Construct a presolver from a constrained quadratic model.
     explicit Presolver(model_type model);
 
+    /// Add presolve techniques to be run. This will not affect existing loaded techniques.
+    TechniqueFlags add_techniques(TechniqueFlags techniques);
+
     /// Apply any loaded presolve techniques. Acts on the model() in-place.
     bool apply();
 
@@ -53,9 +56,6 @@ class Presolver {
     model_type detach_model();
 
     const Feasibility& feasibility() const;
-
-    /// Load the default presolve techniques.
-    void load_default_presolvers();
 
     /// Return a const reference to the held constrained quadratic model.
     const model_type& model() const;
@@ -68,6 +68,12 @@ class Presolver {
 
     /// Return a sample of the original CQM from a sample of the reduced CQM.
     std::vector<assignment_type> restore(std::vector<assignment_type> reduced) const;
+
+    /// Set the presolve techniques to be run.
+    TechniqueFlags set_techniques(TechniqueFlags techniques);
+
+    /// Return the currently-loaded presolve techniques.
+    TechniqueFlags techniques() const;
 
  protected:
     class PresolverImpl_;

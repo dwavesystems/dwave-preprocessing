@@ -19,7 +19,7 @@ import unittest
 import dimod
 import numpy as np
 
-from dwave.preprocessing import Presolver, Feasibility, InvalidModelError
+from dwave.preprocessing import Presolver, Feasibility, InvalidModelError, TechniqueFlags
 
 try:
     NUM_CPUS = len(os.sched_getaffinity(0))
@@ -121,7 +121,6 @@ class TestPresolve(unittest.TestCase):
             cqm.add_constraint(((v, 1) for v in range(i, 100)), '==', 1)
 
         presolver = Presolver(cqm)
-        presolver.load_default_presolvers()
         presolver.normalize()
 
         num_threads = 4
@@ -164,6 +163,66 @@ class TestPresolve(unittest.TestCase):
             self.assertFalse(presolver.presolve())
 
 
+class TestTechniques(unittest.TestCase):
+    def test_add_techniques(self):
+        presolver = Presolver(dimod.CQM())
+        presolver.set_techniques(TechniqueFlags.None_)
+        presolver.add_techniques(TechniqueFlags.DomainPropagation)
+        self.assertEqual(presolver.techniques(), TechniqueFlags.DomainPropagation)
+
+    def test_default_techniques(self):
+        presolver = Presolver(dimod.CQM())
+        self.assertEqual(presolver.techniques(), TechniqueFlags.Default)
+
+        # this is not inclusive, but make sure that we check for specific techniques
+        self.assertTrue(presolver.techniques() & TechniqueFlags.RemoveRedundantConstraints)
+        self.assertIn(TechniqueFlags.RemoveRedundantConstraints, presolver.techniques())
+
+    def test_functional(self):
+        # this is not inclusive - those tests are at the C++ level - but make sure
+        # that the techniques actually do something
+
+        cqm = dimod.ConstrainedQuadraticModel()
+        i = cqm.add_variable("INTEGER")
+        cqm.add_constraint([(i, 1)], "<=", 10, label="bound")
+
+        presolver = Presolver(cqm)
+        presolver.set_techniques(TechniqueFlags.None_)
+
+        self.assertFalse(presolver.apply())  # no changes should be made
+
+        presolver.add_techniques(TechniqueFlags.DomainPropagation)
+        self.assertTrue(presolver.apply())  # domain prop happens
+
+        # we did domain propagation but not redundant constraint removal
+        cqm = presolver.copy_model()
+        self.assertEqual(cqm.upper_bound(i), 10)
+        self.assertEqual(cqm.num_constraints(), 1)
+
+        presolver.set_techniques(TechniqueFlags.RemoveRedundantConstraints)
+        self.assertTrue(presolver.apply())  # removal happens
+
+        # we removed the now redundant constraint
+        cqm = presolver.copy_model()
+        self.assertEqual(cqm.upper_bound(i), 10)
+        self.assertEqual(cqm.num_constraints(), 0)
+
+    def test_load_default_techniques(self):
+        presolver = Presolver(dimod.CQM())
+
+        presolver.set_techniques(TechniqueFlags.None_)
+
+        with self.assertWarns(DeprecationWarning):
+            presolver.load_default_presolvers()
+
+        self.assertEqual(presolver.techniques(), TechniqueFlags.Default)
+
+    def test_set_techniques(self):
+        presolver = Presolver(dimod.CQM())
+        presolver.set_techniques(TechniqueFlags.None_)
+        self.assertFalse(presolver.techniques())
+
+
 # Todo: reorganize these tests into individual classes for specific methods
 # like the above
 class TestPresolver(unittest.TestCase):
@@ -190,7 +249,6 @@ class TestPresolver(unittest.TestCase):
         cqm.set_objective(obj.copy())
 
         presolver = Presolver(cqm, move=False)
-        presolver.load_default_presolvers()
         presolver.apply()
         presolver.clear_model()
 
@@ -202,7 +260,6 @@ class TestPresolver(unittest.TestCase):
         cqm.set_objective(dimod.Spin("f"))
 
         presolver = Presolver(cqm, move=False)
-        presolver.load_default_presolvers()
         presolver.apply()
         presolver.clear_model()
 
@@ -220,7 +277,6 @@ class TestPresolver(unittest.TestCase):
                     cqm = dimod.CQM.from_file(f)
 
                 presolver = Presolver(cqm)
-                presolver.load_default_presolvers()
                 presolver.apply()
 
                 cqm = presolver.detach_model()
@@ -240,7 +296,6 @@ class TestPresolver(unittest.TestCase):
 
         presolver = Presolver(cqm)
 
-        presolver.load_default_presolvers()
         presolver.apply()
 
         model = presolver.copy_model()
@@ -262,7 +317,6 @@ class TestPresolver(unittest.TestCase):
 
         presolver = Presolver(cqm)
 
-        presolver.load_default_presolvers()
         presolver.apply()
 
         samplearray, labels = presolver.restore_samples([[0], [1]])
@@ -281,7 +335,6 @@ class TestPresolver(unittest.TestCase):
 
         presolver = Presolver(cqm)
 
-        presolver.load_default_presolvers()
         presolver.apply()
 
         model = presolver.detach_model()
@@ -304,7 +357,6 @@ class TestPresolver(unittest.TestCase):
 
         self.assertTrue(cqm.is_equal(dimod.CQM()))
 
-        presolver.load_default_presolvers()
         presolver.apply()
 
         self.assertEqual(presolver.copy_model().num_variables(), 1)
@@ -324,7 +376,6 @@ class TestPresolver(unittest.TestCase):
             cqm.fix_variable('i', 0)
 
             presolver = Presolver(cqm)
-            presolver.load_default_presolvers()
             presolver.apply()
 
         with self.subTest("infeas <="):
@@ -334,7 +385,6 @@ class TestPresolver(unittest.TestCase):
             cqm.fix_variable('i', 2)
 
             presolver = Presolver(cqm)
-            presolver.load_default_presolvers()
             presolver.apply()
             self.assertIs(presolver.feasibility(), Feasibility.Infeasible)
 
@@ -345,7 +395,6 @@ class TestPresolver(unittest.TestCase):
             cqm.fix_variable('i', 2)
 
             presolver = Presolver(cqm)
-            presolver.load_default_presolvers()
             presolver.apply()
             self.assertIs(presolver.feasibility(), Feasibility.Infeasible)
 
@@ -356,7 +405,6 @@ class TestPresolver(unittest.TestCase):
             cqm.fix_variable('i', -1)
 
             presolver = Presolver(cqm)
-            presolver.load_default_presolvers()
             presolver.apply()
             self.assertIs(presolver.feasibility(), Feasibility.Infeasible)
 
@@ -366,7 +414,6 @@ class TestPresolver(unittest.TestCase):
         cqm.add_constraint(i * i <= 0)
 
         presolver = Presolver(cqm)
-        presolver.load_default_presolvers()
         presolver.apply()
 
         reduced = presolver.detach_model()
@@ -390,7 +437,6 @@ class TestPresolver(unittest.TestCase):
         cqm.add_constraint(-5 + 10*v3 >= -1)
 
         presolver = Presolver(cqm)
-        presolver.load_default_presolvers()
         presolver.apply()
 
     def test_zero_biases(self):
@@ -403,7 +449,6 @@ class TestPresolver(unittest.TestCase):
         cqm.set_upper_bound('i', +5)
 
         presolver = Presolver(cqm)
-        presolver.load_default_presolvers()
         presolver.apply()
 
         cqm = presolver.detach_model()
@@ -430,7 +475,6 @@ class TestPresolver(unittest.TestCase):
         cqm.set_upper_bound('p', 1)
 
         presolver = Presolver(cqm)
-        presolver.load_default_presolvers()
         presolver.apply()
         updated_cqm = presolver.copy_model()
 

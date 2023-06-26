@@ -15,6 +15,7 @@
 #include "catch2/catch.hpp"
 #include "dimod/constrained_quadratic_model.h"
 #include "dwave/exceptions.hpp"
+#include "dwave/flags.hpp"
 #include "dwave/presolve.hpp"
 
 namespace dwave {
@@ -29,6 +30,10 @@ TEST_CASE("Presover construction") {
         THEN("Its held model is empty") {
             CHECK(pre.model().num_variables() == 0);
             CHECK(pre.model().num_constraints() == 0);
+        }
+
+        THEN("The default presolve techniques are loaded") {
+            CHECK(pre.techniques() == presolve::TechniqueFlags::Default);
         }
     }
 
@@ -52,6 +57,47 @@ TEST_CASE("Models with NANs raise an exception", "[presolve]") {
         THEN("Presolving raises an error") {
             auto pre = Presolver(cqm);
             CHECK_THROWS_AS(pre.apply(), presolve::InvalidModelError);
+        }
+    }
+}
+
+TEST_CASE("Presolve techniques can be changed", "[presolve]") {
+    GIVEN("An empty presolver") {
+        auto pre = Presolver();
+
+        THEN("The default techniques are loaded by default") {
+            CHECK(pre.techniques() == presolve::TechniqueFlags::Default);
+        }
+
+        WHEN("We set the techniques to None") {
+            auto techniques = pre.set_techniques(presolve::TechniqueFlags::None);
+
+            THEN("The new value is returned") {
+                CHECK(techniques == presolve::TechniqueFlags::None);
+            }
+
+            THEN("The new value is set") {
+                CHECK(pre.techniques() == presolve::TechniqueFlags::None);
+            }
+
+            AND_WHEN("We add a technique") {
+                techniques = pre.add_techniques(presolve::TechniqueFlags::RemoveSmallBiases);
+
+                THEN("That technique is reported") {
+                    CHECK(techniques == presolve::TechniqueFlags::RemoveSmallBiases);
+                    CHECK(techniques == pre.techniques());
+                }
+
+                AND_WHEN("We add yet another technique") {
+                    techniques = pre.add_techniques(presolve::TechniqueFlags::DomainPropagation);
+
+                    THEN("Both techniques are reported") {
+                        CHECK(techniques == pre.techniques());
+                        CHECK(techniques & presolve::TechniqueFlags::DomainPropagation);
+                        CHECK(techniques & presolve::TechniqueFlags::RemoveSmallBiases);
+                    }
+                }
+            }
         }
     }
 }
@@ -118,7 +164,6 @@ SCENARIO("constrained quadratic models can be presolved") {
             }
 
             AND_WHEN("the default presolving is applied") {
-                presolver.load_default_presolvers();
                 presolver.apply();
 
                 THEN("most of the constraints/variables are removed") {

@@ -36,6 +36,11 @@ Presolver<Bias, Index, Assignment>::Presolver(dimod::ConstrainedQuadraticModel<B
         : impl_(std::make_unique<PresolverImpl_>(std::move(model))) {}
 
 template <class Bias, class Index, class Assignment>
+TechniqueFlags Presolver<Bias, Index, Assignment>::add_techniques(TechniqueFlags techniques) {
+    return set_techniques(this->techniques() | techniques);
+}
+
+template <class Bias, class Index, class Assignment>
 bool Presolver<Bias, Index, Assignment>::apply() {
     return impl_->apply();
 }
@@ -48,11 +53,6 @@ dimod::ConstrainedQuadraticModel<Bias, Index> Presolver<Bias, Index, Assignment>
 template <class Bias, class Index, class Assignment>
 const Feasibility& Presolver<Bias, Index, Assignment>::feasibility() const {
     return impl_->feasibility();
-}
-
-template <class Bias, class Index, class Assignment>
-void Presolver<Bias, Index, Assignment>::load_default_presolvers() {
-    impl_->techniques = TechniqueFlags::Default;
 }
 
 template <class Bias, class Index, class Assignment>
@@ -75,6 +75,17 @@ template <class Bias, class Index, class Assignment>
 std::vector<Assignment> Presolver<Bias, Index, Assignment>::restore(
         std::vector<Assignment> reduced) const {
     return impl_->restore(reduced);
+}
+
+template <class Bias, class Index, class Assignment>
+TechniqueFlags Presolver<Bias, Index, Assignment>::set_techniques(TechniqueFlags techniques) {
+    impl_->techniques = techniques;
+    return impl_->techniques;
+}
+
+template <class Bias, class Index, class Assignment>
+TechniqueFlags Presolver<Bias, Index, Assignment>::techniques() const {
+    return impl_->techniques;
 }
 
 // There are many other combinations that we could expose, but since dimod

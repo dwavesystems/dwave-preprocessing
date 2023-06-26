@@ -20,6 +20,7 @@ Methods
 .. autosummary::
    :toctree: generated/
 
+   ~Presolver.add_techniques
    ~Presolver.apply
    ~Presolver.clear_model
    ~Presolver.copy_model
@@ -29,19 +30,30 @@ Methods
    ~Presolver.normalize
    ~Presolver.presolve
    ~Presolver.restore_samples
+   ~Presolver.set_techniques
+   ~Presolver.techniques
 
 Feasibility
 -----------
 
 .. autoclass:: Feasibility
 
+TechniqueFlags
+--------------
+
+.. autoclass:: TechniqueFlags
+
 C++ API
 -------
 
-.. doxygenclass:: dwave::presolve::Presolver
+.. doxygenclass:: dwave::presolve::Feasibility
     :members:
     :project: dwave-preprocessing
 
-.. doxygenclass:: dwave::presolve::Postsolver
+.. doxygenclass:: dwave::presolve::TechniqueFlags
+    :members:
+    :project: dwave-preprocessing
+
+.. doxygenclass:: dwave::presolve::Presolver
     :members:
     :project: dwave-preprocessing
