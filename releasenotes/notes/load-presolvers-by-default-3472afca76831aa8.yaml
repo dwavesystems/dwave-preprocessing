@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    A newly instantiated ``Presolver`` will now have presolve techniques loaded by
+    default.
+  - |
+    Add ``TechniqueFlags`` enum to represent different presolve techniques.
+  - |
+    Add C++ ``dwave::presolve::Presolver::add_techniques()``, ``dwave::presolve::Presolver::set_techniques()``,
+    and ``dwave::presolve::Presolver::techniques()`` methods for manipulating the presolve techniques
+    that will be used by the presolver.
+deprecations:
+  - Deprecate ``Presolver.load_default_techniques()``. Use ``Presolver.set_techniques(TechniqueFlags.Default)`` instead.
+upgrade:
+  - |
+    A newly instantiated ``Presolver`` will now have presolve techniques loaded by
+    default. Previously it would have no techniques loaded and the user would need to
+    also call ``Presolver.load_default_presolvers()``.
+  - Remove the C++ ``dwave::presolve::Presolver::load_default_presolvers()`` method.

@@ -27,17 +27,27 @@ cdef extern from "dwave/flags.hpp" namespace "dwave::presolve" nogil:
         Infeasible,
         Feasible
 
+    enum TechniqueFlags:
+        None_ "None"
+        RemoveRedundantConstraints
+        RemoveSmallBiases
+        DomainPropagation
+        All
+        Default
+
 cdef extern from "dwave/presolve.hpp" namespace "dwave::presolve" nogil:
     cdef cppclass Presolver[bias_type, index_type, assignment_type]:
         ctypedef ConstrainedQuadraticModel[bias_type, index_type] model_type
 
         Presolver()
         Presolver(model_type)
+        TechniqueFlags add_techniques(TechniqueFlags)
         bint apply() except+
         model_type detach_model()
         const Feasibility& feasibility() const
-        void load_default_presolvers()
         model_type& model()
         bint normalize() except+
         bint presolve() except+
         vector[assignment_type] restore(vector[assignment_type])
+        TechniqueFlags set_techniques(TechniqueFlags)
+        TechniqueFlags techniques()

@@ -50,7 +50,6 @@ on your CQM and apply a supported presolve (default is used here).
 >>> from dwave.preprocessing.presolve import Presolver
 ...
 >>> presolve = Presolver(cqm)
->>> presolve.load_default_presolvers()
 >>> presolve.apply()
 True
 
@@ -86,12 +85,13 @@ You can also create the sample set for the original CQM:
 ['INTEGER', 6 rows, 6 samples, 1 variables]
 
 """
+import warnings
 
 import dimod
 
-from dwave.preprocessing.presolve.cypresolve import cyPresolver, Feasibility
+from dwave.preprocessing.presolve.cypresolve import cyPresolver, Feasibility, TechniqueFlags
 
-__all__ = ["Feasibility", "Presolver"]
+__all__ = ["Feasibility", "Presolver", "TechniqueFlags"]
 
 
 class Presolver(cyPresolver):
@@ -126,7 +126,6 @@ class Presolver(cyPresolver):
         Run presolve with default settings.
 
         >>> presolver = Presolver(cqm)
-        >>> presolver.load_default_presolvers()
         >>> presolver.apply()
         True
 
@@ -142,3 +141,33 @@ class Presolver(cyPresolver):
     # include this for the function signature
     def __init__(self, cqm: dimod.ConstrainedQuadraticModel, *, move: bool = False):
         super().__init__(cqm, move=move)
+
+    def add_techniques(self, techniques: TechniqueFlags) -> TechniqueFlags:
+        """Add presolve techniques to be used by the presolver.
+
+        This method adds to the techniques that are already loaded.
+
+        Args:
+            techniques (:class:`TechniqueFlags`):
+                The techniques to be used.
+
+        Returns:
+            :class:`TechniqueFlags`: The currently loaded presolve techniques.
+
+        """
+        return self.set_techniques(self.techniques() | techniques)
+
+    def load_default_presolvers(self):
+        """Load the default presolvers.
+
+        .. deprecated:: 0.6.0
+
+           This method was deprecated in dwave-preprocessing 0.6.0.
+           Use :meth:`set_techniques` with :class:`TechniqueFlags.Default` instead.
+
+        """
+        warnings.warn("load_default_presolvers was deprecated in dwave-preprocessing 0.6.0, "
+                      "use set_techniques(TechniqueFlags.Default) instead.",
+                      DeprecationWarning, stacklevel=2)
+
+        self.set_techniques(TechniqueFlags.Default)

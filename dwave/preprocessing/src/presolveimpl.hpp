@@ -663,7 +663,7 @@ class PresolverImpl {
     /// The maximum number of rounds of presolving
     int max_num_rounds = 100;
 
-    TechniqueFlags techniques = TechniqueFlags::None;
+    TechniqueFlags techniques = TechniqueFlags::Default;
 
  private:
     // We want to control access to the model in order to track changes,

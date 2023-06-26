@@ -26,7 +26,7 @@ TEST_CASE("Test construction", "[presolve][impl]") {
         auto pre = PresolverImpl();
         CHECK_FALSE(pre.model().num_variables());
         CHECK_FALSE(pre.model().num_constraints());
-        CHECK_FALSE(pre.techniques);
+        CHECK(pre.techniques == presolve::TechniqueFlags::Default);
         CHECK(pre.feasibility() == presolve::Feasibility::Unknown);
     }
 
@@ -34,7 +34,7 @@ TEST_CASE("Test construction", "[presolve][impl]") {
         auto pre = PresolverImpl(ConstrainedQuadraticModel());
         CHECK_FALSE(pre.model().num_variables());
         CHECK_FALSE(pre.model().num_constraints());
-        CHECK_FALSE(pre.techniques);
+        CHECK(pre.techniques == presolve::TechniqueFlags::Default);
         CHECK(pre.feasibility() == presolve::Feasibility::Unknown);
     }
 }
@@ -375,7 +375,7 @@ TEST_CASE("Test normalization_spin_to_binary", "[presolve][impl]") {
         CHECK(!pre.normalization_spin_to_binary());
         CHECK_FALSE(pre.model().num_variables());
         CHECK_FALSE(pre.model().num_constraints());
-        CHECK_FALSE(pre.techniques);
+        CHECK(pre.techniques == presolve::TechniqueFlags::Default);
         CHECK(pre.feasibility() == presolve::Feasibility::Unknown);
     }
 
@@ -848,6 +848,7 @@ TEST_CASE("Test technique_remove_small_biases", "[presolve][impl]") {
 
         WHEN("We run PresolverImpl::apply() without any techniques loaded") {
             auto pre = PresolverImpl(cqm);
+            pre.techniques = presolve::TechniqueFlags::None;
             CHECK(!pre.apply());
         }
 
