@@ -187,7 +187,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
         WHEN("the default presolving is applied") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
-            presolver.load_default_presolvers();
             presolver.apply();
 
             THEN("most of the constraints/variables are removed") {
@@ -219,7 +218,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
         WHEN("presolving is applied") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
-            presolver.load_default_presolvers();
             presolver.apply();
 
             THEN("the self-loops are removed and an equality is added") {
@@ -254,7 +252,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
         WHEN("presolving is applied") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
-            presolver.load_default_presolvers();
             presolver.apply();
 
             THEN("an equality constraint is added") {
@@ -282,7 +279,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
         WHEN("we presolve is applied") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
-            presolver.load_default_presolvers();
             presolver.apply();
 
             THEN("the constraint is removed") { CHECK(cqm.num_constraints() == 0); }
@@ -302,7 +298,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
             AND_WHEN("we presolve is applied") {
                 auto presolver = presolve::Presolver<double>(std::move(cqm));
-                presolver.load_default_presolvers();
                 presolver.apply();
 
                 THEN("the constraint is still marked as discrete") {
@@ -321,7 +316,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
             AND_WHEN("we presolve is applied") {
                 auto presolver = presolve::Presolver<double>(std::move(cqm));
-                presolver.load_default_presolvers();
                 presolver.apply();
 
                 THEN("the constraint is removed") {
@@ -349,7 +343,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
             AND_WHEN("we presolve is applied") {
                 auto presolver = presolve::Presolver<double>(std::move(cqm));
-                presolver.load_default_presolvers();
                 presolver.apply();
 
                 THEN("two will still be marked as discrete") {
@@ -376,7 +369,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
         WHEN("we presolve is applied") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
-            presolver.load_default_presolvers();
             presolver.apply();
 
             THEN("the hard constraint is removed") {
@@ -399,7 +391,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
         WHEN("we presolve is applied") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
-            presolver.load_default_presolvers();
             presolver.apply();
 
             THEN("the bounds do not change") {
@@ -426,7 +417,6 @@ SCENARIO("constrained quadratic models can be presolved") {
 
         WHEN("we presolve") {
             auto presolver = presolve::Presolver<double>(std::move(cqm));
-            presolver.load_default_presolvers();
             presolver.apply();
 
             THEN("it removes the empty soft constraint without an error") {

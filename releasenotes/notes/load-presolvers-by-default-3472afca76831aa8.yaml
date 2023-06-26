@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    A newly instantiated ``Presolver`` will now have the presolve techniques loaded by
+    default.
+upgrade:
+  - |
+    A newly instantiated ``Presolver`` will now have the presolve techniques loaded by
+    default. Previously it would have no techniques loaded and the user would need to
+    also call ``Presolver.load_default_presolvers()``.

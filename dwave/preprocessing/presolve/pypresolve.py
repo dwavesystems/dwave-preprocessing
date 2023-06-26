@@ -50,7 +50,6 @@ on your CQM and apply a supported presolve (default is used here).
 >>> from dwave.preprocessing.presolve import Presolver
 ...
 >>> presolve = Presolver(cqm)
->>> presolve.load_default_presolvers()
 >>> presolve.apply()
 True
 
@@ -126,7 +125,6 @@ class Presolver(cyPresolver):
         Run presolve with default settings.
 
         >>> presolver = Presolver(cqm)
-        >>> presolver.load_default_presolvers()
         >>> presolver.apply()
         True
 
