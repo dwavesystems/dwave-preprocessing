@@ -48,6 +48,22 @@ TEST_CASE("Presover construction") {
     }
 }
 
+TEST_CASE("Test Presolver::presolve()", "[presolve]") {
+    GIVEN("A CQM that could be presolved") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variables(dimod::Vartype::INTEGER, 2);
+        cqm.add_linear_constraint({0}, {1}, dimod::Sense::LE, 10);
+        cqm.add_linear_constraint({1}, {1}, dimod::Sense::GE, 100);
+
+        THEN("Presolving with 0 time_limit does nothing") {
+            auto pre = Presolver(cqm);
+            pre.normalize();
+
+            CHECK(!pre.presolve(std::chrono::duration<double>(0)));
+        }
+    }
+}
+
 TEST_CASE("Models with NANs raise an exception", "[presolve]") {
     GIVEN("A CQM with NANs in the objective's linear biases") {
         auto cqm = ConstrainedQuadraticModel();

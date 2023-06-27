@@ -1,0 +1,4 @@
+---
+features:
+  - Add ``time_limit_s`` keyword argument to ``Presolver.presolve()``.
+  - Add ``time_limit`` argument to C++ method ``dwave::presolve::Presolver::presolve()``.

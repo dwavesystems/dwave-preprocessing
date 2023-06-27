@@ -39,4 +39,4 @@ cdef class cyPresolver:
 
     cpdef bint apply(self) except*
     cpdef bint normalize(self) except*
-    cpdef bint presolve(self) except*
+    cpdef bint presolve(self, double time_limit_s=*) except*
