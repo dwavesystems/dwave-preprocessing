@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Add a presolve normalization step to replace inf biases, bounds, offsets,
+    right-hand-sides, etc with a large finite number.

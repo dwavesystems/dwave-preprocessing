@@ -127,6 +127,7 @@ class PresolverImpl {
         bool changes = false;
 
         changes |= normalization_check_nan();
+        changes |= normalization_replace_inf();
         changes |= normalization_spin_to_binary();
         changes |= normalization_remove_offsets();
         changes |= normalization_remove_self_loops();
@@ -368,6 +369,76 @@ class PresolverImpl {
         }
 
         return mapping.size();
+    }
+
+    /// Replace any inf with 1e30
+    bool normalization_replace_inf() {
+        bool changes = normalization_replace_inf(model_.objective());
+        for (auto& constraint : model_.constraints()) {
+            changes |= normalization_replace_inf(constraint);
+        }
+
+        // Bounds will all be tightened by fix_bounds later, but for
+        // maintainability and symmetry, let's go ahead and replace those too
+        for (size_type v = 0, last = model_.num_variables(); v < last; ++v) {
+            if (std::isinf(model_.lower_bound(v))) {
+                model_.set_lower_bound(v, (model_.lower_bound(v) > 0) ? INF : -INF);
+                changes = true;
+            }
+
+            if (std::isinf(model_.upper_bound(v))) {
+                model_.set_upper_bound(v, (model_.upper_bound(v) > 0) ? INF : -INF);
+                changes = true;
+            }
+        }
+
+        return changes;
+    }
+
+    static bool normalization_replace_inf(constraint_type& constraint) {
+        // test the biases and offset
+        bool changes = normalization_replace_inf(static_cast<expression_type&>(constraint));
+
+        // test the rhs
+        if (std::isinf(constraint.rhs())) {
+            constraint.set_rhs((constraint.rhs() > 0) ? INF : -INF);
+            changes = true;
+        }
+
+        // infinite constraint.weight() is just fine, it's the default!
+
+        return changes;
+    }
+
+    static bool normalization_replace_inf(expression_type& expression) {
+        bool changes = false;
+
+        // We only care about the biases, so let's just cast to the base type for speed
+        dimod::abc::QuadraticModelBase<bias_type, index_type>& base = expression;
+
+        // Replace a bias with +/- INF based on the sign
+        auto replace = [&](bias_type bias) { return (bias > 0) ? INF : -INF; };
+
+        for (auto it = base.cbegin_quadratic(), end = base.cend_quadratic(); it != end; ++it) {
+            if (std::isinf(it->bias)) {
+                base.set_quadratic(it->u, it->v, replace(it->bias));  // does not reallocate
+                changes = true;
+            }
+        }
+
+        for (size_type v = 0, last = base.num_variables(); v < last; ++v) {
+            if (std::isinf(base.linear(v))) {
+                base.set_linear(v, replace(base.linear(v)));
+                changes = true;
+            }
+        }
+
+        if (std::isinf(base.offset())) {
+            base.set_offset(replace(base.offset()));
+            changes = true;
+        }
+
+        return changes;
     }
 
     /// Convert any SPIN variables to BINARY variables

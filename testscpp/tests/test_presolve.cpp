@@ -61,6 +61,39 @@ TEST_CASE("Models with NANs raise an exception", "[presolve]") {
     }
 }
 
+TEST_CASE("Models with infs are handled") {
+    const double inf = std::numeric_limits<double>::infinity();
+
+    GIVEN("A CQM with a constraint with  inf bounds") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto i = cqm.add_variable(dimod::Vartype::INTEGER);
+        auto j = cqm.add_variable(dimod::Vartype::INTEGER);
+        
+        auto c1 = cqm.add_linear_constraint({i, j}, {1, 1}, dimod::Sense::LE, inf);
+
+        auto c2 = cqm.add_linear_constraint({i, j}, {-1, -1}, dimod::Sense::GE, -inf);
+
+        WHEN("we normalize") {
+            auto pre = Presolver(cqm);
+            CHECK(pre.normalize());
+
+            THEN("The bound is replaced by 1e30") {
+                REQUIRE(pre.model().num_constraints() == 2);
+                CHECK(pre.model().constraint_ref(c1).rhs() == 1e30);
+                CHECK(pre.model().constraint_ref(c2).rhs() == 1e30);  // flipped by normalize
+            }
+
+            AND_WHEN("we then presolve") {
+                pre.presolve();
+
+                THEN("the constraints are removed") {
+                    CHECK(!pre.model().num_constraints());
+                }
+            }
+        }
+    }
+}
+
 TEST_CASE("Presolve techniques can be changed", "[presolve]") {
     GIVEN("An empty presolver") {
         auto pre = Presolver();
