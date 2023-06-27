@@ -414,23 +414,32 @@ class PresolverImpl {
 
             bool loop_changes = false;
 
-            if (techniques & TechniqueFlags::RemoveSmallBiases) {
-                loop_changes |= technique_remove_small_biases(model_.objective());
-                for (auto& constraint : model_.constraints()) {
+            // Objective
+            {
+                if (techniques & TechniqueFlags::RemoveSmallBiases) {
+                    loop_changes |= technique_remove_small_biases(model_.objective());
+                }
+
+                if (std::chrono::steady_clock::now() - start_time >= time_limit) break;
+            }
+
+            // Constraints
+            for (auto& constraint : model_.constraints()) {
+                if (techniques & TechniqueFlags::RemoveSmallBiases) {
                     loop_changes |= technique_remove_small_biases(constraint);
                 }
-            }
 
-            if (techniques & TechniqueFlags::DomainPropagation) {
-                for (auto& constraint : model_.constraints()) {
+                if (techniques & TechniqueFlags::DomainPropagation) {
                     loop_changes |= technique_domain_propagation(constraint);
                 }
-            }
 
-            if (techniques & TechniqueFlags::RemoveRedundantConstraints) {
-                for (auto& constraint : model_.constraints()) {
-                    changes |= technique_clear_redundant_constraint(constraint);
+                if (techniques & TechniqueFlags::RemoveRedundantConstraints) {
+                    loop_changes |= technique_clear_redundant_constraint(constraint);
                 }
+
+                // this will ultimately give us a double break because we'll test again in the main
+                // loop
+                if (std::chrono::steady_clock::now() - start_time >= time_limit) break;
             }
 
             // If we didn't make any changes, then doing more loops won't help
