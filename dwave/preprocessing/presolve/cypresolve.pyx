@@ -197,13 +197,13 @@ cdef class cyPresolver:
 
         return changes
 
-    cpdef bint presolve(self, double time_limit = float("inf")) except*:
+    cpdef bint presolve(self, double time_limit_s = float("inf")) except*:
         """Apply any loaded presolve techniques to the held constrained quadratic model.
 
         Must be called after :meth:`normalize`.
 
         Args:
-            time_limit:
+            time_limit_s:
                 A time limit in seconds.
                 The presolve rounds will terminate after the time limit is exceeded.
                 Defaults to ``float("inf")``.
@@ -219,7 +219,7 @@ cdef class cyPresolver:
         try:
             with nogil:
                 self.mutex.lock()  # do this once the gil has been released to avoid deadlocks
-                changes = self.cpppresolver.presolve(duration[double](time_limit))
+                changes = self.cpppresolver.presolve(duration[double](time_limit_s))
         except RuntimeError as err:
             # The C++ logic_error is interpreted by Cython as a RuntimeError.
             # The only errors here should be for a model that's not normalized.

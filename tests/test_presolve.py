@@ -175,9 +175,9 @@ class TestPresolve(unittest.TestCase):
         presolver = Presolver(cqm)
         presolver.normalize()
 
-        self.assertFalse(presolver.presolve(-1))  # negative time_limit does nothing
-        self.assertFalse(presolver.presolve(0))  # 0 time_limit does nothing
-        self.assertTrue(presolver.presolve(100))  # finally it can do work
+        self.assertFalse(presolver.presolve(time_limit_s=-1))  # negative time_limit does nothing
+        self.assertFalse(presolver.presolve(time_limit_s=0))  # 0 time_limit does nothing
+        self.assertTrue(presolver.presolve(time_limit_s=100))  # finally it can do work
 
 
 class TestTechniques(unittest.TestCase):
