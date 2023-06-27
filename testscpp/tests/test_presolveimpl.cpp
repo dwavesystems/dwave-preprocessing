@@ -369,6 +369,80 @@ TEST_CASE("Test normalization_remove_self_loops", "[presolve][impl]") {
     }
 }
 
+TEST_CASE("Test normalization_replace_inf", "[presolve][impl]") {
+    const double inf = std::numeric_limits<double>::infinity();
+
+    SECTION("Linear objective with inf") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::BINARY);
+        cqm.objective.set_linear(v, inf);
+
+        CHECK(PresolverImpl::normalization_replace_inf(cqm.objective));
+        CHECK(cqm.objective.linear(v) == PresolverImpl::INF);
+    }
+
+    SECTION("Linear objective with -inf") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::BINARY);
+        cqm.objective.set_linear(v, -inf);
+
+        CHECK(PresolverImpl::normalization_replace_inf(cqm.objective));
+        CHECK(cqm.objective.linear(v) == -PresolverImpl::INF);
+    }
+
+    SECTION("Linear objective with -inf offset") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::BINARY);
+        cqm.objective.set_offset(-inf);
+
+        CHECK(PresolverImpl::normalization_replace_inf(cqm.objective));
+        CHECK(cqm.objective.offset() == -PresolverImpl::INF);
+    }
+
+    SECTION("Quadratic objective with -inf") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto u = cqm.add_variable(dimod::BINARY);
+        auto v = cqm.add_variable(dimod::BINARY);
+        cqm.objective.set_quadratic(u, v, -inf);
+
+        CHECK(PresolverImpl::normalization_replace_inf(cqm.objective));
+        CHECK(cqm.objective.quadratic(u, v) == -PresolverImpl::INF);
+    }
+
+    SECTION("Constraint with inf rhs") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::BINARY);
+        cqm.add_linear_constraint({0}, {1}, dimod::Sense::EQ, inf);
+
+        CHECK(PresolverImpl::normalization_replace_inf(cqm.constraint_ref(0)));
+        CHECK(cqm.constraint_ref(0).rhs() == PresolverImpl::INF);
+    }
+
+    SECTION("Constraint with -inf rhs") {
+        auto cqm = ConstrainedQuadraticModel();
+        cqm.add_variable(dimod::BINARY);
+        cqm.add_linear_constraint({0}, {1}, dimod::Sense::EQ, -inf);
+
+        CHECK(PresolverImpl::normalization_replace_inf(cqm.constraint_ref(0)));
+        CHECK(cqm.constraint_ref(0).rhs() == -PresolverImpl::INF);
+    }
+
+    SECTION("inf lower bound") {
+        auto cqm = ConstrainedQuadraticModel();
+        auto v = cqm.add_variable(dimod::INTEGER);
+        cqm.set_lower_bound(v, -inf);
+        cqm.set_upper_bound(v, +inf);
+
+        auto pre = PresolverImpl(cqm);
+        CHECK(pre.normalize());
+
+        CHECK(pre.model().lower_bound(v) == -PresolverImpl::INF);
+        CHECK(pre.model().upper_bound(v) == +PresolverImpl::INF);
+
+        CHECK(pre.feasibility() != presolve::Feasibility::Infeasible);
+    }
+}
+
 TEST_CASE("Test normalization_spin_to_binary", "[presolve][impl]") {
     SECTION("Empty model") {
         auto pre = PresolverImpl(ConstrainedQuadraticModel());
