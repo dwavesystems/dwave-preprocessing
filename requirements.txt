@@ -1,6 +1,6 @@
 dimod==0.12.6
 Cython==0.29.28
-numpy==1.21.6
+oldest-supported-numpy
 
 # build
 wheel>=0.30.0

@@ -185,7 +185,7 @@ jobs:
 
   test-doctest:
     docker:
-      - image: circleci/python:3.7 # as of march 2019 RTD uses 3.7
+      - image: circleci/python:3.9
 
     steps:
       - checkout
@@ -226,9 +226,7 @@ jobs:
     parameters:
       python-version:
         type: string
-      numpy-version:
-        type: string
-      dimod-version:
+      dependency-versions:
         type: string
 
     docker:
@@ -243,7 +241,7 @@ jobs:
           command: |
             python -m venv env
             . env/bin/activate
-            pip install 'dimod<< parameters.dimod-version >>' 'numpy<< parameters.numpy-version >>' --only-binary=dimod,numpy
+            pip install << parameters.dependency-versions >> --upgrade --only-binary=dimod,numpy
             pip install dwave-preprocessing --no-index -f dist/ --no-deps --force-reinstall
       - run: &unix-run-tests
           name: run tests
@@ -307,54 +305,26 @@ workflows:
       - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.7.9, 3.8.9, 3.9.4, 3.10.0, 3.11.0]
-      - build-and-test-linux-aarch64:
-          matrix:
-            parameters:
-              python-version: *python-versions
-            exclude:
-              - python-version: 3.7.9
+              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0]
+      - build-and-test-linux-aarch64: *build
       - build-sdist
       - build-and-test-osx: &build-and-test-osx
           matrix:
             parameters:
               python-version: *python-versions
               cibw-arch: [x86_64, arm64]
-            exclude:
-              - python-version: 3.7.9
-                cibw-arch: arm64
       - build-and-test-windows: *build
       - test-codecov
       - test-doctest
       - test-dependencies:
-          name: test-dependencies-numpy<< matrix.numpy-version >>-dimod<< matrix.dimod-version >>-py<< matrix.python-version >>
+          name: test-dependencies - << matrix.dependency-versions >> - py << matrix.python-version >>
           requires:
             - build-and-test-linux
           matrix:
             parameters:
-              # test the lowest and highest of each minor for the dependencies
-              dimod-version: [==0.12.6, ~=0.12.0]
-              numpy-version: [==1.20.0, ~=1.23.0]
+              # test the lowest and highest for each dependency
+              dependency-versions: ["dimod==0.12.6 oldest-supported-numpy", "dimod numpy"]
               python-version: *python-versions
-            exclude:
-              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
-                dimod-version: ==0.12.6
-                python-version: 3.10.0
-              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.10
-                dimod-version: ~=0.12.0
-                python-version: 3.10.0
-              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.11
-                dimod-version: ==0.12.6
-                python-version: 3.11.0
-              - numpy-version: ==1.20.0  # NumPy 1.20 does not support 3.11
-                dimod-version: ~=0.12.0
-                python-version: 3.11.0
-              - numpy-version: ~=1.23.0  # NumPy 1.23 does not support 3.7
-                dimod-version: ==0.12.6
-                python-version: 3.7.9
-              - numpy-version: ~=1.23.0  # NumPy 1.23 does not support 3.7
-                dimod-version: ~=0.12.0
-                python-version: 3.7.9
       - test-linux-cpp11  
       - test-sdist:
           requires:
