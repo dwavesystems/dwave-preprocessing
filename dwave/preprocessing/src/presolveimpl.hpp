@@ -548,16 +548,10 @@ class PresolverImpl {
         // Remove any constraints without any variables, their contribution to
         // infeasibility or whatever is baked in so no point carrying them around
         {
-            size_type i = 0;
-            while (i < model_.num_constraints()) {
-                const constraint_type& constraint = model_.constraint_ref(i);
-                if (!constraint.num_variables()) {
-                    model_.remove_constraint(i);
-                    changes = true;
-                } else {
-                    ++i;
-                }
-            }
+            const size_type num_constraints = model_.num_constraints();
+            model_.remove_constraints_if(
+                    [](const constraint_type& c) { return !c.num_variables(); });
+            changes |= num_constraints > model_.num_constraints();  // if we removed any
         }
 
         // There are a few normalization steps we want to re-run to clean up the model
@@ -783,7 +777,7 @@ class PresolverImpl {
 
         // Adding/removing constraints isn't tracked
         using model_type::add_linear_constraint;
-        using model_type::remove_constraint;
+        using model_type::remove_constraints_if;
 
         // The bound changes don't get tracked, but we do want to maintain normalization
         // and test for feasibility
