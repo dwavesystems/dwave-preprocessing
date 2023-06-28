@@ -26,12 +26,14 @@ class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
     """Composite for applying spin reversal transform preprocessing.
 
     Spin reversal transforms (or "gauge transformations") are applied
-    by flipping the spin of variables in the Ising problem. After
+    by randomly flipping the spin of variables in the Ising problem. After
     sampling the transformed Ising problem, the same bits are flipped in the
     resulting sample [#km]_.
 
     Args:
         sampler: A `dimod` sampler object.
+
+        seed: As passed to :class:`numpy.random.default_rng`.
 
     Examples:
         This example composes a dimod ExactSolver sampler with spin transforms then
