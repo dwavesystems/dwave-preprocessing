@@ -256,6 +256,7 @@ class PresolverImpl {
     bool normalization_remove_invalid_markers() {
         bool changes = false;
 
+        // find all of the discrete constraints
         std::vector<index_type> discrete;
         for (size_type c = 0; c < model_.num_constraints(); ++c) {
             auto& constraint = model_.constraint_ref(c);
@@ -272,29 +273,32 @@ class PresolverImpl {
                 changes = true;
             }
         }
-        // check if they overlap
-        size_type i = 0;
-        while (i < discrete.size()) {
-            // check if ci overlaps with any other constraints
-            auto& constraint = model_.constraint_ref(discrete[i]);
 
-            bool overlap = false;
-            for (size_type j = i + 1; j < discrete.size(); ++j) {
-                if (model_.constraint_ref(discrete[j]).shares_variables(constraint)) {
-                    // we have overlap!
-                    overlap = true;
+        // if there are no discrete constraints (remaining) then we can just return now
+        if (!discrete.size()) {
+            return changes;
+        }
+
+        // Make sure the constraints don't overlap by tracking which variables are already
+        // used in a discrete constraint.
+        std::vector<bool> used(model_.num_variables(), false);
+        for (const auto& c : discrete) {
+            auto& constraint = model_.constraint_ref(c);
+
+            for (const auto& v : constraint.variables()) {
+                if (used[v]) {
+                    // there is a variable already used by another discrete constraint
                     constraint.mark_discrete(false);
                     changes = true;
                     break;
                 }
             }
 
-            if (overlap) {
-                discrete.erase(discrete.begin() + i);
-                continue;
-            }
+            if (!constraint.marked_discrete()) continue;  // it was overlapping
 
-            ++i;
+            for (const auto& v : constraint.variables()) {
+                used[v] = true;
+            }
         }
 
         return changes;
