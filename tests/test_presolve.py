@@ -13,6 +13,7 @@
 #    limitations under the License.
 
 import concurrent.futures
+import itertools
 import os.path
 import unittest
 
@@ -161,6 +162,124 @@ class TestPresolve(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             self.assertFalse(presolver.presolve())
+
+    def test_quadratic_expression(self):
+        cqm = dimod.CQM()
+        cqm.add_variables(dimod.BINARY, "zyx")
+
+        # add them to a constraint in a different order
+        x, y, z = dimod.Binaries('xyz')
+        cqm.add_constraint(x + 2*y + 3*z + 4*x*y + 5*x*z + 6*y*z <= 7)
+
+        # Fix 1
+        cqm.add_constraint(y == 1)
+        presolver = Presolver(cqm)
+        presolver.set_techniques(TechniqueFlags.DomainPropagation)
+        presolver.apply()
+
+        new = presolver.copy_model()
+        self.assertEqual(new.constraints[0].lhs.linear, {1: 5, 0: 9})
+        self.assertEqual(new.constraints[0].lhs.quadratic, {(1, 0): 5.0})
+
+        # Fix 2
+        cqm.add_constraint(y == 1)
+        cqm.add_constraint(z == 1)
+        presolver = Presolver(cqm)
+        presolver.set_techniques(TechniqueFlags.DomainPropagation)
+        presolver.apply()
+
+        new = presolver.copy_model()
+        self.assertEqual(new.constraints[0].lhs.linear, {0: 10})
+        self.assertEqual(new.constraints[0].lhs.quadratic, {})
+
+    def test_quadratic_expression_smoke1(self):
+        # This test is just for smoke, previously this problem raised memory errors
+        # Other tests test for correctness
+        cqm = dimod.lp.loads("""
+        Minimize
+
+        Subject To
+         c0: - 17.051066840461537 v3  <= -9.106723614321982
+         c1: + 11.484217680577922 v4 + 11.484217680577922 v1 + [
+         - 22.968435361155844 v1 * v4 ]  <= 6.053502603325116
+         c2: + 10.031746008066332 v2 + 10.031746008066332 v1 + [
+         - 20.063492016132663 v1 * v2 ]  <= 5.025359547352213
+         c3: - 3.0013102085723125 v0 - 12.856230580454906 v1 - 17.97895647564603 v4
+         - 8.741753211664253 v2 - 14.227160635984685 v3  <= -29.111621736003023
+         c4: + 16.929643545497036 v4 + 17.41326947801976 v2 + 2.1373835985793814 v3
+         + 17.6955617528591 v0 + 15.074552221756992 v1 + [ - 29.58451989383531 v2 * v4
+         - 4.274767197158763 v3 * v4 - 5.242019062204211 v0 * v2
+         - 30.149104443513984 v1 * v0 ]  <= 16.741825427748314
+         c5: + 4.272554217017247 v3 + 4.272554217017247 v1 + 7.787383623073452 v4
+         + 7.787383623073452 v0 + [ - 8.545108434034494 v1 * v3
+         - 15.574767246146903 v0 * v4 ]  <= 5.979476612426666
+         c6: + 5.820219874968961 v3 + 12.672662789234511 v0 + 31.221562386236577 v4
+         + 11.296889417103412 v2 + 21.305716829157575 v1 + [
+         - 11.640439749937922 v0 * v3 - 13.704885828531099 v4 * v0
+         - 14.360292059916867 v2 * v4 - 34.37794688402519 v1 * v4
+         - 8.233486774289954 v1 * v2 ]  <= 21.530163530436162
+         c7: - 7.514948602616437 v1  <= -4.2953168220913325
+         c8: - 10.159724167038 v4 - 18.648347945794026 v3 - 5.095291100557395 v1
+         - 18.17151250285826 v2 - 15.681874455192489 v0  <= -34.611210435670166
+         c9: - 7.7423284407397786 v2  <= -4.796912556777682
+
+        Bounds
+
+        Binary
+         v0 v1 v2 v3 v4
+        General
+
+        End""")
+
+        presolver = Presolver(cqm)
+        presolver.normalize()
+        presolver.presolve()
+
+    def test_quadratic_expression_smoke2(self):
+        # This test is just for smoke, previously this problem raised memory errors
+        # Other tests test for correctness
+        cqm = dimod.lp.loads("""
+        Subject To
+         c0: + 37.796280181141725 v3 + 12.361222016139354 v0 + 9.900498986553224 v4
+         + 2.692837991292598 v2 + 18.227397169741746 v1 + [
+         - 19.336768049693514 v0 * v3 - 19.800997973106448 v4 * v3
+         - 5.385675982585196 v2 * v0 - 36.45479433948349 v1 * v3 ]
+          <= 20.947420872251243
+         c1: + 24.502538739564844 v1 + 22.76247673463282 v0 + 36.37877362035509 v4
+         + 34.63871161542307 v3 + [ - 14.71970552899811 v0 * v1
+         - 34.28537195013158 v4 * v1 - 30.80524794026753 v3 * v0
+         - 38.47217529057861 v3 * v4 ]  <= 28.951220695396575
+         c2: - 7.024165897320047 v1 - 17.222408597919063 v4  <= -12.396213731711883
+         c3: + 26.971390424403868 v4 + 13.349524130974341 v1 + 34.673600506593544 v2
+         + 4.56864915781716 v0 + 16.483085055346855 v3 + [
+         - 26.699048261948683 v1 * v4 - 27.243732586859053 v2 * v4
+         - 9.13729831563432 v0 * v2 - 32.96617011069371 v3 * v2 ]
+          <= 24.912061857195006
+         c4: + 29.80995317158837 v4 + 7.281857767410268 v3 + 9.899507925195692 v0
+         + 19.713574313467856 v2 + 42.81070393472186 v1 + [
+         - 4.095173392548938 v3 * v4 - 19.799015850391385 v0 * v4
+         - 35.725717100236416 v1 * v4 - 10.468542142271598 v1 * v3
+         - 39.42714862693571 v1 * v2 ]  <= 26.827564985766625
+         c5: - 11.283444468838663 v0 - 6.67991792118767 v4 - 2.9148614631386325 v2
+          <= -11.392333040169904
+         c6: - 2.8392360194482285 v2 - 12.464455699928497 v1  <= -6.777880150102839
+         c7: - 12.077881817597405 v3 - 13.23799843470821 v1  <= -12.382979022647005
+         c8: + 12.769456529168128 v3 + 12.769456529168128 v1 + [
+         - 25.538913058336256 v1 * v3 ]  <= 5.87279197332948
+         c9: - 6.818718217802458 v2 - 4.710431335067147 v1 - 3.788863346856327 v0
+         - 17.600626904736487 v3  <= -16.291721005654637
+
+        Bounds
+
+        Binary
+         v0 v1 v2 v3 v4
+        General
+
+        End""")
+
+        presolver = Presolver(cqm)
+        presolver.normalize()
+        presolver.presolve()
 
     def test_time_limit(self):
         # Given a presolveable CQM
