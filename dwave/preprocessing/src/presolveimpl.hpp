@@ -701,9 +701,7 @@ class PresolverImpl {
                 }
             }
         }
-        for (auto& v : variables) {
-            expression.remove_variable(v);
-        }
+        expression.remove_variables(variables.begin(), variables.end());
         changes |= variables.size();
 
         return changes;
@@ -740,9 +738,7 @@ class PresolverImpl {
                 constraint.set_rhs(constraint.rhs() - a * lb);
             }
         }
-        for (auto& v : variables) {
-            constraint.remove_variable(v);
-        }
+        constraint.remove_variables(variables.begin(), variables.end());
 
         // NB: Achterberg et al. does an additional step where they scan the row
         // and remove coefficients as long as the sum stays below a certain value.
