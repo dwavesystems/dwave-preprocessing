@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Fix ``ImportError`` being raised on Windows when other ``dwave`` namespace packages
+    are installed after ``dwave-preprocessing``.
+    See `#130 <https://github.com/dwavesystems/dwave-preprocessing/issues/130>`_.
