@@ -60,6 +60,7 @@ venv.bak/
 dwave/preprocessing/cyfix_variables.cpp
 dwave/preprocessing/presolve/*.cpp
 dwave/preprocessing/presolve/*.html
+dwave/preprocessing/*.html
 
 # testing stuff
 testscpp/*.o
