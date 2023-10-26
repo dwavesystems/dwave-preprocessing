@@ -1,4 +1,4 @@
-dimod==0.12.10
+dimod==0.12.13
 Cython==3.0.4
 oldest-supported-numpy
 
