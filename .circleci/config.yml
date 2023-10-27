@@ -2,14 +2,14 @@ version: 2.1
 
 orbs:
   codecov: codecov/codecov@3
-  win: circleci/windows@2.2.0
+  win: circleci/windows@5.0.0
 
 commands:
   run-cibuildwheel:
     parameters:
       cibw-version:
         type: string
-        default: 2.11.2
+        default: 2.16.2
     steps:
       - run:
           name: run cibuildwheel
@@ -305,7 +305,7 @@ workflows:
       - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0]
+              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0, 3.12.0]
       - build-and-test-linux-aarch64: *build
       - build-sdist
       - build-and-test-osx: &build-and-test-osx
@@ -323,8 +323,11 @@ workflows:
           matrix:
             parameters:
               # test the lowest and highest for each dependency
-              dependency-versions: ["dimod==0.12.6 oldest-supported-numpy", "dimod numpy"]
+              dependency-versions: [dimod==0.12.6 oldest-supported-numpy, dimod numpy]
               python-version: *python-versions
+            exclude:
+              - dependency-versions: dimod==0.12.6 oldest-supported-numpy  # dimod 0.12.6 does not support Python 3.12
+                python-version: 3.12.0
       - test-linux-cpp11  
       - test-sdist:
           requires:
