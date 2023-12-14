@@ -25,15 +25,28 @@ __all__ = ['SpinReversalTransformComposite']
 class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
     """Composite for applying spin reversal transform preprocessing.
 
-    Spin reversal transforms (or "gauge transformations") are applied
-    by randomly flipping the spin of variables in the Ising problem. After
-    sampling the transformed Ising problem, the same bits are flipped in the
-    resulting sample [#km]_.
+    A spin-reversal transform can improve sample statistics when the 
+    sampler is a physical object with asymmetries such as a QPU.
+    The technique works as follows: given an :math:`n`-variable Ising 
+    problem, the composite selects a random :math:`g\in\{\pm1\}^n` and 
+    transforms the problem via :math:`h_i\mapsto h_ig_i` and 
+    :math:`J_{ij}\mapsto J_{ij}g_ig_j`. Solutions :math:`s` of the 
+    original problem and :math:`s^\prime` of the transformed problem 
+    are related by :math:`s^\prime_i=s_ig_i` and have identical energies. 
+    [#km]_
+
+    .. note::
+        If you are configuring an anneal schedule, be mindful that this
+        composite does not recognize the ``initial_state`` parameter 
+        used by dimod's :class:`~dwave.system.samplers.DWaveSampler` for 
+        reverse annealing (composites do not generally process all keywords 
+        of child samplers) and does not flip any of the configured initial 
+        states. 
 
     Args:
         sampler: A `dimod` sampler object.
 
-        seed: As passed to :class:`numpy.random.default_rng`.
+        seed: As passed to :func:`numpy.random.default_rng`.
 
     Examples:
         This example composes a dimod ExactSolver sampler with spin transforms then
