@@ -25,18 +25,14 @@ __all__ = ['SpinReversalTransformComposite']
 class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
     """Composite for applying spin reversal transform preprocessing.
 
-    A spin-reversal transform does not alter the Ising problem; the 
-    transform simply amounts to reinterpreting spin up as spin down, 
-    and visa-versa, for a particular spin. The technique works as follows: 
-    Given an :math:`n`-variable Ising problem, we can select a random
-    :math:`g\in\{\pm1\}^n` and transform the problem via 
-    :math:`h_i\mapsto h_ig_i` and :math:`J_{ij}\mapsto J_{ij}g_ig_j`. 
-    A spin-reversal transform does not alter the mathematical nature 
-    of the Ising problem. Solutions :math:`s` of the original
-    problem and :math:`s^\prime` of the transformed problem are related 
-    by :math:`s^\prime_i=s_ig_i` and have identical energies. However, 
-    the sample statistics can be affected by the spin-reversal transform 
-    when the sampler is a physical object with asymmetries such as a QPU.
+    A spin-reversal transform can improve sample statistics when the 
+    sampler is a physical object with asymmetries such as a QPU.
+    The technique works as follows: given an :math:`n`-variable Ising 
+    problem, the composite selects a random :math:`g\in\{\pm1\}^n` and 
+    transforms the problem via :math:`h_i\mapsto h_ig_i` and 
+    :math:`J_{ij}\mapsto J_{ij}g_ig_j`. Solutions :math:`s` of the 
+    original problem and :math:`s^\prime` of the transformed problem 
+    are related by :math:`s^\prime_i=s_ig_i` and have identical energies. 
     [#km]_
 
     .. note::
