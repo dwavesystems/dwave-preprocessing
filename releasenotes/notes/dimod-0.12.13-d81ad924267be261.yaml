@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Build with `dimod 0.12.14 <https://github.com/dwavesystems/dimod/releases/tag/0.12.14>`_.
+    This speeds up the removal of small biases in presolve.
