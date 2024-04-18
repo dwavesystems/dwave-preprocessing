@@ -541,7 +541,7 @@ class PresolverImpl {
                 }
             }
 
-            model_.fix_variables(variables.begin(), variables.end(), values.begin());
+            model_.fix_variables(variables, values);
 
             changes |= variables.size();
 
@@ -869,31 +869,34 @@ class PresolverImpl {
             model_type::change_vartype(vartype, v);
         }
 
-        // Track the variables that are fixed. We're a lot more picky about
-        // types than CQM::fix_variables() because we can be and we want to
-        // guarantee multipass
-        void fix_variables(typename std::vector<index_type>::iterator first,
-                           typename std::vector<index_type>::iterator last,
-                           typename std::vector<assignment_type>::iterator assignment) {
+        // Track the variables that are fixed.
+        // Require that the variables are in sorted order.
+        void fix_variables(const std::vector<index_type>& variables,
+                           const std::vector<assignment_type>& assignments) {
+            assert(variables.size() == assignments.size());
+
             // short circuit in the case there's nothing to fix, thereby avoiding
             // an expensive copy.
-            if (first == last) {
+            if (variables.empty()) {
                 return;
             }
 
-            // track the changes as if we had applied them one-by-one 
-            auto vit = first;
-            auto ait = assignment;
-            int offset = 0;
-            for (; vit != last; ++vit, ++ait, ++offset) {
+            // track the changes as if we had applied them one-by-one, but do it
+            // in reverse order so that when we're restoring we're pushing onto the end
+            assert(std::is_sorted(variables.begin(), variables.end()));
+            auto vit = variables.rbegin();
+            const auto last = variables.rend();
+            auto ait = assignments.rbegin();
+            for (; vit != last; ++vit, ++ait) {
                 transforms_.emplace_back(TransformKind::FIX);
-                transforms_.back().v = (*vit) - offset;
+                transforms_.back().v = (*vit);
                 transforms_.back().value = *ait;
             }
 
             /// fix the variables in-place.
             using std::swap;  // ADL, though doubt it makes a difference
-            auto cqm = model_type::fix_variables(first, last, assignment);
+            auto cqm = model_type::fix_variables(variables.begin(), variables.end(),
+                                                 assignments.begin());
             swap(*this, cqm);
         }
 
