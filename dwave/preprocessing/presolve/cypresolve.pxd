@@ -16,6 +16,7 @@
 #    limitations under the License.
 
 from dimod.cyqmbase.cyqmbase_float64 cimport bias_type, index_type
+from dimod.cyutilities cimport ConstNumeric
 from dimod.cyvariables cimport cyVariables
 
 from dwave.preprocessing.libcpp cimport Presolver as cppPresolver
@@ -40,3 +41,5 @@ cdef class cyPresolver:
     cpdef bint apply(self) except*
     cpdef bint normalize(self) except*
     cpdef bint presolve(self, double time_limit_s=*) except*
+
+    cdef Py_ssize_t restore_sample(self, ConstNumeric[::1] reduced_sample, double[::1] original_sample) except -1 nogil

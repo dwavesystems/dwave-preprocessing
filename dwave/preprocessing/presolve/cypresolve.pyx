@@ -234,26 +234,49 @@ cdef class cyPresolver:
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
+    cdef Py_ssize_t restore_sample(self, ConstNumeric[::1] reduced_sample, double[::1] original_sample) except -1 nogil:
+        """Restore a sample.
+
+        Note that this method is not thread safe, that is it does not aquire
+        the mutex. The mutex should be aquired before calling this method.
+
+        Args:
+            reduced_sample: a solution to the presolved model.
+            original_sample: a memoryview that will hold the restored solution.
+
+        """
+        cdef Py_ssize_t num_variables = reduced_sample.shape[0]
+
+        # Convert the sample into a vector
+        cdef vector[double] reduced
+        for vi in range(num_variables):
+            reduced.push_back(reduced_sample[vi])
+
+        cdef vector[double] original
+
+        original = self.cpppresolver.restore(reduced)
+
+        if <Py_ssize_t>original.size() != original_sample.shape[0]:
+            raise RuntimeError("unexpected reduced variables size")
+
+        for vi in range(<Py_ssize_t>original.size()):
+            original_sample[vi] = original[vi]
+
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     def _restore_samples(self, ConstNumeric[:, ::1] samples):
         cdef Py_ssize_t num_samples = samples.shape[0]
         cdef Py_ssize_t num_variables = samples.shape[1]
 
         cdef double[:, ::1] original_samples = np.empty((num_samples, self._original_variables.size()), dtype=np.double)
 
-        cdef vector[double] original
-        cdef vector[double] reduced
-        for i in range(num_samples):
-            reduced.clear()
-            for vi in range(num_variables):
-                reduced.push_back(samples[i, vi])
-
-            original = self.cpppresolver.restore(reduced)
-
-            if <Py_ssize_t>original.size() != original_samples.shape[1]:
-                raise RuntimeError("unexpected reduced variables size")
-
-            for vi in range(<Py_ssize_t>original.size()):
-                original_samples[i, vi] = original[vi]
+        try:
+            with nogil:
+                self.mutex.lock()  # do this once the gil has been released to avoid deadlocks
+                for i in range(num_samples):
+                    self.restore_sample(samples[i, :], original_samples[i, :])
+        finally:
+            self.mutex.unlock()  # it's ok to do this inside the GIL
 
         return original_samples
 
