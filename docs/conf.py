@@ -83,10 +83,8 @@ import dwave.preprocessing
 import os
 config_directory = os.path.dirname(os.path.abspath(__file__))
 
-breathe_default_project = "preprocessing"
-breathe_projects = dict(
-  preprocessing=os.path.join(config_directory, 'build-cpp', 'xml'),
-  )
+breathe_default_project = "dwave-preprocessing"
+breathe_projects = {'dwave-preprocessing': os.path.join(config_directory, 'build-cpp', 'xml')}
 
 # see https://breathe.readthedocs.io/en/latest/readthedocs.html
 if os.environ.get('READTHEDOCS', False):
