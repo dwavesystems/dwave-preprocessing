@@ -1,5 +1,5 @@
-dimod==0.12.14
-Cython==3.0.4
+dimod==0.12.16
+Cython==3.0.10
 oldest-supported-numpy
 
 # build
