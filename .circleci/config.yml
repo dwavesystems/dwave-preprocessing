@@ -2,7 +2,8 @@ version: 2.1
 
 orbs:
   codecov: codecov/codecov@3
-  win: circleci/windows@5.0.0
+  win: circleci/windows@5.0
+  macos: circleci/macos@2.4
 
 commands:
   run-cibuildwheel:
@@ -82,7 +83,8 @@ jobs:
         type: string
 
     macos:
-      xcode: 12.5.1
+      xcode: 15.3.0
+    resource_class: macos.m1.medium.gen1
 
     environment:
       <<: *global-environment
@@ -91,6 +93,7 @@ jobs:
 
     steps:
       - checkout
+      - macos/install-rosetta
       - run: git submodule sync
       - run: git submodule update --init
       - run-cibuildwheel
@@ -323,7 +326,7 @@ workflows:
           matrix:
             parameters:
               # test the lowest and highest for each dependency
-              dependency-versions: [dimod==0.12.6 oldest-supported-numpy, dimod numpy]
+              dependency-versions: [dimod==0.12.6 oldest-supported-numpy, dimod "numpy<2"]
               python-version: *python-versions
             exclude:
               - dependency-versions: dimod==0.12.6 oldest-supported-numpy  # dimod 0.12.6 does not support Python 3.12
