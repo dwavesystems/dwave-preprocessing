@@ -18,7 +18,6 @@ from setuptools import setup
 from setuptools.extension import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
 
-import numpy
 import dimod
 
 from Cython.Build import cythonize
@@ -61,12 +60,11 @@ setup(
         nthreads=int(os.getenv('CYTHON_NTHREADS', 0)),
         ),
     include_dirs=[
-        numpy.get_include(),
         dimod.get_include(),
         'extern/spdlog/include/',
         ],
     install_requires=[
-        'numpy>=1.17.3,<2.0.0',  # this is the oldest supported NumPy on Python 3.8
+        'numpy>=1.17.3,<3.0.0',  # this is the oldest supported NumPy on Python 3.8
         'dimod>=0.12.6,<0.13.0'
         ],
 )
