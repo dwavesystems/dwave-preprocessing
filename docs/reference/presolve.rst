@@ -46,14 +46,14 @@ TechniqueFlags
 C++ API
 -------
 
-.. doxygenclass:: dwave::presolve::Feasibility
-    :members:
-    :project: dwave-preprocessing
-
-.. doxygenclass:: dwave::presolve::TechniqueFlags
-    :members:
-    :project: dwave-preprocessing
-
 .. doxygenclass:: dwave::presolve::Presolver
     :members:
     :project: dwave-preprocessing
+
+.. doxygenenum:: dwave::presolve::Feasibility
+    :project: dwave-preprocessing
+
+.. doxygenenum:: dwave::presolve::TechniqueFlags
+    :project: dwave-preprocessing
+
+

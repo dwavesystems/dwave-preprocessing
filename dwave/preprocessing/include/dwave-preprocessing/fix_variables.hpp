@@ -42,6 +42,7 @@ public:
  *      that do not contribute any coefficient to the posiform are set to 1. This
  *      may happen if their bias in the original QUBO was 0 or if they were flushed
  *      to zero when converted to the posiform.
+ * @param fixed_variables Variables to fix.
  */
 template <class PosiformInfo>
 capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
