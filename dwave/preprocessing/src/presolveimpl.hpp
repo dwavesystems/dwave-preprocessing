@@ -673,17 +673,9 @@ class PresolverImpl {
         expression_base_type& base = expression;
 
         // We remove quadratic interactions with biases smaller than 1e-10
-        std::vector<std::pair<index_type, index_type>> interactions;
-        for (auto it = base.cbegin_quadratic(); it != base.cend_quadratic(); ++it) {
-            if (std::abs(it->bias) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT) {
-                interactions.emplace_back(expression.variables()[it->u],
-                                          expression.variables()[it->v]);
-            }
-        }
-        for (auto& uv : interactions) {
-            expression.remove_interaction(uv.first, uv.second);
-        }
-        changes |= interactions.size();
+        changes |= expression.remove_interactions([](index_type, index_type, bias_type bias) {
+            return std::abs(bias) < UNCONDITIONAL_REMOVAL_BIAS_LIMIT;
+        });
 
         // We zero linear biases that are smaller than 1e-10 and we remove the
         // variable from the expression if its linear bias is small and it

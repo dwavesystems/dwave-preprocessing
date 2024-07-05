@@ -27,7 +27,6 @@ import dimod
 
 from dimod.libcpp cimport ConstrainedQuadraticModel as cppConstrainedQuadraticModel
 from dimod.constrained.cyconstrained cimport cyConstrainedQuadraticModel, make_cqm
-from dimod.cyutilities cimport ConstNumeric
 
 from dwave.preprocessing.libcpp cimport Feasibility as cppFeasibility
 from dwave.preprocessing.libcpp cimport TechniqueFlags as cppTechniqueFlags
@@ -234,7 +233,7 @@ cdef class cyPresolver:
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    cdef Py_ssize_t restore_sample(self, ConstNumeric[::1] reduced_sample, double[::1] original_sample) except -1 nogil:
+    cdef Py_ssize_t restore_sample(self, const Numeric[::1] reduced_sample, double[::1] original_sample) except -1 nogil:
         """Restore a sample.
 
         Note that this method is not thread safe, that is it does not aquire
@@ -264,7 +263,7 @@ cdef class cyPresolver:
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def _restore_samples(self, ConstNumeric[:, ::1] samples):
+    def _restore_samples(self, const Numeric[:, ::1] samples):
         cdef Py_ssize_t num_samples = samples.shape[0]
         cdef Py_ssize_t num_variables = samples.shape[1]
 

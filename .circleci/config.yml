@@ -326,7 +326,7 @@ workflows:
           matrix:
             parameters:
               # test the lowest and highest for each dependency
-              dependency-versions: [dimod==0.12.6 oldest-supported-numpy, dimod "numpy<2"]
+              dependency-versions: [dimod==0.12.6 oldest-supported-numpy, dimod numpy]
               python-version: *python-versions
             exclude:
               - dependency-versions: dimod==0.12.6 oldest-supported-numpy  # dimod 0.12.6 does not support Python 3.12
