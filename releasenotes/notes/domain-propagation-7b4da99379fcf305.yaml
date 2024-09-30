@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Add domain propagation to ``dwave::presolve::Presolver``.
+  - |
+    Add removing small biases to ``dwave::presolve::Presolver``.

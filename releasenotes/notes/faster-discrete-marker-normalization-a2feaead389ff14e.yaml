@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Speed up ``PresolverImpl::normalization_remove_invalid_markers()`` C++ method.
+    This gives faster presolve normalization times for models with many discrete
+    constraints.

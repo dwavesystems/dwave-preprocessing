@@ -21,15 +21,17 @@ dwave-preprocessing
 
 .. index-start-marker
 
-`dwave-preprocessing` is a package of common preprocessing tools that can aid in
-solving binary quadratic models (BQM).
+`dwave-preprocessing` provides preprocessing tools for binary quadratic models
+(BQM) and presolve algorithms for constrained quadratic models (CQM).
 
 .. code-block:: python
 
     import dwave.preprocessing
 
-Currently, this package contains several preprocessing composites. For details on
-underlying algorithms and usage, see the package's
+This package contains several preprocessing composites that can aid in solving 
+BQMs and a presolver that can reduce a problem's redundant variables and 
+constraints to improve the accuracy of CQMs. For details on underlying 
+algorithms and usage, see the package's
 `Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/>`_.
 
 .. index-end-marker
@@ -65,3 +67,20 @@ Contributing
 
 Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
 has guidelines for contributing to Ocean packages.
+
+Release Notes
+-------------
+
+**dwave-preprocessing** makes use of `reno <https://docs.openstack.org/reno/>`_ to manage its
+release notes.
+
+When making a contribution to **dwave-preprocessing** that will affect users, create a new
+release note file by running
+
+.. code-block:: bash
+
+    reno new your-short-descriptor-here
+
+You can then edit the file created under ``releasenotes/notes/``.
+Remove any sections not relevant to your changes.
+Commit the file along with your changes.

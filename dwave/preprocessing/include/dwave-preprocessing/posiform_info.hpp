@@ -20,6 +20,7 @@
 #include <iostream>
 #include <limits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 /**
@@ -210,13 +211,14 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     if (_max_absolute_value < bqm_linear_abs) {
       _max_absolute_value = bqm_linear_abs;
     }
-    auto span = bqm.neighborhood(bqm_variable);
-    auto it = std::lower_bound(span.first, span.second, bqm_variable + 1,
-                               dimod::utils::comp_v<variable_type, bias_type>);
-    _quadratic_iterators[bqm_variable] = {it, span.second};
-    if (it != span.second) {
-      for (auto it_end = span.second; it != it_end; it++) {
-        auto bqm_quadratic = it->second;
+    auto span =
+            std::make_pair(std::lower_bound(bqm.cbegin_neighborhood(bqm_variable),
+                                            bqm.cend_neighborhood(bqm_variable), bqm_variable + 1),
+                           bqm.cend_neighborhood(bqm_variable));
+    _quadratic_iterators[bqm_variable] = span;
+    if (span.first != span.second) {
+      for (auto it_end = span.second; span.first != it_end; span.first++) {
+        auto bqm_quadratic = span.first->bias;
         auto bqm_quadratic_abs = std::fabs(bqm_quadratic);
         if (bqm_quadratic < 0) {
           _linear_double_biases[bqm_variable] += bqm_quadratic;
@@ -234,7 +236,7 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
   // we are summing up the linear coefficients for the posiform over all the bqm
   // variables, not the posiform variables.
   _posiform_linear_sum_non_integral = 0;
-  for (int bqm_variable = 0; bqm_variable < _linear_double_biases.size();
+  for (std::size_t bqm_variable = 0; bqm_variable < _linear_double_biases.size();
        bqm_variable++) {
     _posiform_linear_sum_non_integral +=
         std::fabs(_linear_double_biases[bqm_variable]);
@@ -274,9 +276,9 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
         // of small capacities corresponding to numerical errors, affecting the
         // final result. For this same reason we do not use the already computed
         // linear values for the posiform in double format.
-        auto bias_quadratic_integral = convertToPosiformCoefficient(it->second);
+        auto bias_quadratic_integral = convertToPosiformCoefficient(it->bias);
         if (bias_quadratic_integral) {
-          _num_quadratic_integral_biases[it->first]++;
+          _num_quadratic_integral_biases[it->v]++;
           if (bias_quadratic_integral < 0) {
             _linear_integral_biases[bqm_variable] += bias_quadratic_integral;
           }
@@ -288,7 +290,7 @@ PosiformInfo<BQM, coefficient_t>::PosiformInfo(const BQM &bqm) {
     }
 
     _posiform_linear_sum_integral = 0; // For debugging purposes.
-    for (int bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
+    for (std::size_t bqm_variable = 0; bqm_variable < _linear_integral_biases.size();
         bqm_variable++) {
       if (_linear_integral_biases[bqm_variable]) {
         _num_linear_integral_biases++;
@@ -371,9 +373,9 @@ void PosiformInfo<BQM, coefficient_t>::print() {
     auto it_end = _quadratic_iterators[bqm_variable].second;
     for (; it != it_end; it++) {
       std::cout << _bqm_to_posiform_variable_map[bqm_variable] << " "
-                << _bqm_to_posiform_variable_map[it->first] << ", ";
-      std::cout << bqm_variable << " " << it->first << ",  "
-                << convertToPosiformCoefficient(it->second) << std::endl;
+                << _bqm_to_posiform_variable_map[it->v] << ", ";
+      std::cout << bqm_variable << " " << it->v << ",  "
+                << convertToPosiformCoefficient(it->bias) << std::endl;
     }
   }
   std::cout << std::endl;

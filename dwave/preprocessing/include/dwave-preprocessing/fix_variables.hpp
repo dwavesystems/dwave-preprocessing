@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dimod/quadratic_model.h"
+#include "dimod/binary_quadratic_model.h"
 #include "implication_network.hpp"
 #include "posiform_info.hpp"
 
@@ -42,6 +42,7 @@ public:
  *      that do not contribute any coefficient to the posiform are set to 1. This
  *      may happen if their bias in the original QUBO was 0 or if they were flushed
  *      to zero when converted to the posiform.
+ * @param fixed_variables Variables to fix.
  */
 template <class PosiformInfo>
 capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables,
@@ -56,7 +57,7 @@ capacity_type fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variable
 
   // There may not be 1 to 1 mapping from bqm variables to posiform variables,
   // so we convert the posiform variables back to bqm variables.
-  for (int i = 0; i < fixed_variables_posiform.size(); i++) {
+  for (std::size_t i = 0; i < fixed_variables_posiform.size(); i++) {
     int bqm_variable = posiform_info.mapVariablePosiformToQubo(
         fixed_variables_posiform[i].first);
     fixed_variables.push_back(

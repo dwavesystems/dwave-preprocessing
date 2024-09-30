@@ -1,0 +1,5 @@
+---
+features:
+  - Support ``Numpy>=1.17.3``, previously required ``NumPy>=1.20.0``.
+deprecations:
+  - Drop support for Python 3.7.

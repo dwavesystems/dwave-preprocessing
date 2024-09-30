@@ -58,12 +58,10 @@ venv.bak/
 
 # cython intermediate files
 dwave/preprocessing/cyfix_variables.cpp
+dwave/preprocessing/presolve/*.cpp
+dwave/preprocessing/presolve/*.html
+dwave/preprocessing/*.html
 
 # testing stuff
-testscpp/Catch2
-testscpp/test_main
-testscpp/test_main.o
-testscpp/test_main.out
-testscpp/test_main_parallel
-testscpp/test_main_parallel.o
-testscpp/test_main_parallel.out
+testscpp/*.o
+testscpp/*.out

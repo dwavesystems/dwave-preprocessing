@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Speed up ``PresolverImpl::technique_remove_small_biases()`` C++ method.
+    This gives faster presolve times for models with many small biases.

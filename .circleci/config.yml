@@ -1,130 +1,143 @@
 version: 2.1
 
 orbs:
-  win: circleci/windows@2.2.0
+  codecov: codecov/codecov@3
+  win: circleci/windows@5.0
+  macos: circleci/macos@2.4
+
+commands:
+  run-cibuildwheel:
+    parameters:
+      cibw-version:
+        type: string
+        default: 2.16.2
+    steps:
+      - run:
+          name: run cibuildwheel
+          shell: bash -eo pipefail
+          command: |
+            if [[ $OS == Windows_NT ]]; then
+              python -m pip install --user cibuildwheel==<< parameters.cibw-version >>
+              python -m cibuildwheel --output-dir dist
+            else
+              python3 -m pip install --user cibuildwheel==<< parameters.cibw-version >>
+              python3 -m cibuildwheel --output-dir dist
+            fi
+
+      - store_artifacts: &store-artifacts
+          path: ./dist
+      - persist_to_workspace: &persist-to-workspace
+          root: ./dist/
+          paths: .
+
+environment: &global-environment
+  PIP_PROGRESS_BAR: 'off'
 
 jobs:
-
-  #
-  # linux
-  #
-
-  build-manylinux:
+  build-and-test-linux:
     parameters:
-      python-minor:
-        type: integer
-      architecture:
+      python-version:
         type: string
 
     docker:
-      - image: quay.io/pypa/manylinux1_<< parameters.architecture >>
+      - image: circleci/python:3.9
 
-    working_directory: /dwave/preprocessing
+    environment:
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_LINUX: x86_64
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - setup_remote_docker
+      - run-cibuildwheel
 
-      - run:
-          name: fix git checkout
-          command: git reset --hard
+  build-and-test-linux-aarch64:
+    parameters:
+      python-version:
+        type: string
 
-      - run:
-          name: build wheels
-          command: |
-            for PYBIN in /opt/python/*/bin; do
-              if "${PYBIN}/python" -c "import sys; sys.exit(sys.version_info.major == 3)"; then continue; fi;
-              if "${PYBIN}/python" -c "import sys; sys.exit(sys.version_info.minor == << parameters.python-minor >>)"; then continue; fi;
-              "${PYBIN}/pip" install -r requirements.txt --only-binary=:all:
-              "${PYBIN}/pip" wheel . -w ./wheelhouse
-            done
+    machine:
+      image: ubuntu-2004:202101-01
 
-      - run:
-          name: bundle shared libraries into wheels
-          command: |
-            for whl in ./wheelhouse/dwave_preprocessing*.whl; do
-              auditwheel repair "$whl" -w ./dist
-            done
+    resource_class: arm.medium
 
-      - store_artifacts:
-          path: ./dist
+    environment:
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_LINUX: aarch64
 
-      - persist_to_workspace:
-          root: /dwave/preprocessing/dist/
-          paths: .
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - run-cibuildwheel
+
+  build-and-test-osx:
+    parameters:
+      python-version:
+        type: string
+      cibw-arch:
+        type: string
+
+    macos:
+      xcode: 15.3.0
+    resource_class: macos.m1.medium.gen1
+
+    environment:
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_MACOS: << parameters.cibw-arch >>
+
+    steps:
+      - checkout
+      - macos/install-rosetta
+      - run: git submodule sync
+      - run: git submodule update --init
+      - run-cibuildwheel
 
   build-sdist:
     docker:
-      - image: circleci/python:3.9-buster
-
-    working_directory: ~/build
+      - image: circleci/python:3.9
 
     steps:
       - checkout
-
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: build sdist
           command: |
-            python -m virtualenv build_env
-            . build_env/bin/activate
+            python -m venv env
+            . env/bin/activate
             pip install -r requirements.txt
-            python setup.py sdist
+            python setup.py sdist -d ./dist
+      - store_artifacts: *store-artifacts
+      - persist_to_workspace: *persist-to-workspace
 
-      - run:
-          name: test installing from sdist without cython
-          command: |
-            python -m virtualenv env_sdist
-            . env_sdist/bin/activate
-            pip install dist/dwave-preprocessing*.tar.gz
-
-      - run:
-          name: install sdist with cython
-          command: |
-            python -m virtualenv env_cython_sdist
-            . env_cython_sdist/bin/activate
-            pip install cython
-            pip install dist/dwave-preprocessing*.tar.gz
-
-      - store_artifacts:
-          path: ./dist
-
-      - persist_to_workspace:
-          root: ~/build/dist/
-          paths: .
-
-  test-linux:
+  build-and-test-windows:
     parameters:
-      image:
+      python-version:
         type: string
 
-    docker:
-      - image: circleci/python:<< parameters.image >>
+    executor:
+      name: win/default
+
+    environment:
+      <<: *global-environment
+      CIBW_PROJECT_REQUIRES_PYTHON: ~=<< parameters.python-version>>
+      CIBW_ARCHS_WINDOWS: AMD64
 
     steps:
       - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - run-cibuildwheel
 
-      - attach_workspace:
-          at: dist
-
-      # Make sure that we're using the built package and not one from pypi
-      - run:
-          name: install
-          command: |
-            python -m virtualenv env
-            . env/bin/activate
-            pip install -r requirements.txt
-            pip install -r tests/requirements.txt
-            pip install dwave-preprocessing --no-index -f dist/ --no-deps --force-reinstall
-
-      - run:
-          name: run tests
-          command: |
-            . env/bin/activate
-            cd tests/
-            python -m unittest
-
-  deploy-linux:
+  deploy-all:
     docker:
-      - image: circleci/python:3.9-buster
+      - image: circleci/python:3.9
 
     steps:
       - attach_workspace:
@@ -136,302 +149,133 @@ jobs:
       - run:
           name: deploy
           command: |
-            python -m virtualenv env
+            python -m venv env
             . env/bin/activate
             python -m pip install twine
-            twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD --skip-existing ./dist/*
+            twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" --skip-existing ./dist/*
 
-  #
-  # osx
-  #
-
-  test-osx:
-    parameters:
-      python-version:
-        type: string
-
-    macos:
-      xcode: "12.2.0"
-
-    environment:
-      # Force (lie about) macOS 10.9 binary compatibility.
-      # Needed for properly versioned wheels.
-      # See: https://github.com/MacPython/wiki/wiki/Spinning-wheels
-      MACOSX_DEPLOYMENT_TARGET: 10.9
+  # and configuration to work correctly is a pain. And since there is not
+  # significant different between the linux/osx/windows code I think it
+  # suffices to just do it once
+  test-codecov:
+    docker:
+      - image: cimg/python:3.9
 
     steps:
       - checkout
-
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
-          name: install pyenv
+          name: install dependencies
           command: |
-            brew install pyenv
-
-      - restore_cache:
-          keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-
-      - run:
-          name: install python
-          command: |
-            pyenv install << parameters.python-version>> -s
-
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-
-      - run: &osx-install-template
-          name: install
-          command: |
-            export PYENV_ROOT="$HOME/.pyenv"
-            export PATH="$PYENV_ROOT/bin:$PATH"
-            eval "$(pyenv init --path)"
-            pyenv local << parameters.python-version >>
-            python -m pip install virtualenv
-            python -m virtualenv env
+            python -m venv env
             . env/bin/activate
             pip install -r requirements.txt
             pip install -r tests/requirements.txt
-
-      - run: &unix-build-ext-template
+      - run: &unix-build
           name: build
           command: |
             . env/bin/activate
             python setup.py build_ext --inplace
-
       - run:
-          name: run tests
+          name: run coverage
           command: |
             . env/bin/activate
-            python --version
-            coverage run -m unittest discover
-
-      - run:
-          name: codecov
-          command: |
-            . env/bin/activate
-            codecov
-
-  deploy-osx:
-    parameters:
-      python-version:
-        type: string
-
-    macos:
-      xcode: "12.2.0"
-
-    environment:
-      # Force (lie about) macOS 10.9 binary compatibility.
-      # Needed for properly versioned wheels.
-      # See: https://github.com/MacPython/wiki/wiki/Spinning-wheels
-      MACOSX_DEPLOYMENT_TARGET: 10.9
-
-    steps:
-      - checkout
-
-      - run:
-          name: install pyenv
-          command: |
-            brew install pyenv
-
-      - restore_cache:
-          keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-
-      - run:
-          name: install python
-          command: |
-            pyenv install << parameters.python-version>> -s
-
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-
-      - run: *osx-install-template
-
-      - run:
-          name: create bdist_wheel
-          command: |
-            . env/bin/activate
-            python setup.py bdist_wheel
-
-      - run:
-          name: deploy
-          command: |
-            . env/bin/activate
-            python -m pip install twine
-            twine upload -u $PYPI_USERNAME -p $PYPI_PASSWORD --skip-existing ./dist/*
-
-  #
-  # win
-  #
-
-  test-win:
-    parameters:
-      python-version:
-        type: string
-      architecture:
-        type: string
-
-    executor:
-      name: win/default
-
-    environment:
-      CL: /d2FH4-
-
-    steps:
-      - checkout
-
-      - run: &win-install-python-template
-          name: install python and create virtualenv
-          command: |
-            nuget install python<< parameters.architecture >> -Version << parameters.python-version >> -ExcludeVersion -OutputDirectory .
-            .\python<< parameters.architecture >>\tools\python.exe --version
-            .\python<< parameters.architecture >>\tools\python.exe -m pip install virtualenv
-            .\python<< parameters.architecture >>\tools\python.exe -m virtualenv env
-
-      - run: &win-install-dependencies-template
-          name: install dependencies
-          command: |
-            env\Scripts\activate.ps1
-            python --version
-            pip install -r requirements.txt
-            pip install -r tests\requirements.txt
-
-      - run:
-          name: build extension
-          command: |
-            env\Scripts\activate.ps1
-            python setup.py build_ext --inplace
-
-      - run:
-          name: run unittests
-          command: |
-            env\Scripts\activate.ps1
-            coverage run -m unittest discover
-
-      - run:
-          name: codecov
-          command: |
-            env\Scripts\activate.ps1
-            codecov
-
-  deploy-win:
-    parameters:
-      python-version:
-        type: string
-      architecture:
-        type: string
-
-    executor:
-      name: win/default
-
-    environment:
-      CL: /d2FH4-
-
-    steps:
-      - checkout
-
-      - run: *win-install-python-template
-
-      - run: *win-install-dependencies-template
-
-      - run:
-          name: create wheel
-          command: |
-            env\Scripts\activate.ps1
-            python setup.py bdist_wheel
-
-      - store_artifacts:
-          path: ./dist
-
-      - run: &win-twine-template
-          name: install twine and deploy
-          command: |
-            env\Scripts\activate.ps1
-            python -m pip install twine
-            twine upload -u $env:PYPI_USERNAME -p $env:PYPI_PASSWORD --skip-existing ./dist/*
-
-  #
-  # docs tests
-  #
+            coverage run -m unittest
+            coverage xml
+      - codecov/upload:
+          file: coverage.xml
 
   test-doctest:
     docker:
-      - image: circleci/python:3.7-stretch # as of march 2019 RTD uses 3.7
-
-    working_directory: ~/repo
+      - image: circleci/python:3.9
 
     steps:
       - checkout
-
+      - run: git submodule sync
+      - run: git submodule update --init
       - run:
           name: install doxygen
-          command: sudo apt-get install doxygen
-
+          command: |
+            sudo apt update
+            sudo apt install doxygen
       - run:
           name: install dependencies
           command: |
-            python -m virtualenv env
+            python -m venv env
             . env/bin/activate
             pip install -r requirements.txt
             pip install -r docs/requirements.txt
-
-      - run: *unix-build-ext-template
-
+      - run: *unix-build
       - run:
           name: build docs
           command: |
             . env/bin/activate
             make -C docs/ cpp html
-
       - store_artifacts:
           path: ./docs/build/html
-
       - run:
           name: doctest
           command: |
             . env/bin/activate
             make -C docs/ doctest
-
       - run:
           name: linkcheck
           command: |
             . env/bin/activate
             make -C docs/ linkcheck
 
-  #
-  # cpp tests
-  #
+  test-dependencies:
+    parameters:
+      python-version:
+        type: string
+      dependency-versions:
+        type: string
+
+    docker:
+      - image: python:<< parameters.python-version >>-slim
+
+    steps:
+      - checkout
+      - attach_workspace:
+          at: dist
+      - run:
+          name: install
+          command: |
+            python -m venv env
+            . env/bin/activate
+            pip install << parameters.dependency-versions >> --upgrade --only-binary=dimod,numpy
+            pip install dwave-preprocessing --no-index -f dist/ --no-deps --force-reinstall
+      - run: &unix-run-tests
+          name: run tests
+          command: |
+            . env/bin/activate
+            cd tests/
+            pip install -r requirements.txt
+            python -m unittest
 
   test-linux-cpp11:
     docker:
-      # just use a python image, all we really want is debian
-      - image: circleci/python:3.8-buster
-
-    working_directory: ~/repo
+      - image: circleci/python:3.9
 
     steps:
       - checkout
 
-      - restore_cache: &restore-cache-env
+      - restore_cache:
           key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ checksum "docs/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
 
-      - run: &create-virtualenv
+      - run:
           name: Create virtual environment
           command: |
-            python -m pip install virtualenv
-            python -m virtualenv env
+            python -m venv env
 
-      - run: &install-requirements
+      - run:
           name: Install requirements
           command: |
             . env/bin/activate
             pip install -r requirements.txt -r tests/requirements.txt -r docs/requirements.txt
 
-      - save_cache: &save-cache-env
+      - save_cache:
           key: v2-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "tests/requirements.txt" }}-{{ checksum "docs/requirements.txt" }}-{{ .Environment.CIRCLE_JOB }}
           paths:
             - env
@@ -442,85 +286,88 @@ jobs:
             . env/bin/activate
             make -C testscpp/ --always-make
 
-workflows:
-  test:
-    jobs:
-      - build-manylinux:
-          name: build-manylinux1_<< matrix.architecture >>-py3<< matrix.python-minor >>
-          matrix:
-            parameters:
-              python-minor: [6, 7, 8, 9]
-              # We could build for 32bit as well, but since we don't have any
-              # way to test it and it slows down compilation, we don't for
-              # now.
-              architecture: ["x86_64"]
-      - test-linux:
-          requires:
-            - build-manylinux
-          matrix:
-            parameters:
-              image:
-                - 3.9-buster
-                - 3.8-buster
-                - 3.7-stretch
-                - 3.6-jessie
-      - test-osx:
-          matrix:
-            parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
-      - test-win:
-          matrix:
-            parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
-              architecture: ["", "x86"]
-      - build-sdist
-      - test-linux-cpp11
-      - test-doctest
+  test-sdist:
+    docker:
+      - image: circleci/python:3.9
 
+    steps:
+      - checkout
+      - attach_workspace:
+          at: dist
+      - run:
+          name: install from sdist
+          command: |
+            python -m venv env
+            . env/bin/activate
+            pip install dist/dwave-preprocessing*.tar.gz
+      - run: *unix-run-tests
+
+workflows:
+  tests:
+    jobs:
+      - build-and-test-linux: &build
+          matrix:
+            parameters:
+              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0, 3.12.0]
+      - build-and-test-linux-aarch64: *build
+      - build-sdist
+      - build-and-test-osx: &build-and-test-osx
+          matrix:
+            parameters:
+              python-version: *python-versions
+              cibw-arch: [x86_64, arm64]
+      - build-and-test-windows: *build
+      - test-codecov
+      - test-doctest
+      - test-dependencies:
+          name: test-dependencies - << matrix.dependency-versions >> - py << matrix.python-version >>
+          requires:
+            - build-and-test-linux
+          matrix:
+            parameters:
+              # test the lowest and highest for each dependency
+              dependency-versions: [dimod==0.12.6 oldest-supported-numpy, dimod numpy]
+              python-version: *python-versions
+            exclude:
+              - dependency-versions: dimod==0.12.6 oldest-supported-numpy  # dimod 0.12.6 does not support Python 3.12
+                python-version: 3.12.0
+      - test-linux-cpp11  
+      - test-sdist:
+          requires:
+            - build-sdist
   deploy:
     jobs:
-      - build-manylinux:
+      - build-and-test-linux: &deploy-build
+          <<: *build
           filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc|\.post)([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-          name: build-manylinux1_<< matrix.architecture >>-py3<< matrix.python-minor >>
-          matrix:
-            parameters:
-              python-minor: [6, 7, 8, 9]
-              architecture: ["x86_64"]
+      - build-and-test-linux-aarch64: *deploy-build
+      - build-and-test-osx:
+          <<: *build-and-test-osx
+          filters:
+            tags:
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
+            branches:
+              ignore: /.*/
       - build-sdist:
           filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc|\.post)([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
-      - deploy-linux:
+      - build-and-test-windows: *deploy-build
+      - deploy-all:
           filters:
             tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc|\.post)([0-9]+)?)?$/
+              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc)([0-9]+)?)?$/
             branches:
               ignore: /.*/
           requires:
-            - build-manylinux
+            - build-and-test-linux
+            - build-and-test-linux-aarch64
+            - build-and-test-osx
             - build-sdist
-      - deploy-osx:
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc|\.post)([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
-      - deploy-win:
-          filters:
-            tags:
-              only: /^[0-9]+(\.[0-9]+)*((\.dev|rc|\.post)([0-9]+)?)?$/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              python-version: ["3.6.8", "3.7.5", "3.8.6", "3.9.0"]
-              architecture: ["", "x86"]
+            - build-and-test-windows

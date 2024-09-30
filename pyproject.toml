@@ -2,8 +2,27 @@
 requires = [
     "setuptools>=46.4.0",
     "wheel>=0.30.0",
-    "Cython>=0.29.21,<3.0",
-    "numpy==1.19.4",
-    "dimod==0.10.4",
+    "Cython~=3.0",
+    "dimod==0.12.16",
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+build-verbosity = "1"
+skip = "pp* *musllinux*"
+before-test = "pip install -r {project}/tests/requirements.txt"
+test-command = "python -m unittest discover {project}/tests/"
+
+[tool.cibuildwheel.linux]
+archs = "x86_64 aarch64"
+manylinux-x86_64-image = "manylinux2014"
+manylinux-aarch64-image = "manylinux2014"
+
+[tool.cibuildwheel.macos]
+# We follow NumPy and don't build universal wheels, see https://github.com/numpy/numpy/pull/20787
+archs = "x86_64 arm64"
+
+[tool.cibuildwheel.windows]
+archs = "AMD64"
+before-build = "pip install delvewheel>=1.4.0"
+repair-wheel-command = "delvewheel repair -w {dest_dir} {wheel} --namespace-pkg dwave"

@@ -12,10 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = '0.3.1.post0'
+__version__ = '0.6.6'
 
 from dwave.preprocessing import *
 import dwave.preprocessing.composites
 from dwave.preprocessing.composites import *
 import dwave.preprocessing.lower_bounds
 from dwave.preprocessing.lower_bounds import *
+
+from dwave.preprocessing.presolve import *
+
+
+def get_include() -> str:
+    """Return the directory with dwave-preprocessing's header files."""
+    import os.path
+    return os.path.join(os.path.dirname(__file__), 'include')

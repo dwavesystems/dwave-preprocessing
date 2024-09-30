@@ -70,7 +70,7 @@ int breadthFirstSearchResidual(
     std::vector<std::vector<EdgeType>> &adjacency_list, int start_vertex,
     std::vector<int> &depth_values, bool reverse = false,
     bool print_result = false) {
-  using capacity_t = typename EdgeType::capacity_type;
+  // using capacity_t = typename EdgeType::capacity_type;
   int num_vertices = adjacency_list.size();
   int UNVISITED = num_vertices;
   vector_based_queue<int> vertex_queue(num_vertices);
@@ -118,13 +118,13 @@ int breadthFirstSearchResidual(
     std::vector<std::vector<int>> levels;
     levels.resize(num_vertices + 1);
     level_sizes.resize(num_vertices + 1, 0);
-    for (int i = 0; i < depth_values.size(); i++) {
+    for (std::size_t i = 0; i < depth_values.size(); i++) {
       level_sizes[depth_values[i]]++;
     }
-    for (int i = 0; i < level_sizes.size(); i++) {
+    for (std::size_t i = 0; i < level_sizes.size(); i++) {
       levels[i].reserve(level_sizes[i]);
     }
-    for (int i = 0; i < depth_values.size(); i++) {
+    for (std::size_t i = 0; i < depth_values.size(); i++) {
       levels[depth_values[i]].push_back(i);
     }
     std::cout << std::endl;
@@ -132,13 +132,13 @@ int breadthFirstSearchResidual(
               << "breadth first search result starting from vertex : "
               << start_vertex << std::endl;
     std::cout << std::endl;
-    for (int i = 0; i < levels.size(); i++) {
+    for (std::size_t i = 0; i < levels.size(); i++) {
       if (!levels[i].size()) {
         continue;
       }
       std::cout << "Level " << i << " has " << levels[i].size()
                 << " vertices : " << std::endl;
-      for (int j = 0; j < levels[i].size(); j++) {
+      for (std::size_t j = 0; j < levels[i].size(); j++) {
         std::cout << levels[i][j] << " ";
       }
       std::cout << std::endl;
@@ -160,8 +160,6 @@ isFlowValid(std::vector<std::vector<EdgeType>> &adjacency_list, int source,
   bool valid_flow = true;
   int num_vertices = adjacency_list.size();
   std::vector<capacity_t> excess(num_vertices, 0);
-
-  std::cout << "Validating flow of flow network ..." << std::endl;
 
   double overflow_detector = 0;
   auto eit = adjacency_list[source].begin();

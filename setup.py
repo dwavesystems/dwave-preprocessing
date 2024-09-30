@@ -13,23 +13,24 @@
 # limitations under the License.
 
 import os
-from setuptools import setup
 
-import numpy
+from setuptools import setup
+from setuptools.extension import Extension
+from setuptools.command.build_ext import build_ext as _build_ext
+
 import dimod
 
 from Cython.Build import cythonize
-from distutils.extension import Extension
-from distutils.command.build_ext import build_ext as _build_ext
+
 
 extra_compile_args = {
-    'msvc': ['/EHsc'],
-    'unix': ['-std=c++11'],
+    'msvc': ['/std:c++17', '/EHsc'],
+    'unix': ['-std=c++17'],
 }
 
 extra_link_args = {
     'msvc': [],
-    'unix': ['-std=c++11'],
+    'unix': ['-std=c++17'],
 }
 
 
@@ -47,20 +48,23 @@ class build_ext(_build_ext):
 
         super().build_extensions()
 
+
 setup(
     name='dwave-preprocessing',
     cmdclass=dict(build_ext=build_ext),
     ext_modules=cythonize(
-        ['dwave/preprocessing/cyfix_variables.pyx'],
-        annotate=bool(os.getenv('CYTHON_ANNOTATE', False)),
+        ['dwave/preprocessing/cyfix_variables.pyx',
+         'dwave/preprocessing/presolve/*.pyx',
+         ],
+        annotate=True,
         nthreads=int(os.getenv('CYTHON_NTHREADS', 0)),
         ),
     include_dirs=[
-        numpy.get_include(),
         dimod.get_include(),
+        'extern/spdlog/include/',
         ],
     install_requires=[
-        'numpy>=1.17.3,<2.0.0',  # keep synced with circle-ci, pyproject.toml
-        'dimod>=0.10.0,<0.11.0'
+        'numpy>=1.17.3,<3.0.0',  # this is the oldest supported NumPy on Python 3.8
+        'dimod>=0.12.6,<0.13.0'
         ],
 )

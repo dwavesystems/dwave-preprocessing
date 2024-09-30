@@ -1,0 +1,4 @@
+---
+features:
+  - Add ``Presolver.normalize()`` method. See `#78 <https://github.com/dwavesystems/dwave-preprocessing/issues/78>`_.
+  - Add ``Presolver.presolve()`` method. See `#78 <https://github.com/dwavesystems/dwave-preprocessing/issues/78>`_.

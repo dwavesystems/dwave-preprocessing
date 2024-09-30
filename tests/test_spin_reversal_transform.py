@@ -14,107 +14,132 @@
 
 import unittest
 
-import dimod.testing as dtest
-
-from dimod import NullSampler, ExactSolver, RandomSampler, SimulatedAnnealingSampler
+import dimod
+import numpy as np
 
 from dwave.preprocessing.composites import SpinReversalTransformComposite
 
 
-
-# Running a set of tests similar to the Greedy tests would make sense:
-# import dimod
-# @dimod.testing.load_sampler_bqm_tests(dimod.SpinReversalTransformComposite(dimod.ExactSolver()))
-
+@dimod.testing.load_sampler_bqm_tests(SpinReversalTransformComposite(dimod.ExactSolver()))
 class TestSpinTransformComposite(unittest.TestCase):
     def test_instantiation(self):
-        for factory in [ExactSolver, RandomSampler, SimulatedAnnealingSampler,
-                        NullSampler]:
+        for factory in [dimod.ExactSolver, dimod.RandomSampler, dimod.SimulatedAnnealingSampler,
+                        dimod.NullSampler]:
             sampler = SpinReversalTransformComposite(factory())
 
-            dtest.assert_sampler_api(sampler)
-            dtest.assert_composite_api(sampler)
-            
+            dimod.testing.assert_sampler_api(sampler)
+            dimod.testing.assert_composite_api(sampler)
+
     def test_NullSampler_composition(self):
         # Check NullSampler() works, this was a reported bug.
-        
-        sampler = SpinReversalTransformComposite(NullSampler())
-        sampleset = sampler.sample_ising({'a': 1},{},num_spin_reversals=1)
-        
-        self.assertTrue(len(sampleset)==0)
-        sampleset = sampler.sample_ising({'a': 1},{},num_spin_reversals=2)
-        
-        self.assertTrue(len(sampleset)==0)
-        
+
+        sampler = SpinReversalTransformComposite(dimod.NullSampler())
+        sampleset = sampler.sample_ising({'a': 1}, {}, num_spin_reversal_transforms=1)
+
+        self.assertTrue(len(sampleset) == 0)
+        sampleset = sampler.sample_ising({'a': 1}, {}, num_spin_reversal_transforms=2)
+
+        self.assertTrue(len(sampleset) == 0)
+
     def test_concatenation_stripping(self):
         # Check samplesets are not stripped of information
         # under default operation
 
-
         # Simple sampler with an info field.
         # When multiple samplesets needn't be recombined, this should
         # be maintained
-        class RichSampler(NullSampler):
+        class RichSampler(dimod.NullSampler):
             def sample_ising(self, *args, **kwargs):
                 ss = super().sample_ising(*args, **kwargs)
                 ss.info['hello'] = 'world'
                 return ss
-        
+
         sampler = SpinReversalTransformComposite(RichSampler())
-        
-        sampleset = sampler.sample_ising(
-            {0: 1},{})
-        self.assertTrue(hasattr(sampleset,'info'))
-        
+
+        sampleset = sampler.sample_ising({0: 1}, {})
+        self.assertTrue(hasattr(sampleset, 'info'))
+
     def test_sampleset_size(self):
         # Check num_reads and num_spin_reversal_transforms combine
         # for anticipated number of samples.
-        
-        sampler = SpinReversalTransformComposite(RandomSampler())
-        for num_spin_reversal_transforms in [1,2]:
-            for num_reads in [1,3]:
+
+        sampler = SpinReversalTransformComposite(dimod.RandomSampler())
+        for num_spin_reversal_transforms in [1, 2]:
+            for num_reads in [1, 3]:
                 sampleset = sampler.sample_ising(
-                    {0: 1},{},
+                    {0: 1}, {},
                     num_spin_reversal_transforms=num_spin_reversal_transforms,
                     num_reads=num_reads)
-                self.assertTrue(sum(sampleset.record.num_occurrences)==
+                self.assertTrue(sum(sampleset.record.num_occurrences) ==
                                 num_reads*num_spin_reversal_transforms)
-                
 
-# Tests are removed to limit external dependencies
-# from greedy import SteepestDescentSolver
-# import numpy as np
-#    def test_sign_errors_vars(self):
-#        # Check that when an SRT is applied, sample sign is properly reversed.
-#        # Unique ground state of independent h=-1 biased variables is all +1. 
-#        
-#        sampler = SpinReversalTransformComposite(SteepestDescentSolver())
-#        
-#        sampleset = sampler.sample_ising({i: -1 for i in range(10)},{},
-#                                         num_spin_reversal_transforms=1,
-#                                         num_reads=1)
-#        self.assertTrue((sampleset.record.sample==1).all())
-#        
-#        sampleset = sampler.sample_ising({i: -1 for i in range(10)},{},
-#                                         num_spin_reversal_transforms=10,
-#                                         num_reads=1)
-#        
-#        self.assertTrue((sampleset.record.sample==1).all())
-#        
-#    def test_sign_errors_couplers(self):
-#        # Check that when an SRT is applied, sample sign is properly reversed.
-#        # Unique ground state of a ferromagnetically coupled pair has two
-#        # values equal, ground state can be found by steepest descent.
-#        
-#        sampler = SpinReversalTransformComposite(SteepestDescentSolver())
-#        
-#        sampleset = sampler.sample_ising({},{(0,1) : -1},
-#                                         num_spin_reversal_transforms=1,
-#                                         num_reads=1)
-#        self.assertTrue((np.prod(sampleset.record.sample,axis=1)==1).all())
-#        
-#        sampleset = sampler.sample_ising({i: -1 for i in range(10)},{},
-#                                         num_spin_reversal_transforms=10,
-#                                         num_reads=1)
-#        
-#        self.assertTrue((sampleset.record.sample==1).all())
+    def test_empty(self):
+        # Check that empty BQMs are handled
+        sampler = SpinReversalTransformComposite(dimod.ExactSolver())
+        bqm = dimod.BinaryQuadraticModel({}, {}, 0.0, dimod.SPIN)
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=3)
+
+        self.assertEqual(sampleset.record.sample.shape, (0, 0))
+        self.assertIs(sampleset.vartype, bqm.vartype)
+
+    def test_ground_state(self):
+        num_variables = 10
+
+        bqm = dimod.BQM({v: 1 for v in range(num_variables)}, {}, 0, "SPIN")
+
+        class Sampler:
+            def sample(self, bqm):
+                sample = {v: +1 if bias < 0 else -1 for v, bias in bqm.linear.items()}
+                return dimod.SampleSet.from_samples_bqm(sample, bqm)
+
+        sampler = SpinReversalTransformComposite(Sampler())
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=num_variables)
+
+        self.assertTrue((sampleset.record.sample == -1).all())
+
+    def test_async(self):
+        class SampleSet:
+            is_done = False
+
+            def done(self):
+                return self.is_done
+
+            @property
+            def record(self):
+                raise Exception("boom")
+
+        class Sampler:
+            def __init__(self):
+                self.count = 0
+
+            def sample(self, bqm):
+                self.count += 1
+                return SampleSet()
+
+        sampler = SpinReversalTransformComposite(Sampler())
+
+        # No exception because nothing has been resolved
+        sampleset = sampler.sample_ising({'a': 1}, {})
+
+        # We can test whether it's done
+        self.assertFalse(sampleset.done())
+        SampleSet.is_done = True
+        self.assertTrue(sampleset.done())
+
+        # Resolving raises the exception
+        with self.assertRaisesRegex(Exception, "boom"):
+            sampleset.resolve()
+
+    def test_seed(self):
+        bqm = dimod.BQM(1000, "SPIN")
+
+        class Sampler:
+            def sample(self, bqm):
+                return dimod.SampleSet.from_samples_bqm([-1] * bqm.num_variables, bqm)
+
+        ss1 = SpinReversalTransformComposite(Sampler(), seed=42).sample(bqm)
+        ss2 = SpinReversalTransformComposite(Sampler(), seed=42).sample(bqm)
+        ss3 = SpinReversalTransformComposite(Sampler(), seed=35).sample(bqm)
+
+        self.assertTrue((ss1.record == ss2.record).all())
+        self.assertFalse((ss1.record == ss3.record).all())
