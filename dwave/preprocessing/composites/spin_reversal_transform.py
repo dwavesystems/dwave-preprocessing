@@ -114,6 +114,24 @@ class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
         def done(self) -> bool:
             return all(ss.done() for ss in self.samplesets)
 
+    @staticmethod
+    def _reorder_variables(sampleset: dimod.SampleSet,
+                           order: dimod.variables.Variables) -> dimod.SampleSet:
+        """Return a sampleset with the given variable order."""
+        if sampleset.variables == order:
+            return sampleset
+
+        # .index(...) is O(1) for dimod's Variables objects so this isn't too bad
+        sampleset_order = sampleset.variables
+        reorder = [sampleset_order.index(v) for v in order]
+
+        return dimod.SampleSet.from_samples(
+            (sampleset.record.sample[:, reorder], order),
+            sort_labels=False,
+            vartype=sampleset.vartype,
+            **sampleset.data_vectors,
+            )
+
     @dimod.decorators.nonblocking_sample_method
     def sample(self, bqm: dimod.BinaryQuadraticModel, *,
                num_spin_reversal_transforms: int = 1,
@@ -184,6 +202,10 @@ class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
 
         # Yield a view of the samplesets that reports done()-ness
         yield self._SampleSets(samplesets)
+
+        # Reorder the variables of all the returned samplesets to match our
+        # original BQM
+        samplesets = [self._reorder_variables(ss, bqm.variables) for ss in samplesets]
 
         # Undo the SRTs according to vartype
         if bqm.vartype is Vartype.BINARY:
