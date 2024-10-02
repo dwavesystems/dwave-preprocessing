@@ -1,8 +1,9 @@
-dimod==0.12.16
-Cython==3.0.10
-oldest-supported-numpy
+dimod==0.12.17
+oldest-supported-numpy; python_version < '3.13'
+numpy==2.1.0; python_version >= '3.13'
 
 # build
+Cython==3.0.10
 wheel>=0.30.0
 setuptools>=56.2.0
 
