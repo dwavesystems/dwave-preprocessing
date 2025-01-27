@@ -7,11 +7,8 @@ dwave-preprocessing
 .. dropdown:: About dwave-preprocessing
 
     .. include:: README.rst
-        :start-after: index-start-marker
-        :end-before: index-end-marker
-
-*   `Release notes <https://github.com/dwavesystems/dwave-preprocessing/releases>`_
-*   `Source code <https://github.com/dwavesystems/dwave-preprocessing>`_
+        :start-after: start_preprocessing_about
+        :end-before: end_preprocessing_about
 
 Reference Documentation
 =======================
@@ -23,3 +20,5 @@ Reference Documentation
     lower_bounds
     presolve
     cpp
+    Release Notes <https://github.com/dwavesystems/dwave-preprocessing/releases>
+    Source <https://github.com/dwavesystems/dwave-preprocessing>

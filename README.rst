@@ -19,27 +19,21 @@
 dwave-preprocessing
 ===================
 
-.. index-start-marker
+.. start_preprocessing_about
 
 `dwave-preprocessing` provides preprocessing tools for binary quadratic models
 (BQM) and presolve algorithms for constrained quadratic models (CQM).
 
-.. code-block:: python
+This package contains several preprocessing composites that can aid in solving
+BQMs and a presolver that can reduce a problem's redundant variables and
+constraints to improve the accuracy of CQMs. For details on underlying
+algorithms and usage, see the
+`Ocean Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/index.html>`_.
 
-    import dwave.preprocessing
-
-This package contains several preprocessing composites that can aid in solving 
-BQMs and a presolver that can reduce a problem's redundant variables and 
-constraints to improve the accuracy of CQMs. For details on underlying 
-algorithms and usage, see the package's
-`Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/>`_.
-
-.. index-end-marker
+.. end_preprocessing_about
 
 Installation
 ============
-
-.. installation-start-marker
 
 Install from a package on PyPI:
 
@@ -54,8 +48,6 @@ or install from source:
     pip install -r requirements.txt
     python setup.py build_ext --inplace
     python setup.py install
-
-.. installation-end-marker
 
 License
 =======
