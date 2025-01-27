@@ -21,4 +21,11 @@ Reference Documentation
     presolve
     cpp
     Release Notes <https://github.com/dwavesystems/dwave-preprocessing/releases>
+
+Code
+====
+
+.. toctree::
+    :maxdepth: 1
+
     Source <https://github.com/dwavesystems/dwave-preprocessing>
