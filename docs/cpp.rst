@@ -1,6 +1,5 @@
-.. _cppdocs_preprocessing:
+.. _preprocessing_cppdocs:
 
-=======
 C++ API
 =======
 

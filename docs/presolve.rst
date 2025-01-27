@@ -1,6 +1,5 @@
 .. _preprocessing_presolve:
 
-============
 CQM Presolve
 ============
 
@@ -18,20 +17,20 @@ Methods
 ~~~~~~~
 
 .. autosummary::
-   :toctree: generated/
+    :toctree: generated/
 
-   ~Presolver.add_techniques
-   ~Presolver.apply
-   ~Presolver.clear_model
-   ~Presolver.copy_model
-   ~Presolver.detach_model
-   ~Presolver.feasibility
-   ~Presolver.load_default_presolvers
-   ~Presolver.normalize
-   ~Presolver.presolve
-   ~Presolver.restore_samples
-   ~Presolver.set_techniques
-   ~Presolver.techniques
+    ~Presolver.add_techniques
+    ~Presolver.apply
+    ~Presolver.clear_model
+    ~Presolver.copy_model
+    ~Presolver.detach_model
+    ~Presolver.feasibility
+    ~Presolver.load_default_presolvers
+    ~Presolver.normalize
+    ~Presolver.presolve
+    ~Presolver.restore_samples
+    ~Presolver.set_techniques
+    ~Presolver.techniques
 
 Feasibility
 -----------

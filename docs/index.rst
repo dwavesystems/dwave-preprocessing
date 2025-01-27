@@ -1,55 +1,25 @@
-..  -*- coding: utf-8 -*-
-
 .. _index_preprocessing:
 
 ===================
 dwave-preprocessing
 ===================
 
-.. include:: README.rst
-   :start-after: index-start-marker
-   :end-before: index-end-marker
+.. dropdown:: About dwave-preprocessing
 
+    .. include:: README.rst
+        :start-after: index-start-marker
+        :end-before: index-end-marker
 
-Documentation
--------------
+*   `Release notes <https://github.com/dwavesystems/dwave-preprocessing/releases>`_
+*   `Source code <https://github.com/dwavesystems/dwave-preprocessing>`_
 
-.. note:: This documentation is for the latest version of
-   `dwave-preprocessing <https://github.com/dwavesystems/dwave-preprocessing>`_.
-   Documentation for the version currently installed by
-   `dwave-ocean-sdk <https://github.com/dwavesystems/dwave-ocean-sdk>`_
-   is here: :std:doc:`dwave-preprocessing <oceandocs:docs_system/sdk_index>`.
-
-.. sdk-start-marker
+Reference Documentation
+=======================
 
 .. toctree::
-  :maxdepth: 1
+    :maxdepth: 1
 
-  reference/index
-  release_notes
-
-.. sdk-end-marker
-
-.. toctree::
-  :caption: Code
-  :maxdepth: 1
-
-  Source <https://github.com/dwavesystems/dwave-preprocessing>
-  installation
-  license
-
-.. toctree::
-  :caption: D-Wave's Ocean Software
-  :maxdepth: 1
-
-  Ocean Home <https://ocean.dwavesys.com/>
-  Ocean Documentation <https://docs.ocean.dwavesys.com>
-  Ocean Glossary <https://docs.ocean.dwavesys.com/en/stable/concepts/index.html>
-
-.. toctree::
-  :caption: D-Wave
-  :maxdepth: 1
-
-  D-Wave <https://www.dwavesys.com>
-  Leap <https://cloud.dwavesys.com/leap/>
-  D-Wave System Documentation <https://docs.dwavesys.com/docs/latest/index.html>
+    composites
+    lower_bounds
+    presolve
+    cpp
