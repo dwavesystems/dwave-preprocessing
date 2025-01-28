@@ -116,6 +116,10 @@ class TestSpinTransformComposite(unittest.TestCase):
             def record(self):
                 raise Exception("boom")
 
+            @property
+            def variables(self):
+                raise Exception("boom")
+
         class Sampler:
             def __init__(self):
                 self.count = 0
@@ -151,3 +155,59 @@ class TestSpinTransformComposite(unittest.TestCase):
 
         self.assertTrue((ss1.record == ss2.record).all())
         self.assertFalse((ss1.record == ss3.record).all())
+
+    def test_variable_order(self):
+        class AlternatingSampler:
+            """Return the same solution, but in alternating order."""
+            def __init__(self):
+                self.rng = np.random.default_rng(42)
+
+            def sample(self, bqm):
+                assert(bqm.variables == "abcd")
+
+                order = list(bqm.variables)
+                self.rng.shuffle(order)
+
+                sample = [[-1 if bqm.linear[v] >= 0 else +1 for v in order],
+                          [+1 if bqm.linear[v] >= 0 else -1 for v in order]]
+
+                return dimod.SampleSet.from_samples_bqm((sample, order), bqm, sort_labels=False)
+
+        sampler = SpinReversalTransformComposite(AlternatingSampler(), seed=42)
+
+        bqm = dimod.BinaryQuadraticModel({"a": -1, "b": 1, "c": -1, "d": -1.4}, {"ab": -2}, 0, "SPIN")
+
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=40)
+
+        # there should only be two unique samples after SRTs
+        self.assertEqual(len(sampleset.aggregate()), 2)
+
+    def test_variable_order2(self):
+        class GroundStateSampler:
+            @staticmethod
+            def sample(bqm):
+                return dimod.ExactSolver().sample(bqm).lowest()
+
+        bqm = dimod.BinaryQuadraticModel(
+            {}, {(1, 0): 0, (4, 3): 0, (2, 0): -1, (2, 1): 1, (5, 3): -1, (5, 4): 1}, 0, 'SPIN')
+
+        sampler = SpinReversalTransformComposite(GroundStateSampler(), seed=42)
+
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=3)
+
+        self.assertEqual(len(sampleset.aggregate()), 4)
+
+    def test_variable_order3(self):
+        class GroundStateSampler:
+            @staticmethod
+            def sample(bqm):
+                return dimod.ExactSolver().sample(bqm).lowest()
+
+        bqm = dimod.BinaryQuadraticModel(
+            {}, {(1, 0): 1, (2, 3): 1}, 0, 'SPIN')
+
+        sampler = SpinReversalTransformComposite(GroundStateSampler(), seed=42)
+
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=10)
+
+        self.assertEqual(len(sampleset.aggregate()), 4)

@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Fix ``SpinReversalTransformComposite``'s handling of child samplers that alter
+    the variable order. Previously the spin reversal transforms would not be
+    correctly unapplied.
+    See `#142 <https://github.com/dwavesystems/dwave-preprocessing/issues/142>`_.
