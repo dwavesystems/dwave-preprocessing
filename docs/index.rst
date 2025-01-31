@@ -10,22 +10,16 @@ dwave-preprocessing
         :start-after: start_preprocessing_about
         :end-before: end_preprocessing_about
 
+Release Notes and Source
+========================
+
+*   `Release notes <https://github.com/dwavesystems/dwave-preprocessing/releases>`_
+*   `Source code <https://github.com/dwavesystems/dwave-preprocessing>`_
+
 Reference Documentation
 =======================
 
 .. toctree::
     :maxdepth: 1
 
-    composites
-    lower_bounds
-    presolve
-    cpp
-    Release Notes <https://github.com/dwavesystems/dwave-preprocessing/releases>
-
-Code
-====
-
-.. toctree::
-    :maxdepth: 1
-
-    Source <https://github.com/dwavesystems/dwave-preprocessing>
+    api_ref

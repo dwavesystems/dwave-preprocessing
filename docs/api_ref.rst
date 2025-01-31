@@ -1,4 +1,8 @@
-.. _preprocessing_composites:
+.. _preprocessing_api_ref:
+
+=============
+API Reference
+=============
 
 Composites
 ==========
@@ -152,3 +156,109 @@ Methods
     ~SpinReversalTransformComposite.sample
     ~SpinReversalTransformComposite.sample_ising
     ~SpinReversalTransformComposite.sample_qubo
+
+
+Lower Bounds
+============
+
+A common preprocessing method for binary quadratic models (BQM) is finding the
+lower bound of their energy.
+
+Roof Duality
+------------
+
+`dwave-preprocessing` contains an implementation of roof duality, an
+algorithm used for finding a lower bound for the minimum of a quadratic boolean
+function, as well as minimizing assignments for some of the boolean variables;
+these fixed variables take the same values in all, or some, optimal solutions
+[#BHT]_ [#BH]_.
+
+.. TODO: Move to shared bibliography
+
+.. [#BHT]
+    Boros, E., P.L. Hammer, G. Tavares.
+    Preprocessing of Unconstraint Quadratic Binary Optimization.
+    Rutcor Research Report 10-2006, April, 2006.
+
+.. [#BH]
+    Boros, E., P.L. Hammer.
+    Pseudo-Boolean optimization.
+    Discrete Applied Mathematics 123, (2002), pp. 155-225.
+
+.. autofunction:: dwave.preprocessing.lower_bounds.roof_duality
+
+The roof duality algorithm may also be accessed through the
+:class:`~dwave.preprocessing.composites.FixVariablesComposite`.
+
+
+CQM Presolve
+============
+
+.. automodule:: dwave.preprocessing.presolve.pypresolve
+
+Presolver
+---------
+
+Class
+~~~~~
+
+.. autoclass:: Presolver
+
+Methods
+~~~~~~~
+
+.. autosummary::
+    :toctree: generated/
+
+    ~Presolver.add_techniques
+    ~Presolver.apply
+    ~Presolver.clear_model
+    ~Presolver.copy_model
+    ~Presolver.detach_model
+    ~Presolver.feasibility
+    ~Presolver.load_default_presolvers
+    ~Presolver.normalize
+    ~Presolver.presolve
+    ~Presolver.restore_samples
+    ~Presolver.set_techniques
+    ~Presolver.techniques
+
+Feasibility
+-----------
+
+.. autoclass:: Feasibility
+
+TechniqueFlags
+--------------
+
+.. autoclass:: TechniqueFlags
+
+C++ API
+-------
+
+.. doxygenclass:: dwave::presolve::Presolver
+    :members:
+    :project: dwave-preprocessing
+
+.. doxygenenum:: dwave::presolve::Feasibility
+    :project: dwave-preprocessing
+
+.. doxygenenum:: dwave::presolve::TechniqueFlags
+    :project: dwave-preprocessing
+
+
+C++ API
+=======
+
+Functions
+---------
+.. doxygenfunction:: fixQuboVariables(dimod::BinaryQuadraticModel<B, V> &bqm, bool sample, double offset)
+    :project: dwave-preprocessing
+.. doxygenfunction:: fixQuboVariables(PosiformInfo &posiform_info, int num_bqm_variables, bool sample, std::vector<std::pair<int, int>> &fixed_variables)
+    :project: dwave-preprocessing
+
+Classes
+-------
+.. doxygenclass:: PosiformInfo
+    :members:
+    :project: dwave-preprocessing
