@@ -32,7 +32,6 @@ class TestSpinTransformComposite(unittest.TestCase):
 
     def test_NullSampler_composition(self):
         # Check NullSampler() works, this was a reported bug.
-
         sampler = SpinReversalTransformComposite(dimod.NullSampler())
         sampleset = sampler.sample_ising({'a': 1}, {}, num_spin_reversal_transforms=1)
 
@@ -41,6 +40,15 @@ class TestSpinTransformComposite(unittest.TestCase):
 
         self.assertTrue(len(sampleset) == 0)
 
+    def test_empty_bqm_composition(self):
+        # Check NullSampler() works, this was a reported bug.
+        
+        sampler = SpinReversalTransformComposite(dimod.RandomSampler())
+        bqm = dimod.BinaryQuadraticModel('SPIN')
+        sampleset = sampler.sample(bqm,num_spin_reversals=1)
+        print(sampleset)
+        self.assertEqual(len(sampleset.variables), 0)
+        
     def test_concatenation_stripping(self):
         # Check samplesets are not stripped of information
         # under default operation

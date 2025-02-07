@@ -129,6 +129,7 @@ class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
             (sampleset.record.sample[:, reorder], order),
             sort_labels=False,
             vartype=sampleset.vartype,
+            info=sampleset.info,
             **sampleset.data_vectors,
             )
 
@@ -216,6 +217,10 @@ class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
                 sampleset.record.sample[:, SRT[i, :]] *= -1
         else:
             raise RuntimeError("unexpected vartype")
-
-        # finally combine all samplesets together
-        yield dimod.concatenate(samplesets)
+        if num_spin_reversal_transforms == 1:
+            # If one sampleset, return full information
+            # (info returned in full)
+            yield samplesets[0]
+        else:
+            # finally combine all samplesets together
+            yield dimod.concatenate(samplesets)
