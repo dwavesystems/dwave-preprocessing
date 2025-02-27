@@ -28,6 +28,9 @@ This package contains several preprocessing composites that can aid in solving
 BQMs and a presolver that can reduce a problem's redundant variables and
 constraints to improve the accuracy of CQMs. For details on underlying
 algorithms and usage, see the
+
+.. todo:: Update this link
+
 `Ocean Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/index.html>`_.
 
 .. end_preprocessing_about
@@ -57,17 +60,19 @@ Released under the Apache License 2.0. See `<LICENSE>`_ file.
 Contributing
 ============
 
+.. todo:: Update this link
+
 Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
 has guidelines for contributing to Ocean packages.
 
 Release Notes
 -------------
 
-**dwave-preprocessing** makes use of `reno <https://docs.openstack.org/reno/>`_ to manage its
-release notes.
+**dwave-preprocessing** makes use of `reno <https://docs.openstack.org/reno/>`_
+to manage its release notes.
 
-When making a contribution to **dwave-preprocessing** that will affect users, create a new
-release note file by running
+When making a contribution to **dwave-preprocessing** that will affect users,
+create a new release note file by running
 
 .. code-block:: bash
 
