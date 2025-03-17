@@ -38,10 +38,10 @@ coverage.xml
 
 # Sphinx documentation
 docs/build/
+docs/_build/
 docs/build-cpp/
-docs/reference/generated/
-docs/intro/generated/
-docs/reference/*/generated/
+docs/generated/
+docs/*/generated/
 
 # pyenv
 .python-version
