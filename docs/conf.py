@@ -22,8 +22,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.ifconfig',
     'breathe',
-    'sphinx_design',
-    'reno.sphinxext',
 ]
 
 autosummary_generate = True
