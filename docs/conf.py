@@ -33,7 +33,7 @@ source_suffix = ['.rst', '.md']
 master_doc = 'index'
 
 add_module_names = False
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'sdk_index.rst']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README.rst']
 pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
