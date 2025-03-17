@@ -21,6 +21,5 @@ About dwave-preprocessing
 Usage Information
 =================
 
-.. todo:: add the intersphinx prefix to enable these links for self builds
-
 *   :ref:`index_concepts` for terminology
+*   :ref:`qpu_postprocessing` for postprocessing results from the :term:`QPU`.

@@ -28,10 +28,7 @@ This package contains several preprocessing composites that can aid in solving
 BQMs and a presolver that can reduce a problem's redundant variables and
 constraints to improve the accuracy of CQMs. For details on underlying
 algorithms and usage, see the
-
-.. todo:: Update this link
-
-`Ocean Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/index.html>`_.
+`documentation <https://docs.dwavequantum.com/en/latest/index.html>`_.
 
 .. end_preprocessing_about
 
@@ -60,9 +57,7 @@ Released under the Apache License 2.0. See `<LICENSE>`_ file.
 Contributing
 ============
 
-.. todo:: Update this link
-
-Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
+Ocean's `contributing guide <https://docs.dwavequantum.com/en/latest/ocean/ocean_contribute.html>`_
 has guidelines for contributing to Ocean packages.
 
 Release Notes
