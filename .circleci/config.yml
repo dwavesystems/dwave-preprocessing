@@ -326,17 +326,8 @@ workflows:
           matrix:
             parameters:
               # test the lowest and highest for each dependency
-              dependency-versions: [dimod==0.12.6 oldest-supported-numpy, dimod numpy]
+              dependency-versions: [dimod==0.12.20 oldest-supported-numpy, dimod numpy]
               python-version: *python-versions
-            exclude:
-              - dependency-versions: dimod==0.12.6 oldest-supported-numpy  # dimod 0.12.6 does not support Python 3.12
-                python-version: 3.12.0
-
-              # there is no 3.13.0-slim docker image yet, so skip these for now
-              - dependency-versions: dimod==0.12.6 oldest-supported-numpy
-                python-version: 3.13.0
-              - dependency-versions: dimod numpy
-                python-version: 3.13.0
       - test-linux-cpp11  
       - test-sdist:
           requires:
