@@ -53,13 +53,6 @@ class ConnectedComponentsComposite(ComposedSampler):
        >>> e_ccc == e1 + e2
        True
 
-    .. note::
-        Context manager usage pattern is recommended for samplers and composites
-        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
-
-        >>> with ConnectedComponentsComposite(DWaveSampler()) as sampler:   # doctest: +SKIP
-        ...     sampler.sample(...)
-
     """
 
     def __init__(self, child_sampler):

@@ -45,13 +45,6 @@ class ScaleComposite(ComposedSampler):
        >>> response = sampler.sample_ising(h, J, scalar=0.5,
        ...                ignored_interactions=[('a','b')])
 
-    .. note::
-        Context manager usage pattern is recommended for samplers and composites
-        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
-
-        >>> with ScaleComposite(DWaveSampler()) as sampler:      # doctest: +SKIP
-        ...     sampler.sample(...)
-
     """
 
     def __init__(self, child_sampler):

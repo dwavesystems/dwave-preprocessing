@@ -43,13 +43,6 @@ class ClipComposite(ComposedSampler):
        >>> sampler = ClipComposite(ExactSolver())
        >>> response = sampler.sample_ising(h, J, lower_bound=-2.0, upper_bound=2.0)
 
-    .. note::
-        Context manager usage pattern is recommended for samplers and composites
-        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
-
-        >>> with ClipComposite(DWaveSampler()) as sampler:      # doctest: +SKIP
-        ...     sampler.sample(...)
-
     """
 
     def __init__(self, child_sampler):

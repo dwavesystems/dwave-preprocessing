@@ -67,13 +67,6 @@ class FixVariablesComposite(ComposedSampler):
        >>> sampler = FixVariablesComposite(ExactSolver(), algorithm='roof_duality')
        >>> sampleset = sampler.sample_ising(h, J, strict=False)
 
-    .. note::
-        Context manager usage pattern is recommended for samplers and composites
-        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
-
-        >>> with FixVariablesComposite(DWaveSampler()) as sampler:      # doctest: +SKIP
-        ...     sampler.sample(...)
-
     """
 
     def __init__(self, child_sampler, *, algorithm='explicit'):

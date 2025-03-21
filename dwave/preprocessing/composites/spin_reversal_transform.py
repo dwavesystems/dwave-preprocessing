@@ -64,13 +64,6 @@ class SpinReversalTransformComposite(ComposedSampler):
         >>> response.first.sample
         {'a': -1, 'b': -1}
 
-    .. note::
-        Context manager usage pattern is recommended for samplers and composites
-        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
-
-        >>> with SpinReversalTransformComposite(DWaveSampler()) as sampler:     # doctest: +SKIP
-        ...     sampler.sample(...)
-
     References
     ----------
     .. [#km] Andrew D. King and Catherine C. McGeoch. Algorithm engineering
