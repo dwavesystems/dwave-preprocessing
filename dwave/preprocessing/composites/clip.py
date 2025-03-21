@@ -27,6 +27,9 @@ class ClipComposite(ComposedSampler):
        sampler (:class:`dimod.Sampler`):
             A dimod sampler.
 
+    .. versionadded:: 0.6.8
+        Support for context manager protocol and :meth:`.close` method.
+
     Examples:
        This example uses :class:`.ClipComposite` to instantiate a
        composed sampler that submits a simple Ising problem to a sampler.

@@ -17,12 +17,12 @@ import typing
 import dimod
 import numpy as np
 
-from dimod import Vartype
+from dimod import Vartype, ComposedSampler
 
 __all__ = ['SpinReversalTransformComposite']
 
 
-class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
+class SpinReversalTransformComposite(ComposedSampler):
     """Composite for applying spin reversal transform preprocessing.
 
     A spin-reversal transform can improve sample statistics when the 
@@ -47,6 +47,9 @@ class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
         sampler: A `dimod` sampler object.
 
         seed: As passed to :func:`numpy.random.default_rng`.
+
+    .. versionadded:: 0.6.8
+        Support for context manager protocol and :meth:`.close` method.
 
     Examples:
         This example composes a dimod ExactSolver sampler with spin transforms then

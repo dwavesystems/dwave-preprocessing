@@ -32,6 +32,9 @@ class ConnectedComponentsComposite(ComposedSampler):
        sampler (:class:`dimod.Sampler`):
             A dimod sampler
 
+    .. versionadded:: 0.6.8
+        Support for context manager protocol and :meth:`.close` method.
+
     Examples:
        This example uses :class:`.ConnectedComponentsComposite` to solve a simple
        Ising problem that can be separated into two components. This small example
