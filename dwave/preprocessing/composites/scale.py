@@ -28,6 +28,9 @@ class ScaleComposite(ComposedSampler):
        sampler (:class:`dimod.Sampler`):
             A dimod sampler.
 
+    .. versionadded:: 0.6.8
+        Support for context manager protocol and :meth:`.close` method.
+
     Examples:
        This example uses :class:`.ScaleComposite` to instantiate a
        composed sampler that submits a simple Ising problem to a sampler.
@@ -41,6 +44,13 @@ class ScaleComposite(ComposedSampler):
        >>> sampler = ScaleComposite(ExactSolver())
        >>> response = sampler.sample_ising(h, J, scalar=0.5,
        ...                ignored_interactions=[('a','b')])
+
+    .. note::
+        Context manager usage pattern is recommended for samplers and composites
+        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
+
+        >>> with ScaleComposite(DWaveSampler()) as sampler:      # doctest: +SKIP
+        ...     sampler.sample(...)
 
     """
 

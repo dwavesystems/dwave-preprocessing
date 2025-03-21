@@ -48,6 +48,9 @@ class SpinReversalTransformComposite(ComposedSampler):
 
         seed: As passed to :func:`numpy.random.default_rng`.
 
+    .. versionadded:: 0.6.8
+        Support for context manager protocol and :meth:`.close` method.
+
     Examples:
         This example composes a dimod ExactSolver sampler with spin transforms then
         uses it to sample an Ising problem.
@@ -60,6 +63,13 @@ class SpinReversalTransformComposite(ComposedSampler):
         >>> response = composed_sampler.sample_ising({'a': -0.5, 'b': 1.0}, {('a', 'b'): -1})
         >>> response.first.sample
         {'a': -1, 'b': -1}
+
+    .. note::
+        Context manager usage pattern is recommended for samplers and composites
+        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
+
+        >>> with SpinReversalTransformComposite(DWaveSampler()) as sampler:     # doctest: +SKIP
+        ...     sampler.sample(...)
 
     References
     ----------

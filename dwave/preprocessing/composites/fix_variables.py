@@ -45,6 +45,9 @@ class FixVariablesComposite(ComposedSampler):
             variables the algorithm will fix. For details, see 
             :func:`~dwave.preprocessing.lower_bounds.roof_duality`.
 
+    .. versionadded:: 0.6.8
+        Support for context manager protocol and :meth:`.close` method.
+
     Examples:
        This example uses the :class:`.FixVariablesComposite` to instantiate a
        composed sampler that submits a simple Ising problem to a sampler.
@@ -63,6 +66,13 @@ class FixVariablesComposite(ComposedSampler):
 
        >>> sampler = FixVariablesComposite(ExactSolver(), algorithm='roof_duality')
        >>> sampleset = sampler.sample_ising(h, J, strict=False)
+
+    .. note::
+        Context manager usage pattern is recommended for samplers and composites
+        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
+
+        >>> with FixVariablesComposite(DWaveSampler()) as sampler:      # doctest: +SKIP
+        ...     sampler.sample(...)
 
     """
 

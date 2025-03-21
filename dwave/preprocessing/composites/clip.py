@@ -27,6 +27,9 @@ class ClipComposite(ComposedSampler):
        sampler (:class:`dimod.Sampler`):
             A dimod sampler.
 
+    .. versionadded:: 0.6.8
+        Support for context manager protocol and :meth:`.close` method.
+
     Examples:
        This example uses :class:`.ClipComposite` to instantiate a
        composed sampler that submits a simple Ising problem to a sampler.
@@ -39,6 +42,13 @@ class ClipComposite(ComposedSampler):
        >>> J = {('a', 'b'): 3.2}
        >>> sampler = ClipComposite(ExactSolver())
        >>> response = sampler.sample_ising(h, J, lower_bound=-2.0, upper_bound=2.0)
+
+    .. note::
+        Context manager usage pattern is recommended for samplers and composites
+        that allocate scope-bound resources, like :class:`~dwave.system.DWaveSampler`.
+
+        >>> with ClipComposite(DWaveSampler()) as sampler:      # doctest: +SKIP
+        ...     sampler.sample(...)
 
     """
 
