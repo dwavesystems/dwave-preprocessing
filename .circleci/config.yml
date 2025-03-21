@@ -308,7 +308,7 @@ workflows:
       - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.8.9, 3.9.4, 3.10.0, 3.11.0, 3.12.0, 3.13.0]
+              python-version: &python-versions [3.9.4, 3.10.0, 3.11.0, 3.12.0, 3.13.0]
       - build-and-test-linux-aarch64: *build
       - build-sdist
       - build-and-test-osx: &build-and-test-osx
