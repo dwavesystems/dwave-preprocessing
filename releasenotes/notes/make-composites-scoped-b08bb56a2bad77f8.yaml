@@ -1,0 +1,11 @@
+---
+features:
+  - |
+    All ``dwave.preprocessing.composites.*`` are now scoped (implement
+    ``dimod.Scoped`` behavior), i.e. they can be used as a context manager.
+fixes:
+  - |
+    Fix inheritance in ``SpinReversalTransformComposite`` so that
+    composite attributes override sampler attributes.
+
+    See `#150 <https://github.com/dwavesystems/dwave-preprocessing/issues/150>`_.
