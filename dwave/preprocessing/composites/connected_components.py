@@ -18,6 +18,8 @@ from dimod.traversal import connected_components
 
 __all__ = ['ConnectedComponentsComposite']
 
+# versionadded (0.6.8) to the __init__ file for context manager
+
 class ConnectedComponentsComposite(ComposedSampler):
     """Composite to decompose a problem to the connected components
     and solve each.
@@ -31,9 +33,6 @@ class ConnectedComponentsComposite(ComposedSampler):
     Args:
        sampler (:class:`dimod.Sampler`):
             A dimod sampler
-
-    .. versionadded:: 0.6.8
-        Support for context manager protocol and :meth:`.close` method.
 
     Examples:
        This example uses :class:`.ConnectedComponentsComposite` to solve a simple

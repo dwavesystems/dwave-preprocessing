@@ -17,6 +17,8 @@ from dimod.sampleset import SampleSet
 
 __all__ = ['ClipComposite']
 
+# versionadded (0.6.8) to the __init__ file for context manager
+
 class ClipComposite(ComposedSampler):
     """Composite to clip variables of a problem.
 
@@ -26,9 +28,6 @@ class ClipComposite(ComposedSampler):
     Args:
        sampler (:class:`dimod.Sampler`):
             A dimod sampler.
-
-    .. versionadded:: 0.6.8
-        Support for context manager protocol and :meth:`.close` method.
 
     Examples:
        This example uses :class:`.ClipComposite` to instantiate a

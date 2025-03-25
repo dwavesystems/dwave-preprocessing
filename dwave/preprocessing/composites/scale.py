@@ -18,6 +18,8 @@ from dimod.sampleset import SampleSet
 
 __all__ = ['ScaleComposite']
 
+# versionadded (0.6.8) to the __init__ file for context manager
+
 class ScaleComposite(ComposedSampler):
     """Composite that scales variables of a problem.
 
@@ -27,9 +29,6 @@ class ScaleComposite(ComposedSampler):
     Args:
        sampler (:class:`dimod.Sampler`):
             A dimod sampler.
-
-    .. versionadded:: 0.6.8
-        Support for context manager protocol and :meth:`.close` method.
 
     Examples:
        This example uses :class:`.ScaleComposite` to instantiate a

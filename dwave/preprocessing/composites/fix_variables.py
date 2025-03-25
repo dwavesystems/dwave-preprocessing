@@ -23,6 +23,8 @@ from dwave.preprocessing.lower_bounds import roof_duality
 
 __all__ = ['FixVariablesComposite']
 
+# versionadded (0.6.8) to the __init__ file for context manager
+
 class FixVariablesComposite(ComposedSampler):
     """Composite to fix variables of a problem to provided.
 
@@ -44,9 +46,6 @@ class FixVariablesComposite(ComposedSampler):
             ``strict`` may be passed in a call to `.sample()` to determine what
             variables the algorithm will fix. For details, see 
             :func:`~dwave.preprocessing.lower_bounds.roof_duality`.
-
-    .. versionadded:: 0.6.8
-        Support for context manager protocol and :meth:`.close` method.
 
     Examples:
        This example uses the :class:`.FixVariablesComposite` to instantiate a
