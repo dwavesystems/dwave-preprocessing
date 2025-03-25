@@ -1,4 +1,4 @@
-dimod==0.12.17
+dimod==0.12.20
 oldest-supported-numpy; python_version < '3.13'
 numpy==2.1.0; python_version >= '3.13'
 

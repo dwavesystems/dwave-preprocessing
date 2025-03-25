@@ -12,6 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+The *dwave-preprocessing* package includes several composites.
+
+.. versionadded:: 0.6.8
+    Support for context manager protocol and
+    :meth:`~dimod.core.composite.Composite.close` method.
+
+Context-manager usage pattern is recommended for samplers and composites
+that allocate scope-bound resources, such as
+:class:`~dwave.system.samplers.DWaveSampler`.
+
+>>> with ClipComposite(DWaveSampler()) as sampler:      # doctest: +SKIP
+...     sampler.sample(...)
+"""
+
 from dwave.preprocessing.composites.clip import *
 from dwave.preprocessing.composites.connected_components import *
 from dwave.preprocessing.composites.fix_variables import *

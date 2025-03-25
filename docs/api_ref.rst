@@ -7,9 +7,10 @@ API Reference
 Composites
 ==========
 
-The `dwave-preprocessing` package includes several composites.
-
 .. currentmodule:: dwave.preprocessing.composites
+
+.. automodule:: dwave.preprocessing.composites.__init__
+    :no-index:
 
 Clip
 ----
