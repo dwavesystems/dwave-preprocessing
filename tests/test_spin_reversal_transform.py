@@ -18,6 +18,7 @@ import dimod
 import numpy as np
 
 from dwave.preprocessing.composites import SpinReversalTransformComposite
+from dwave.system.testing import MockDWaveSampler
 
 
 @dimod.testing.load_sampler_bqm_tests(SpinReversalTransformComposite(dimod.ExactSolver()))
@@ -45,8 +46,7 @@ class TestSpinTransformComposite(unittest.TestCase):
         
         sampler = SpinReversalTransformComposite(dimod.RandomSampler())
         bqm = dimod.BinaryQuadraticModel('SPIN')
-        sampleset = sampler.sample(bqm,num_spin_reversals=1)
-        print(sampleset)
+        sampleset = sampler.sample(bqm, num_spin_reversals=1)
         self.assertEqual(len(sampleset.variables), 0)
         
     def test_concatenation_stripping(self):
@@ -211,3 +211,16 @@ class TestSpinTransformComposite(unittest.TestCase):
         sampleset = sampler.sample(bqm, num_spin_reversal_transforms=10)
 
         self.assertEqual(len(sampleset.aggregate()), 4)
+
+    def test_propagation_of_info(self):
+        # NB: info is not propagated when num_spin_reversal_transforms is 
+        # greater than 1, as a best general aggregation method is not obvious.
+        
+        sampler = SpinReversalTransformComposite(MockDWaveSampler())
+
+        bqm = dimod.BinaryQuadraticModel(
+            {sampler.child.nodelist[0]: 1}, {sampler.child.edgelist[0]: 1}, 0, 'SPIN')
+        
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=1)
+
+        self.assertTrue(hasattr(sampleset,'info'))
