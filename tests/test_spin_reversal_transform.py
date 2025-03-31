@@ -18,7 +18,6 @@ import dimod
 import numpy as np
 
 from dwave.preprocessing.composites import SpinReversalTransformComposite
-from dwave.system.testing import MockDWaveSampler
 
 
 @dimod.testing.load_sampler_bqm_tests(SpinReversalTransformComposite(dimod.ExactSolver()))
