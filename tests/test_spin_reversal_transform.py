@@ -215,12 +215,12 @@ class TestSpinTransformComposite(unittest.TestCase):
     def test_propagation_of_info(self):
         # NB: info is not propagated when num_spin_reversal_transforms is 
         # greater than 1, as a best general aggregation method is not obvious.
-        
-        sampler = SpinReversalTransformComposite(MockDWaveSampler())
+
+        sampler = SpinReversalTransformComposite(dimod.ExactSolver())
 
         bqm = dimod.BinaryQuadraticModel(
-            {sampler.child.nodelist[0]: 1}, {sampler.child.edgelist[0]: 1}, 0, 'SPIN')
-        
+            {0: 1}, {(0,1): 1}, 0, 'SPIN')
+
         sampleset = sampler.sample(bqm, num_spin_reversal_transforms=1)
 
         self.assertTrue(hasattr(sampleset,'info'))
