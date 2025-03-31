@@ -19,27 +19,21 @@
 dwave-preprocessing
 ===================
 
-.. index-start-marker
+.. start_preprocessing_about
 
 `dwave-preprocessing` provides preprocessing tools for binary quadratic models
 (BQM) and presolve algorithms for constrained quadratic models (CQM).
 
-.. code-block:: python
+This package contains several preprocessing composites that can aid in solving
+BQMs and a presolver that can reduce a problem's redundant variables and
+constraints to improve the accuracy of CQMs. For details on underlying
+algorithms and usage, see the
+`documentation <https://docs.dwavequantum.com/en/latest/index.html>`_.
 
-    import dwave.preprocessing
-
-This package contains several preprocessing composites that can aid in solving 
-BQMs and a presolver that can reduce a problem's redundant variables and 
-constraints to improve the accuracy of CQMs. For details on underlying 
-algorithms and usage, see the package's
-`Reference Documentation <https://docs.ocean.dwavesys.com/en/stable/docs_preprocessing/reference/>`_.
-
-.. index-end-marker
+.. end_preprocessing_about
 
 Installation
 ============
-
-.. installation-start-marker
 
 Install from a package on PyPI:
 
@@ -55,8 +49,6 @@ or install from source:
     python setup.py build_ext --inplace
     python setup.py install
 
-.. installation-end-marker
-
 License
 =======
 
@@ -65,17 +57,17 @@ Released under the Apache License 2.0. See `<LICENSE>`_ file.
 Contributing
 ============
 
-Ocean's `contributing guide <https://docs.ocean.dwavesys.com/en/stable/contributing.html>`_
+Ocean's `contributing guide <https://docs.dwavequantum.com/en/latest/ocean/contribute.html>`_
 has guidelines for contributing to Ocean packages.
 
 Release Notes
 -------------
 
-**dwave-preprocessing** makes use of `reno <https://docs.openstack.org/reno/>`_ to manage its
-release notes.
+**dwave-preprocessing** makes use of `reno <https://docs.openstack.org/reno/>`_
+to manage its release notes.
 
-When making a contribution to **dwave-preprocessing** that will affect users, create a new
-release note file by running
+When making a contribution to **dwave-preprocessing** that will affect users,
+create a new release note file by running
 
 .. code-block:: bash
 

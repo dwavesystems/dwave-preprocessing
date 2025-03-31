@@ -17,12 +17,14 @@ import typing
 import dimod
 import numpy as np
 
-from dimod import Vartype
+from dimod import Vartype, ComposedSampler
 
 __all__ = ['SpinReversalTransformComposite']
 
 
-class SpinReversalTransformComposite(dimod.core.Sampler, dimod.core.Composite):
+# versionadded (0.6.8) to the __init__ file for context manager
+
+class SpinReversalTransformComposite(ComposedSampler):
     """Composite for applying spin reversal transform preprocessing.
 
     A spin-reversal transform can improve sample statistics when the 

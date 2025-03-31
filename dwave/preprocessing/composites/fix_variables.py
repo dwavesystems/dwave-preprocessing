@@ -23,6 +23,8 @@ from dwave.preprocessing.lower_bounds import roof_duality
 
 __all__ = ['FixVariablesComposite']
 
+# versionadded (0.6.8) to the __init__ file for context manager
+
 class FixVariablesComposite(ComposedSampler):
     """Composite to fix variables of a problem to provided.
 

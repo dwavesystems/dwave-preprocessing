@@ -18,6 +18,8 @@ from dimod.sampleset import SampleSet
 
 __all__ = ['ScaleComposite']
 
+# versionadded (0.6.8) to the __init__ file for context manager
+
 class ScaleComposite(ComposedSampler):
     """Composite that scales variables of a problem.
 
