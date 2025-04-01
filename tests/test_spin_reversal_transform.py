@@ -32,7 +32,6 @@ class TestSpinTransformComposite(unittest.TestCase):
 
     def test_NullSampler_composition(self):
         # Check NullSampler() works, this was a reported bug.
-
         sampler = SpinReversalTransformComposite(dimod.NullSampler())
         sampleset = sampler.sample_ising({'a': 1}, {}, num_spin_reversal_transforms=1)
 
@@ -41,6 +40,14 @@ class TestSpinTransformComposite(unittest.TestCase):
 
         self.assertTrue(len(sampleset) == 0)
 
+    def test_empty_bqm_composition(self):
+        # Check NullSampler() works, this was a reported bug.
+        
+        sampler = SpinReversalTransformComposite(dimod.RandomSampler())
+        bqm = dimod.BinaryQuadraticModel('SPIN')
+        sampleset = sampler.sample(bqm, num_spin_reversals=1)
+        self.assertEqual(len(sampleset.variables), 0)
+        
     def test_concatenation_stripping(self):
         # Check samplesets are not stripped of information
         # under default operation
@@ -203,3 +210,23 @@ class TestSpinTransformComposite(unittest.TestCase):
         sampleset = sampler.sample(bqm, num_spin_reversal_transforms=10)
 
         self.assertEqual(len(sampleset.aggregate()), 4)
+
+    def test_propagation_of_info(self):
+        # NB: info is not propagated when num_spin_reversal_transforms is 
+        # greater than 1, as a best general aggregation method is not obvious.
+        class InfoRichSampler:
+            @staticmethod
+            def sample(bqm):
+                ss = dimod.ExactSolver().sample(bqm).lowest()
+                ss.info['has_some'] = True
+                return ss
+        sampler = SpinReversalTransformComposite(InfoRichSampler())
+
+        bqm = dimod.BinaryQuadraticModel(
+            {0: 1}, {(0,1): 1}, 0, 'SPIN')
+
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=1)
+
+        self.assertTrue(hasattr(sampleset,'info'))
+        self.assertEqual(sampleset.info, {'has_some': True})
+        
