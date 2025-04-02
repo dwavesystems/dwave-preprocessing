@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Propagate ``SampleSet.info`` from child sampler in ``SpinReversalTransformComposite``
+    in the unambiguous case of a single spin reversal transform.
+    See `dimod#111 <https://github.com/dwavesystems/dimod/issues/111>`_ and
+    `dwave-system#564 <https://github.com/dwavesystems/dwave-system/issues/564>`_.
