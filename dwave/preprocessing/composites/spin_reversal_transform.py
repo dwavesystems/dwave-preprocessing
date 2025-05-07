@@ -137,7 +137,8 @@ class SpinReversalTransformComposite(ComposedSampler):
 
     @dimod.decorators.nonblocking_sample_method
     def sample(self, bqm: dimod.BinaryQuadraticModel, *,
-               num_spin_reversal_transforms: int = 1,
+               srts: typing.Optional[np.ndarray] = None,
+               num_spin_reversal_transforms: typing.Optional[int] = None,
                **kwargs,
                ):
         """Sample from the binary quadratic model.
@@ -145,55 +146,90 @@ class SpinReversalTransformComposite(ComposedSampler):
         Args:
             bqm: Binary quadratic model to be sampled from.
 
+            srts: A boolean numpy array with shape (num_spin_reversal_transforms, bqm.num_variables).
+                A value 1 indicates a flip, a value 0 indicates no flip; applied to
+                in the order given by bqm.variables.
+                If this is not specified as an input values are generated uniformly
+                at random from the class pseudo-random number generator.
+
             num_spin_reversal_transforms:
                 Number of spin reversal transform runs.
                 A value of ``0`` will not transform the problem.
                 If you specify a nonzero value, each spin reversal transform
                 will result in an independent run of the child sampler.
+                If srts is set then num_spin_reversal_transforms
+                is inferred by the shape, otherwise the default is 1.
 
         Returns:
             A sample set. Note that for a sampler that returns ``num_reads`` samples,
             the sample set will contain ``num_reads*num_spin_reversal_transforms`` samples.
 
+        Raises:
+            ValueError: If srts is inconsistent with num_spin_reversal_transforms or the bqm
+
         Examples:
-            This example runs 100 spin reversals applied to one variable of a QUBO problem.
+            This example runs 10 spin reversals applied to an unfrustrated chain of length 6
+
+            Using the returned lowest energy state (the ground state) returned, we can
+            define a special SRT that transforms the programmed model to be fully anti-ferromagnetic.
 
             >>> from dimod import ExactSolver
+            >>> import numpy as np
             >>> from dwave.preprocessing.composites import SpinReversalTransformComposite
             >>> base_sampler = ExactSolver()
             >>> composed_sampler = SpinReversalTransformComposite(base_sampler)
             ...
-            >>> Q = {('a', 'a'): -1, ('b', 'b'): -1, ('a', 'b'): 2}
-            >>> response = composed_sampler.sample_qubo(Q,
-            ...               num_spin_reversal_transforms=100)
-            >>> len(response)
-            400
+            >>> num_var = 6
+            >>> num_spin_reversal_transforms = 10
+            >>> J = {(i, i+1): np.random.random() for i in range(num_var-1)}
+            >>> h = {i: 0 for i in range(num_var)}
+            >>> response = composed_sampler.sample_ising(h, J,
+            ...               num_spin_reversal_transforms=num_spin_reversal_transforms)
+            >>> len(response) == 2**num_var * num_spin_reversal_transforms
+            True
+            >>> SRT = np.array([response.first.sample[i]==1 for i in range(num_var)])
+            >>> response = composed_sampler.sample_ising(h, J,
+            ...               srts=SRT[np.newaxis,:], num_reads=1)
+            >>> sum(response.record.num_occurrences) == 2**num_var
+            True
         """
         sampler = self._child
 
         # No SRTs, so just pass the problem through
-        if not num_spin_reversal_transforms or not bqm.num_variables:
+        if num_spin_reversal_transforms==0 or not bqm.num_variables:
             sampleset = sampler.sample(bqm, **kwargs)
             # yield twice because we're using the @nonblocking_sample_method
             yield sampleset  # this one signals done()-ness
             yield sampleset  # this is the one actually used by the user
             return
 
+
+        # Get the srts matrix
+        if srts is None:
+            # We maintain the Leap behavior that num_spin_reversal_transforms == 1
+            # corresponds to a single problem with randomly flipped variables.
+            if num_spin_reversal_transforms is None:
+                num_spin_reversal_transforms = 1
+            srts = self.rng.random((num_spin_reversal_transforms, bqm.num_variables)) > .5
+        else:
+            nsrt, num_bqm_var = srts.shape
+            if num_bqm_var != bqm.num_variables:
+                raise ValueError('srt shape is inconsistent with the bqm')
+            if num_spin_reversal_transforms is not None:
+                if num_spin_reversal_transforms != nsrt:
+                    raise ValueError('srt shape is inconsistent with num_spin_reversal_transforms')
+            else:
+                num_spin_reversal_transforms = nsrt
         # we'll be modifying the BQM, so make a copy
         bqm = bqm.copy()
 
-        # We maintain the Leap behavior that num_spin_reversal_transforms == 1
-        # corresponds to a single problem with randomly flipped variables.
-
-        # Get the SRT matrix
-        SRT = self.rng.random((num_spin_reversal_transforms, bqm.num_variables)) > .5
 
         # Submit the problems
         samplesets: typing.List[dimod.SampleSet] = []
         flipped = np.zeros(bqm.num_variables, dtype=bool)  # what variables are currently flipped
         for i in range(num_spin_reversal_transforms):
             # determine what needs to be flipped
-            transform = flipped != SRT[i, :]
+            transform = flipped != srts[i, :]
 
             # apply the transform
             for v, flip in zip(bqm.variables, transform):
@@ -213,10 +249,10 @@ class SpinReversalTransformComposite(ComposedSampler):
         # Undo the SRTs according to vartype
         if bqm.vartype is Vartype.BINARY:
             for i, sampleset in enumerate(samplesets):
-                sampleset.record.sample[:, SRT[i, :]] = 1 - sampleset.record.sample[:, SRT[i, :]]
+                sampleset.record.sample[:, srts[i, :]] = 1 - sampleset.record.sample[:, srts[i, :]]
         elif bqm.vartype is Vartype.SPIN:
             for i, sampleset in enumerate(samplesets):
-                sampleset.record.sample[:, SRT[i, :]] *= -1
+                sampleset.record.sample[:, srts[i, :]] *= -1
         else:
             raise RuntimeError("unexpected vartype")
         if num_spin_reversal_transforms == 1:

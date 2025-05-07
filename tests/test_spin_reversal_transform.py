@@ -19,7 +19,6 @@ import numpy as np
 
 from dwave.preprocessing.composites import SpinReversalTransformComposite
 
-
 @dimod.testing.load_sampler_bqm_tests(SpinReversalTransformComposite(dimod.ExactSolver()))
 class TestSpinTransformComposite(unittest.TestCase):
     def test_instantiation(self):
@@ -151,7 +150,6 @@ class TestSpinTransformComposite(unittest.TestCase):
         ss1 = SpinReversalTransformComposite(Sampler(), seed=42).sample(bqm)
         ss2 = SpinReversalTransformComposite(Sampler(), seed=42).sample(bqm)
         ss3 = SpinReversalTransformComposite(Sampler(), seed=35).sample(bqm)
-
         self.assertTrue((ss1.record == ss2.record).all())
         self.assertFalse((ss1.record == ss3.record).all())
 
@@ -230,3 +228,42 @@ class TestSpinTransformComposite(unittest.TestCase):
         self.assertTrue(hasattr(sampleset,'info'))
         self.assertEqual(sampleset.info, {'has_some': True})
         
+    def test_srts_arugment(self):
+        # All 1 ground state
+        class Sampler:
+            def sample(self, bqm):
+                return dimod.SampleSet.from_samples_bqm([-1] * bqm.num_variables, bqm)
+        num_var = 10
+        bqm = dimod.BinaryQuadraticModel(
+            {i: -1 for i in range(num_var)}, {}, 0, 'SPIN')  
+        
+        sampler = Sampler()
+        ss = sampler.sample(bqm)
+        samples = ss.record.sample
+        sampler = SpinReversalTransformComposite(sampler)
+        srts = np.zeros(shape=(1, num_var), dtype=bool)  # 
+        ss = sampler.sample(bqm, srts=srts)
+        self.assertTrue(np.all(ss.record.sample == samples),
+                        "Neutral srts leaves result unpermuted.")
+        
+        srts = np.ones(shape=(1, num_var), dtype=bool)
+        ss = sampler.sample(bqm, srts=srts)
+        self.assertTrue(np.all(ss.record.sample == -samples),
+                        "Flip-all srts inverts the order")
+
+        ss = sampler.sample(bqm, srts=srts, num_spin_reversal_transforms=0)
+        self.assertTrue(np.all(ss.record.sample == samples),
+                        "srts should be ignored when num_spin_reversal_transforms=0")
+        
+        num_spin_reversal_transforms = 3
+        srts = np.unique(np.random.random(size=(num_spin_reversal_transforms, num_var)) > 0.5, axis=0)
+        
+        ss = sampler.sample(bqm, srts=srts)
+        self.assertEqual(np.sum(ss.record.num_occurrences), srts.shape[0],
+                         "Apply 3 srtss")
+        self.assertTrue(np.all(srts == (ss.record.sample==1)))
+        
+        with self.assertRaises(ValueError):
+            # Inconsistent arguments
+            ss = sampler.sample(bqm, srts=srts, num_spin_reversal_transforms=num_spin_reversal_transforms+1)
+            
