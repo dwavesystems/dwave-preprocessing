@@ -171,7 +171,8 @@ class SpinReversalTransformComposite(ComposedSampler):
             This example runs 10 spin reversals applied to an unfrustrated chain of length 6
 
             Using the returned lowest energy state (the ground state) returned, we can
-            define a special SRT that transforms the programmed model to be fully anti-ferromagnetic.
+            define a special SRT that transforms all programmed couplers to be ferromagnetic 
+            (ground state to all 1).
 
             >>> from dimod import ExactSolver
             >>> import numpy as np
@@ -187,7 +188,7 @@ class SpinReversalTransformComposite(ComposedSampler):
             ...               num_spin_reversal_transforms=num_spin_reversal_transforms)
             >>> len(response) == 2**num_var * num_spin_reversal_transforms
             True
-            >>> SRT = np.array([response.first.sample[i]==1 for i in range(num_var)])
+            >>> SRT = np.array([response.first.sample[i]!=1 for i in range(num_var)])
             >>> response = composed_sampler.sample_ising(h, J,
             ...               srts=SRT[np.newaxis,:], num_reads=1)
             >>> sum(response.record.num_occurrences) == 2**num_var
