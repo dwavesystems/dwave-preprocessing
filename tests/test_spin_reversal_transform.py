@@ -228,7 +228,7 @@ class TestSpinTransformComposite(unittest.TestCase):
         self.assertTrue(hasattr(sampleset,'info'))
         self.assertEqual(sampleset.info, {'has_some': True})
         
-    def test_srts_arugment(self):
+    def test_srts_argument(self):
         # All 1 ground state
         class Sampler:
             def sample(self, bqm):

@@ -147,7 +147,7 @@ class SpinReversalTransformComposite(ComposedSampler):
             bqm: Binary quadratic model to be sampled from.
 
             srts: A boolean numpy array with shape (num_spin_reversal_transforms, bqm.num_variables).
-                A value 1 indicates a flip, a value 0 indicates no flip; applied to
+                True indicates a flip and False indicates no flip; applied to
                 in the order given by bqm.variables.
                 If this is not specified as an input values are generated uniformly
                 at random from the class pseudo-random number generator.
@@ -170,7 +170,7 @@ class SpinReversalTransformComposite(ComposedSampler):
         Examples:
             This example runs 10 spin reversals applied to an unfrustrated chain of length 6
 
-            Using the returned lowest energy state (the ground state) returned, we can
+            Using the lowest energy (ground) state returned, we can
             define a special SRT that transforms all programmed couplers to be ferromagnetic 
             (ground state to all 1).
 
@@ -182,22 +182,22 @@ class SpinReversalTransformComposite(ComposedSampler):
             ...
             >>> num_var = 6
             >>> num_spin_reversal_transforms = 10
-            >>> J = {(i, i+1): np.random.random() for i in range(num_var-1)}
+            >>> J = {(i, i+1): np.random.choice([-1,1]) for i in range(num_var-1)}
             >>> h = {i: 0 for i in range(num_var)}
             >>> response = composed_sampler.sample_ising(h, J,
             ...               num_spin_reversal_transforms=num_spin_reversal_transforms)
             >>> len(response) == 2**num_var * num_spin_reversal_transforms
             True
-            >>> SRT = np.array([response.first.sample[i]!=1 for i in range(num_var)])
+            >>> srts = np.array([[response.first.sample[i] != 1 for i in range(num_var)]])
             >>> response = composed_sampler.sample_ising(h, J,
-            ...               srts=SRT[np.newaxis,:], num_reads=1)
+            ...               srts=srts, num_reads=1)
             >>> sum(response.record.num_occurrences) == 2**num_var
             True
         """
         sampler = self._child
 
         # No SRTs, so just pass the problem through
-        if num_spin_reversal_transforms==0 or not bqm.num_variables:
+        if num_spin_reversal_transforms == 0 or not bqm.num_variables:
             sampleset = sampler.sample(bqm, **kwargs)
             # yield twice because we're using the @nonblocking_sample_method
             yield sampleset  # this one signals done()-ness
