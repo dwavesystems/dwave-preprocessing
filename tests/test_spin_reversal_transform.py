@@ -245,15 +245,16 @@ class TestSpinTransformComposite(unittest.TestCase):
         ss = sampler.sample(bqm, srts=srts)
         self.assertTrue(np.all(ss.record.sample == samples),
                         "Neutral srts leaves result unpermuted.")
+
+        ss = sampler.sample(bqm, srts=np.empty(shape=(0, num_var)))
+        self.assertTrue(np.all(ss.record.sample == samples),
+                        "Empty srts also allows pass through "
+                        "(just like num_spin_reversals=0).")
         
         srts = np.ones(shape=(1, num_var), dtype=bool)
         ss = sampler.sample(bqm, srts=srts)
         self.assertTrue(np.all(ss.record.sample == -samples),
                         "Flip-all srts inverts the order")
-
-        ss = sampler.sample(bqm, srts=srts, num_spin_reversal_transforms=0)
-        self.assertTrue(np.all(ss.record.sample == samples),
-                        "srts should be ignored when num_spin_reversal_transforms=0")
         
         num_spin_reversal_transforms = 3
         srts = np.unique(np.random.random(size=(num_spin_reversal_transforms, num_var)) > 0.5, axis=0)
@@ -267,3 +268,5 @@ class TestSpinTransformComposite(unittest.TestCase):
             # Inconsistent arguments
             ss = sampler.sample(bqm, srts=srts, num_spin_reversal_transforms=num_spin_reversal_transforms+1)
             
+
+        

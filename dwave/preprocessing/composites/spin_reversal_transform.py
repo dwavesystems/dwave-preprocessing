@@ -196,23 +196,7 @@ class SpinReversalTransformComposite(ComposedSampler):
         """
         sampler = self._child
 
-        # No SRTs, so just pass the problem through
-        if num_spin_reversal_transforms == 0 or not bqm.num_variables:
-            sampleset = sampler.sample(bqm, **kwargs)
-            # yield twice because we're using the @nonblocking_sample_method
-            yield sampleset  # this one signals done()-ness
-            yield sampleset  # this is the one actually used by the user
-            return
-
-
-        # Get the srts matrix
-        if srts is None:
-            # We maintain the Leap behavior that num_spin_reversal_transforms == 1
-            # corresponds to a single problem with randomly flipped variables.
-            if num_spin_reversal_transforms is None:
-                num_spin_reversal_transforms = 1
-            srts = self.rng.random((num_spin_reversal_transforms, bqm.num_variables)) > .5
-        else:
+        if srts is not None:
             nsrt, num_bqm_var = srts.shape
             if num_bqm_var != bqm.num_variables:
                 raise ValueError('srt shape is inconsistent with the bqm')
@@ -221,9 +205,22 @@ class SpinReversalTransformComposite(ComposedSampler):
                     raise ValueError('srt shape is inconsistent with num_spin_reversal_transforms')
             else:
                 num_spin_reversal_transforms = nsrt
+        elif num_spin_reversal_transforms is None:
+            num_spin_reversal_transforms = 1
+
+        # No SRTs, so just pass the problem through
+        if num_spin_reversal_transforms == 0 or not bqm.num_variables:
+            sampleset = sampler.sample(bqm, **kwargs)
+            # yield twice because we're using the @nonblocking_sample_method
+            yield sampleset  # this one signals done()-ness
+            yield sampleset  # this is the one actually used by the user
+            return
+
+        if srts is None:
+            srts = self.rng.random((num_spin_reversal_transforms, bqm.num_variables)) > .5
+
         # we'll be modifying the BQM, so make a copy
         bqm = bqm.copy()
-
 
         # Submit the problems
         samplesets: typing.List[dimod.SampleSet] = []
