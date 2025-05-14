@@ -1,0 +1,6 @@
+---
+prelude: >
+    Add srts option to SpinReversalTransformComposite
+features:
+  - |
+    Allow non-random specification of spin reversal transforms

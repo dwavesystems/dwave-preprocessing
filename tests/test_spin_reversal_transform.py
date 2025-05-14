@@ -44,7 +44,7 @@ class TestSpinTransformComposite(unittest.TestCase):
         
         sampler = SpinReversalTransformComposite(dimod.RandomSampler())
         bqm = dimod.BinaryQuadraticModel('SPIN')
-        sampleset = sampler.sample(bqm, num_spin_reversals=1)
+        sampleset = sampler.sample(bqm, num_spin_reversal_transforms=1)
         self.assertEqual(len(sampleset.variables), 0)
         
     def test_concatenation_stripping(self):
@@ -72,12 +72,13 @@ class TestSpinTransformComposite(unittest.TestCase):
         sampler = SpinReversalTransformComposite(dimod.RandomSampler())
         for num_spin_reversal_transforms in [1, 2]:
             for num_reads in [1, 3]:
-                sampleset = sampler.sample_ising(
-                    {0: 1}, {},
-                    num_spin_reversal_transforms=num_spin_reversal_transforms,
+                with self.subTest(f'{num_reads} {num_spin_reversal_transforms}'):
+                    sampleset = sampler.sample_ising(
+                        {0: 1}, {},
+                        num_spin_reversal_transforms=num_spin_reversal_transforms,
                     num_reads=num_reads)
-                self.assertTrue(sum(sampleset.record.num_occurrences) ==
-                                num_reads*num_spin_reversal_transforms)
+                    self.assertTrue(sum(sampleset.record.num_occurrences) ==
+                                    num_reads*num_spin_reversal_transforms)
 
     def test_empty(self):
         # Check that empty BQMs are handled
@@ -256,17 +257,17 @@ class TestSpinTransformComposite(unittest.TestCase):
         self.assertTrue(np.all(ss.record.sample == -samples),
                         "Flip-all srts inverts the order")
         
-        num_spin_reversal_transforms = 3
-        srts = np.unique(np.random.random(size=(num_spin_reversal_transforms, num_var)) > 0.5, axis=0)
-        
-        ss = sampler.sample(bqm, srts=srts)
-        self.assertEqual(np.sum(ss.record.num_occurrences), srts.shape[0],
-                         "Apply 3 srtss")
-        self.assertTrue(np.all(srts == (ss.record.sample==1)))
-        
-        with self.assertRaises(ValueError):
-            # Inconsistent arguments
-            ss = sampler.sample(bqm, srts=srts, num_spin_reversal_transforms=num_spin_reversal_transforms+1)
+        with self.subTest('srt shape'):
+            num_spin_reversal_transforms = 3
+            srts = np.unique(np.random.random(size=(num_spin_reversal_transforms, num_var)) > 0.5, axis=0)
+            ss = sampler.sample(bqm, srts=srts)
+            self.assertEqual(np.sum(ss.record.num_occurrences), srts.shape[0],
+                             "Apply 3 srtss")
+            self.assertTrue(np.all(srts == (ss.record.sample==1)))
+            
+            with self.assertRaises(ValueError):
+                # Inconsistent arguments
+                ss = sampler.sample(bqm, srts=srts, num_spin_reversal_transforms=num_spin_reversal_transforms+1)
             
 
         
