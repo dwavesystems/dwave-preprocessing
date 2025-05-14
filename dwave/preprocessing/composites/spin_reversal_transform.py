@@ -146,9 +146,10 @@ class SpinReversalTransformComposite(ComposedSampler):
         Args:
             bqm: Binary quadratic model to be sampled from.
 
-            srts: A boolean numpy array with shape (num_spin_reversal_transforms, bqm.num_variables).
+            srts: A boolean NumPy array with shape
+                ``(num_spin_reversal_transforms, bqm.num_variables)``.
                 True indicates a flip and False indicates no flip; applied to
-                in the order given by bqm.variables.
+                in the order given by ``bqm.variables``.
                 If this is not specified as an input values are generated uniformly
                 at random from the class pseudo-random number generator.
 
@@ -157,7 +158,7 @@ class SpinReversalTransformComposite(ComposedSampler):
                 A value of ``0`` will not transform the problem.
                 If you specify a nonzero value, each spin reversal transform
                 will result in an independent run of the child sampler.
-                If srts is set then num_spin_reversal_transforms
+                If ``srts`` is set then ``num_spin_reversal_transforms``
                 is inferred by the shape, otherwise the default is 1.
 
         Returns:
@@ -165,13 +166,15 @@ class SpinReversalTransformComposite(ComposedSampler):
             the sample set will contain ``num_reads*num_spin_reversal_transforms`` samples.
 
         Raises:
-            ValueError: If srts is inconsistent with num_spin_reversal_transforms or the bqm
+            ValueError: If ``srts`` is inconsistent with
+            ``num_spin_reversal_transforms`` or the binary quadratic model.
 
         Examples:
-            This example runs 10 spin reversals applied to an unfrustrated chain of length 6
+            This example runs 10 spin reversals applied to an unfrustrated chain
+            of length 6.
 
-            Using the lowest energy (ground) state returned, we can
-            define a special SRT that transforms all programmed couplers to be ferromagnetic 
+            Using the lowest energy (ground) state returned, you can define a
+            special SRT that transforms all programmed couplers to be ferromagnetic 
             (ground state to all 1).
 
             >>> from dimod import ExactSolver
