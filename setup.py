@@ -14,8 +14,7 @@
 
 import os
 
-from setuptools import setup
-from setuptools.extension import Extension
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
 
 import dimod
@@ -53,8 +52,10 @@ setup(
     name='dwave-preprocessing',
     cmdclass=dict(build_ext=build_ext),
     ext_modules=cythonize(
-        ['dwave/preprocessing/cyfix_variables.pyx',
-         'dwave/preprocessing/presolve/*.pyx',
+        [Extension('dwave.preprocessing.cyfix_variables',
+                   ['dwave/preprocessing/cyfix_variables.pyx']),
+         Extension('dwave.preprocessing.presolve.cypresolve',
+                   ['dwave/preprocessing/presolve/cypresolve.pyx']),
          ],
         annotate=True,
         nthreads=int(os.getenv('CYTHON_NTHREADS', 0)),
