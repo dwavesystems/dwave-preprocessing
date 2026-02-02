@@ -7,10 +7,10 @@ API Reference
 Composites
 ==========
 
-.. currentmodule:: dwave.preprocessing.composites
-
 .. automodule:: dwave.preprocessing.composites.__init__
     :no-index:
+
+.. currentmodule:: dwave.preprocessing.composites
 
 Clip
 ----

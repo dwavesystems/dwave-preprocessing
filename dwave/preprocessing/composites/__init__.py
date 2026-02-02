@@ -17,7 +17,7 @@ The *dwave-preprocessing* package includes several composites.
 
 .. versionadded:: 0.6.8
     Support for context manager protocol and
-    :meth:`~dimod.core.composite.Composite.close` method.
+    :meth:`~dimod.Composite.close` method.
 
 Context-manager usage pattern is recommended for samplers and composites
 that allocate scope-bound resources, such as
