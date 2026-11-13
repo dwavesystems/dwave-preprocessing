@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Fix ``roof_duality()`` returning variable assignments under the wrong labels
+    when the binary quadratic model's variables are the integers ``0..n-1`` but
+    are not stored in that order.
+  - |
+    Fix ``roof_duality(..., strict=False)`` returning an assignment that does not
+    attain the ground state. Previously a strongly connected component could be
+    fixed after its complement had already been fixed, overwriting the earlier
+    assignment.

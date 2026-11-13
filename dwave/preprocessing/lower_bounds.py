@@ -74,7 +74,7 @@ def roof_duality(bqm, *, strict=True):
 
     linear = bqm_.linear
 
-    if all(v in linear for v in range(len(bqm_))):
+    if all(v == i for i, v in enumerate(bqm_.variables)):
         # we can work with the binary form of the bqm directly
         lower_bound, fixed = fix_variables_wrapper(bqm_, strict)
     else:

@@ -613,6 +613,11 @@ capacity_t ImplicationNetwork<capacity_t>::fixStrongAndWeakVariables(
 
   while (!component_queue.empty()) {
     int component = component_queue.pop();
+    // Skip stale entries: the component (or its complement) was already fixed,
+    // or it was enqueued before all of its successors were fixed.
+    if (out_degrees[component] != 0) {
+      continue;
+    }
     fixStronglyConnectedComponentVariables(
         component, scc_info, adjacency_list_components_transposed, out_degrees,
         fixed_variables, component_queue, true);
