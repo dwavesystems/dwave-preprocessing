@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    Stop releasing ``manylinux2014``/``manylinux_2_17`` wheels in favor of
+    ``manylinux_2_28``.
