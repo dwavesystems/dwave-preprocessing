@@ -50,7 +50,7 @@ def fix_variables_wrapper(bqm, strict):
 
     if bqm.vartype is not dimod.BINARY:
         raise ValueError("bqm must be BINARY")
-    if not all(v in bqm.linear for v in range(len(bqm))):
+    if not all(v == i for i, v in enumerate(bqm.variables)):
         raise ValueError("bqm must be linearly indexed")
 
     cdef cyBQM_float64 cybqm = bqm.data
