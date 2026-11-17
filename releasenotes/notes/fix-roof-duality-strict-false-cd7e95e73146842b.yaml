@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Fix ``roof_duality()`` with ``strict=False``. Previously it could fix
+    variables to values that no minimizing solution has, and could result in
+    memory errors.
