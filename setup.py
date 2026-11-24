@@ -65,7 +65,7 @@ setup(
         'extern/spdlog/include/',
         ],
     install_requires=[
-        'numpy>=1.21.6,<3.0.0',  # this is the oldest supported NumPy on Python 3.10
+        'numpy>=1.23.2,<3.0.0',     # this is the oldest supported NumPy on Python 3.11
         'dimod>=0.12.21,<0.13.0'
         ],
 )
