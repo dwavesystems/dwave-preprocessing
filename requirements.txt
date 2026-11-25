@@ -1,10 +1,15 @@
-dimod==0.12.21
+# oldest supported, per python version
+dimod==0.12.21; python_version<'3.15'   # oldest we support
+dimod==0.12.23; python_version>='3.15'  # first that supports Python 3.15
+
 oldest-supported-numpy; python_version < '3.13'
-numpy==2.1.0; python_version >= '3.13'
+numpy==2.1.0; python_version~='3.13.0'
+numpy==2.3.2; python_version~='3.14.0'
+numpy==2.5.2; python_version>='3.15'
 
 # build
 Cython==3.0.10
 wheel>=0.30.0
 setuptools>=56.2.0
 
-reno==3.5.0  # for changelog
+reno==4.1.0  # for changelog

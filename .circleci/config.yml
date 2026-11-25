@@ -10,7 +10,7 @@ commands:
     parameters:
       cibw-version:
         type: string
-        default: 3.1.2
+        default: 4.3.5    # latest as of November 2026
     steps:
       - run:
           name: run cibuildwheel
@@ -76,7 +76,6 @@ jobs:
 
     macos:
       xcode: 16.4.0
-    resource_class: m4pro.medium
 
     environment:
       <<: *global-environment
@@ -220,8 +219,6 @@ jobs:
     parameters:
       python-version:
         type: string
-      dependency-versions:
-        type: string
 
     docker:
       - image: python:<< parameters.python-version >>-slim
@@ -230,13 +227,20 @@ jobs:
       - checkout
       - attach_workspace:
           at: dist
+
       - run:
-          name: install
+          name: select wheel
+          command: |
+            pip download --no-index --no-deps --only-binary=:all: \
+              -f dist --dest /tmp/wheel dwave-preprocessing
+
+      - run:
+          name: install oldest
           command: |
             python -m venv env
             . env/bin/activate
-            pip install << parameters.dependency-versions >> --upgrade --only-binary=dimod,numpy
-            pip install dwave-preprocessing --no-index -f dist/ --no-deps --force-reinstall
+            pip install -r requirements.txt /tmp/wheel/*.whl
+
       - run: &unix-run-tests
           name: run tests
           command: |
@@ -244,6 +248,14 @@ jobs:
             cd tests/
             pip install -r requirements.txt
             python -m unittest
+
+      - run:
+          name: upgrade dependencies to latest
+          command: |
+            . env/bin/activate
+            pip install --upgrade --upgrade-strategy=eager /tmp/wheel/*.whl
+
+      - run: *unix-run-tests
 
   test-linux-cpp11:
     docker:
@@ -295,7 +307,7 @@ workflows:
       - build-and-test-linux: &build
           matrix:
             parameters:
-              python-version: &python-versions [3.10.0, 3.11.0, 3.12.0, 3.13.0, 3.14.0]
+              python-version: &python-versions [3.11.0, 3.12.0, 3.13.0, 3.14.0, 3.15.0]
       - build-and-test-linux-aarch64: *build
       - build-and-test-osx: *build
       - build-and-test-windows: *build
@@ -303,13 +315,10 @@ workflows:
       - test-codecov
       - test-doctest
       - test-dependencies:
-          name: test-dependencies - << matrix.dependency-versions >> - py << matrix.python-version >>
           requires:
             - build-and-test-linux
           matrix:
             parameters:
-              # test the lowest and highest for each dependency
-              dependency-versions: [dimod==0.12.21 oldest-supported-numpy, dimod numpy]
               python-version: *python-versions
       - test-linux-cpp11
       - test-sdist:

@@ -3,7 +3,8 @@ requires = [
     "setuptools>=46.4.0",
     "wheel>=0.30.0",
     "Cython~=3.0",
-    "dimod==0.12.21",
+    "dimod==0.12.21; python_version<'3.15'",    # oldest we support
+    "dimod==0.12.23; python_version>='3.15'",   # first that supports Python 3.15
 ]
 build-backend = "setuptools.build_meta"
 
